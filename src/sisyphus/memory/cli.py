@@ -5,11 +5,25 @@ import sys
 from pathlib import Path
 
 from sisyphus.memory.store import MemoryStore
+from sisyphus.memory.refined import RefinedStore
+from sisyphus.memory.moc import MocGenerator
+from sisyphus.memory.log import LogStore
+
+
+def _base() -> Path:
+    return Path.home() / ".omo"
 
 
 def _store() -> MemoryStore:
-    base = Path.home() / ".omo" / "memory"
-    return MemoryStore(base_path=base)
+    return MemoryStore(base_path=_base() / "memory")
+
+
+def _refined_store() -> RefinedStore:
+    return RefinedStore(base_path=_base() / "memory")
+
+
+def _log_store() -> LogStore:
+    return LogStore(base_path=_base())
 
 
 def cmd_record(args):
@@ -20,7 +34,7 @@ def cmd_record(args):
         content=args.content or "",
         tags=args.tags.split(",") if args.tags else [],
     )
-    print(f"✓ Recorded {mem.id}: {mem.title}")
+    print(f"Recorded {mem.id}: {mem.title}")
 
 
 def cmd_search(args):
@@ -62,6 +76,9 @@ def cmd_show(args):
     store = _store()
     mem = store.get(args.id)
     if not mem:
+        rstore = _refined_store()
+        mem = rstore.get_refined(args.id)
+    if not mem:
         print(f"Memory not found: {args.id}")
         return
     print(f"ID:        {mem.id}")
@@ -70,6 +87,18 @@ def cmd_show(args):
     print(f"Created:   {mem.created_at[:19].replace('T', ' ') if mem.created_at else ''}")
     print(f"Updated:   {mem.updated_at[:19].replace('T', ' ') if mem.updated_at else ''}")
     print(f"Tags:      {', '.join(mem.tags) if mem.tags else '(none)'}")
+    print(f"Importance: {mem.importance}")
+    print(f"Status:    {mem.status}")
+    if mem.links:
+        print(f"Links:     {', '.join(mem.links)}")
+    if mem.evidence:
+        print(f"Evidence:  {', '.join(mem.evidence)}")
+    if mem.compressed_from:
+        print(f"From:      {', '.join(mem.compressed_from)}")
+    if mem.trigger:
+        print(f"Trigger:   {mem.trigger}")
+    if mem.repeat_count:
+        print(f"Loop:      {mem.repeat_count}x {mem.repeat_pattern}")
     if mem.content:
         print(f"\n{mem.content}")
 
@@ -77,19 +106,24 @@ def cmd_show(args):
 def cmd_forget(args):
     store = _store()
     store.delete(args.id)
-    print(f"✗ Forgotten: {args.id}")
+    print(f"Forgotten: {args.id}")
 
 
 def cmd_stats(args):
     store = _store()
+    rstore = _refined_store()
     memories = store.list()
-    if not memories:
+    refined = rstore.list_refined()
+    if not memories and not refined:
         print("Memory store is empty.")
         return
     by_type = {}
     for m in memories:
         by_type[m.type] = by_type.get(m.type, 0) + 1
-    print(f"Total memories: {len(memories)}")
+    for m in refined:
+        by_type[m.type] = by_type.get(m.type, 0) + 1
+    total = len(memories) + len(refined)
+    print(f"Total memories: {total} (RAW: {len(memories)}, Refined: {len(refined)})")
     print(f"Store:         {store.base_path}")
     print()
     for t, count in sorted(by_type.items()):
@@ -107,7 +141,40 @@ def cmd_snapshot(args):
     print(snap.build(query=args.query))
 
 
-def main():
+def cmd_index(args):
+    store = _store()
+    rstore = _refined_store()
+    gen = MocGenerator(store, refined_store=rstore)
+    gen.generate()
+    print(f"INDEX.md updated at {store.base_path / 'INDEX.md'}")
+
+
+def cmd_log(args):
+    lstore = _log_store()
+    limit = args.limit or 10
+    logs = lstore.list_logs()[:limit]
+    if not logs:
+        print("No logs found.")
+        return
+    for log in logs:
+        started = log.started[:19].replace("T", " ") if log.started else ""
+        print(f"  [{log.id}] {log.command:15s} | {started} | {log.status}")
+
+
+def cmd_refined(args):
+    rstore = _refined_store()
+    type_filter = args.type
+    mems = rstore.list_refined(type_filter=type_filter)
+    if not mems:
+        print("No refined memories found.")
+        return
+    for m in mems:
+        created = m.created_at[:19].replace("T", " ") if m.created_at else ""
+        tags = f" [{', '.join(m.tags)}]" if m.tags else ""
+        print(f"  [{m.id}] {m.type:20s} | {created} | {m.title}{tags}")
+
+
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Sisyphus memory management")
     sub = parser.add_subparsers(dest="command")
 
@@ -136,6 +203,18 @@ def main():
     p_snapshot.add_argument("--max", type=int, default=5, help="Max memories")
     p_snapshot.add_argument("--max-chars", type=int, default=2000, help="Max snapshot chars")
 
+    p_index = sub.add_parser("index", help="Update INDEX.md with MOC format")
+    p_log = sub.add_parser("log", help="Show operation logs")
+    p_log.add_argument("--limit", "-l", type=int, default=10)
+
+    p_refined = sub.add_parser("refined", help="List refined memories")
+    p_refined.add_argument("--type", "-t", help="Filter by refined type")
+
+    return parser
+
+
+def main():
+    parser = build_parser()
     args = parser.parse_args()
     if args.command == "record":
         cmd_record(args)
@@ -151,6 +230,12 @@ def main():
         cmd_stats(args)
     elif args.command == "snapshot":
         cmd_snapshot(args)
+    elif args.command == "index":
+        cmd_index(args)
+    elif args.command == "log":
+        cmd_log(args)
+    elif args.command == "refined":
+        cmd_refined(args)
     else:
         parser.print_help()
         sys.exit(1)
