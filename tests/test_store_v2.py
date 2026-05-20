@@ -21,6 +21,11 @@ class TestMemoryDataclass:
         assert hasattr(mem, "session_id")
         assert mem.session_id == ""
 
+    def test_recall_fields_have_defaults(self):
+        mem = Memory(id="mem_001", type="lesson", title="T", content="C")
+        assert mem.recall_count == 0
+        assert mem.last_recalled_at == ""
+
     def test_create_memory_with_all_new_fields(self, tmp_path):
         store = MemoryStore(base_path=tmp_path / "store1")
         mem = store.create(

@@ -59,6 +59,17 @@ Available memories:
 
 User query: {query}"""
 
+CLASSIFY_TYPES_PROMPT = """Given a user query and a list of memory types, select which types are relevant to the query.
+
+Return ONLY a JSON object with this exact structure:
+{{"types": ["type1", "type2"]}}
+
+If no types are relevant, return {{"types": []}}
+
+Available types: {types}
+
+User query: {query}"""
+
 RECALL_RELEVANT_PROMPT = """Rate the relevance of this memory to the query from 0.0 to 1.0.
 Return ONLY a JSON object: {{"relevance": 0.0}}
 
@@ -128,6 +139,15 @@ class SubagentLauncher:
             {"status": "ok", "relevance": 0.85}
         """
         return self._run("recall_relevant", memory=memory, query=query)
+
+    def classify_types(self, types: List[str], query: str) -> dict:
+        """Classify which memory types are relevant to a query.
+
+        Returns::
+
+            {"status": "ok", "types": ["lesson", "pattern"]}
+        """
+        return self._run("classify_types", types=types, query=query)
 
     # ── Internals ──
 
@@ -246,6 +266,8 @@ def main():
             result = _handle_recall_search(memories, rest.get("query", ""))
         elif task_type == "recall_relevant":
             result = _handle_recall_relevant(memory, rest.get("query", ""))
+        elif task_type == "classify_types":
+            result = _handle_classify_types(rest.get("types", []), rest.get("query", ""))
         else:
             result = {"status": "error", "message": f"Unknown task type: {task_type}"}
     except Exception as exc:
@@ -411,6 +433,34 @@ def _handle_recall_relevant(memory: Optional[Memory], query: str) -> dict:
         return {"status": "ok", "relevance": float(data.get("relevance", 0.0))}
     except (json.JSONDecodeError, ValueError, TypeError):
         return {"status": "ok", "relevance": 0.0, "message": "LLM returned invalid relevance"}
+
+
+def _handle_classify_types(types: List[str], query: str) -> dict:
+    if not types or not query.strip():
+        return {"status": "ok", "types": list(types)}
+
+    llm = LLMClient()
+    prompt = CLASSIFY_TYPES_PROMPT.format(types=", ".join(types), query=query)
+
+    try:
+        response = llm.chat([
+            {"role": "system", "content": "You are a precise type classifier. Respond only with valid JSON."},
+            {"role": "user", "content": prompt},
+        ])
+    except RuntimeError as e:
+        return {"status": "skipped", "message": str(e), "types": list(types)}
+
+    response = response.strip()
+    if response.startswith("```"):
+        response = response.split("\n", 1)[-1]
+        response = response.rsplit("\n", 1)[0] if "```" in response else response
+    try:
+        data = json.loads(response)
+        selected = data.get("types", [])
+        valid = [t for t in selected if t in types]
+        return {"status": "ok", "types": valid}
+    except (json.JSONDecodeError, ValueError):
+        return {"status": "ok", "types": list(types), "message": "LLM returned invalid JSON, fell back to all types"}
 
 
 if __name__ == "__main__":

@@ -39,6 +39,9 @@ class Memory:
     repeat_count: int = 0
     repeat_pattern: str = ""
     resolved: bool = False
+    # Retrieval-layer fields
+    recall_count: int = 0
+    last_recalled_at: str = ""
 
 
 def _now() -> str:
@@ -117,6 +120,8 @@ class MemoryStore:
         detected_at: Optional[str] = None,
         repeat_count: Optional[int] = None,
         repeat_pattern: Optional[str] = None,
+        recall_count: Optional[int] = None,
+        last_recalled_at: Optional[str] = None,
     ) -> Optional[Memory]:
         mem = self.get(mem_id)
         if mem is None:
@@ -139,6 +144,10 @@ class MemoryStore:
             mem.repeat_count = repeat_count
         if repeat_pattern is not None:
             mem.repeat_pattern = repeat_pattern
+        if recall_count is not None:
+            mem.recall_count = recall_count
+        if last_recalled_at is not None:
+            mem.last_recalled_at = last_recalled_at
         mem.updated_at = _now()
         self._write_topic(mem)
         self._rebuild_index()
@@ -191,6 +200,10 @@ class MemoryStore:
             fm["repeat_pattern"] = mem.repeat_pattern
         if mem.resolved:
             fm["resolved"] = mem.resolved
+        if mem.recall_count:
+            fm["recall_count"] = mem.recall_count
+        if mem.last_recalled_at:
+            fm["last_recalled_at"] = mem.last_recalled_at
         fm_yaml = yaml.dump(fm, default_flow_style=False, allow_unicode=True).strip()
         lines = [f"---\n{fm_yaml}\n---\n"]
         if mem.content:
@@ -229,6 +242,8 @@ class MemoryStore:
                 repeat_count=fm.get("repeat_count", 0),
                 repeat_pattern=fm.get("repeat_pattern", ""),
                 resolved=fm.get("resolved", False),
+                recall_count=fm.get("recall_count", 0),
+                last_recalled_at=fm.get("last_recalled_at", ""),
             )
         return self._parse_old_format(text, path.stem)
 
@@ -266,6 +281,8 @@ class MemoryStore:
             tags=tags,
             created_at=created,
             updated_at=updated,
+            recall_count=0,
+            last_recalled_at="",
         )
 
     def _rebuild_index(self):
