@@ -114,6 +114,9 @@ class MemoryStore:
         importance: Optional[int] = None,
         links: Optional[List[str]] = None,
         status: Optional[str] = None,
+        detected_at: Optional[str] = None,
+        repeat_count: Optional[int] = None,
+        repeat_pattern: Optional[str] = None,
     ) -> Optional[Memory]:
         mem = self.get(mem_id)
         if mem is None:
@@ -130,6 +133,12 @@ class MemoryStore:
             mem.links = links
         if status is not None:
             mem.status = status
+        if detected_at is not None:
+            mem.detected_at = detected_at
+        if repeat_count is not None:
+            mem.repeat_count = repeat_count
+        if repeat_pattern is not None:
+            mem.repeat_pattern = repeat_pattern
         mem.updated_at = _now()
         self._write_topic(mem)
         self._rebuild_index()
