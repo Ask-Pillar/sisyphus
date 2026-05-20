@@ -27,6 +27,7 @@ class Memory:
     status: str = "active"
     source: str = ""
     session_id: str = ""
+    refined_by: list[str] = field(default_factory=list)
     # Refined-layer fields
     evidence: list[str] = field(default_factory=list)
     compressed_from: list[str] = field(default_factory=list)
@@ -159,6 +160,8 @@ class MemoryStore:
             "created": mem.created_at,
             "updated": mem.updated_at,
         }
+        if mem.refined_by:
+            fm["refined_by"] = mem.refined_by
         if mem.evidence:
             fm["evidence"] = mem.evidence
         if mem.compressed_from:
@@ -206,6 +209,7 @@ class MemoryStore:
                 status=fm.get("status", "active"),
                 source=fm.get("source", ""),
                 session_id=fm.get("session_id", ""),
+                refined_by=fm.get("refined_by", []),
                 evidence=fm.get("evidence", []),
                 compressed_from=fm.get("compressed_from", []),
                 trigger=fm.get("trigger", ""),
