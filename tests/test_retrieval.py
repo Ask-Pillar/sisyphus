@@ -9,6 +9,8 @@ from sisyphus.memory.retrieval import (
     decay_score,
     _days_since,
     _collect_types,
+    _moc_types,
+    _moc_match_types,
     ContextRetriever,
     DECAY_HALF_LIFE_DAYS,
 )
@@ -100,6 +102,40 @@ class MockSubagent:
         return self.recall_result
 
 
+class TestMocTypes:
+
+    def test_moc_types_parses_headings(self, tmp_path):
+        store = MemoryStore(base_path=tmp_path / "mem")
+        idx = store.base_path / "INDEX.md"
+        idx.write_text("## lesson\n- [[id1|Python typing]]\n## pattern\n- [[id2|Loop detection]]\n")
+        result = _moc_types(store.base_path)
+        assert "lesson" in result
+        assert "pattern" in result
+        assert result["lesson"] == ["Python typing"]
+
+    def test_moc_types_empty_when_no_index(self, tmp_path):
+        assert _moc_types(tmp_path / "nope") == {}
+
+    def test_moc_match_returns_relevant_types(self, tmp_path):
+        store = MemoryStore(base_path=tmp_path / "mem")
+        idx = store.base_path / "INDEX.md"
+        idx.write_text("## lesson\n- [[id1|Python typing]]\n## pattern\n- [[id2|Loop detection]]\n")
+        matched = _moc_match_types("Python", store.base_path)
+        assert "lesson" in matched
+        assert "pattern" not in matched
+
+    def test_moc_match_empty_query_returns_all(self, tmp_path):
+        store = MemoryStore(base_path=tmp_path / "mem")
+        idx = store.base_path / "INDEX.md"
+        idx.write_text("## lesson\n- [[id1|Test]]\n## pattern\n- [[id2|Test2]]\n")
+        matched = _moc_match_types("", store.base_path)
+        assert "lesson" in matched
+        assert "pattern" in matched
+
+    def test_moc_match_empty_when_no_index(self, tmp_path):
+        assert _moc_match_types("test", tmp_path / "empty") == []
+
+
 class TestContextRetriever:
 
     def test_empty_store_returns_empty(self, tmp_path):
@@ -108,16 +144,17 @@ class TestContextRetriever:
         retriever = ContextRetriever(store, refined, MockSubagent())
         assert retriever.retrieve("test") == []
 
-    def test_l1_classify_called(self, tmp_path):
+    def test_l1_uses_moc_types(self, tmp_path):
         store = MemoryStore(base_path=tmp_path / "mem")
         refined = RefinedStore(base_path=tmp_path / "mem")
+        idx = store.base_path / "INDEX.md"
+        idx.write_text("## lesson\n- [[id1|Python typing]]\n## pattern\n- [[id2|Loop]]\n")
         store.create(title="Python lesson", type="lesson", content="x")
         subagent = MockSubagent()
-        subagent.classify_result = {"status": "ok", "types": ["lesson"]}
         subagent.recall_result = {"status": "ok", "memory_ids": []}
         retriever = ContextRetriever(store, refined, subagent)
         retriever.retrieve("Python")
-        assert len(subagent.classify_calls) == 1
+        assert len(subagent.classify_calls) == 0
 
     def test_retrieve_refined_only(self, tmp_path):
         store = MemoryStore(base_path=tmp_path / "mem")

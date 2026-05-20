@@ -3,7 +3,11 @@
 import pytest
 from pathlib import Path
 from sisyphus.memory.store import Memory, MemoryStore
-from sisyphus.memory.context import MemoryContext, _format_context, CONTEXT_HEADER, CONTEXT_FOOTER
+from sisyphus.memory.refined import RefinedStore
+from sisyphus.memory.context import (
+    MemoryContext, AgentMemory, _format_context,
+    CONTEXT_HEADER, CONTEXT_FOOTER,
+)
 
 
 class MockRetriever:
@@ -117,3 +121,58 @@ class TestMemoryContext:
         r1 = ctx.build("q", turn_count=5)
         assert "Cached" in r1
         assert ctx._cached == r1
+
+    def test_dirty_triggers_full_refresh(self, tmp_path):
+        store = MemoryStore(base_path=tmp_path / "mem")
+        retriever = MockRetriever()
+        retriever.results = []
+        retriever.refined_results = []
+        ctx = MemoryContext(retriever, store, refresh_interval=10)
+        ctx.build("q", turn_count=1)
+        assert len(retriever.retrieve_calls) == 0
+        assert len(retriever.refined_calls) == 1
+        store.mark_dirty()
+        ctx.build("q", turn_count=2)
+        assert len(retriever.retrieve_calls) == 1
+        assert store.is_dirty is False
+
+    def test_store_write_auto_marks_dirty(self, tmp_path):
+        store = MemoryStore(base_path=tmp_path / "mem")
+        assert store.is_dirty is False
+        store.create(title="New", type="lesson", content="x")
+        assert store.is_dirty is True
+
+    def test_clear_dirty_resets(self, tmp_path):
+        store = MemoryStore(base_path=tmp_path / "mem")
+        store.create(title="New", type="lesson", content="x")
+        assert store.is_dirty is True
+        store.clear_dirty()
+        assert store.is_dirty is False
+
+
+class TestAgentMemory:
+
+    def test_before_turn_returns_context_block(self, tmp_path):
+        store = MemoryStore(base_path=tmp_path / "mem")
+        refined = RefinedStore(base_path=tmp_path / "mem")
+        store.create(title="Python hints", type="lesson", content="Use Optional", importance=8)
+        agent = AgentMemory(store, refined)
+        result = agent.before_turn("Python")
+        assert "<sisyphus_context>" in result
+        assert "</sisyphus_context>" in result
+
+    def test_record_writes_and_marks_dirty(self, tmp_path):
+        store = MemoryStore(base_path=tmp_path / "mem")
+        refined = RefinedStore(base_path=tmp_path / "mem")
+        agent = AgentMemory(store, refined)
+        mem = agent.record(title="test", type="note", content="hello")
+        assert mem.id is not None
+        assert store.is_dirty is True
+
+    def test_turn_increments(self, tmp_path):
+        store = MemoryStore(base_path=tmp_path / "mem")
+        refined = RefinedStore(base_path=tmp_path / "mem")
+        agent = AgentMemory(store, refined)
+        agent.before_turn("q")
+        agent.before_turn("q")
+        assert agent._turn == 2

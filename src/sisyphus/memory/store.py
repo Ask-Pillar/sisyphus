@@ -61,6 +61,17 @@ class MemoryStore:
         self.base_path = Path(base_path)
         self.base_path.mkdir(parents=True, exist_ok=True)
         self._ensure_index()
+        self._dirty = False
+
+    @property
+    def is_dirty(self) -> bool:
+        return self._dirty
+
+    def mark_dirty(self):
+        self._dirty = True
+
+    def clear_dirty(self):
+        self._dirty = False
 
     def create(
         self,
@@ -90,6 +101,7 @@ class MemoryStore:
         )
         self._write_topic(mem)
         self._rebuild_index()
+        self._dirty = True
         return mem
 
     def get(self, mem_id: str) -> Optional[Memory]:
@@ -151,6 +163,7 @@ class MemoryStore:
         mem.updated_at = _now()
         self._write_topic(mem)
         self._rebuild_index()
+        self._dirty = True
         return mem
 
     def delete(self, mem_id: str) -> None:
@@ -158,6 +171,7 @@ class MemoryStore:
         if topic_file.exists():
             topic_file.unlink()
             self._rebuild_index()
+            self._dirty = True
 
     def _ensure_index(self):
         index = self.base_path / "INDEX.md"

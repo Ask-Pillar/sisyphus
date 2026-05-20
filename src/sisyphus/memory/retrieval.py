@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+from sisyphus.memory.moc import MocGenerator
 from sisyphus.memory.store import Memory, MemoryStore
 from sisyphus.memory.refined import RefinedStore
 
@@ -59,6 +60,69 @@ def _collect_types(store: MemoryStore, refined: RefinedStore) -> List[str]:
     return sorted(types)
 
 
+def _moc_types(base_path: Path) -> dict:
+    """Read INDEX.md MOC and return {type_name: [title, ...]}.
+
+    Supports two formats:
+      - MocGenerator: '## type_name' with '- [[id|title]]' wikilinks
+      - MemoryStore: '- [id] type | title' flat entries
+    Returns empty dict if INDEX.md doesn't exist or has no content.
+    """
+    index_path = base_path / "INDEX.md"
+    if not index_path.exists():
+        return {}
+
+    text = index_path.read_text()
+    result: dict = {}
+    current_type: Optional[str] = None
+
+    for line in text.splitlines():
+        line = line.strip()
+        # MocGenerator format: ## type_name
+        if line.startswith("## "):
+            current_type = line[3:].strip()
+            if current_type not in result:
+                result[current_type] = []
+        # MocGenerator wikilink: - [[id|title]]
+        elif line.startswith("- [[") and "|" in line and current_type:
+            title = line.split("|", 1)[1].rstrip("]]")
+            result[current_type].append(title.strip())
+        # Flat format: - [id] type | title (fallback when no headings)
+        elif line.startswith("- [") and "|" in line and not result:
+            parts = line.split("|", 1)
+            if len(parts) == 2:
+                title = parts[1].strip()
+                type_part = parts[0].split("]", 1)[-1].strip()
+                result.setdefault(type_part, []).append(title)
+
+    return result
+
+
+def _moc_match_types(query: str, base_path: Path) -> List[str]:
+    """Match query against MOC type sections by keyword overlap.
+
+    Scores each type by how many distinct query words appear in its
+    type name or entry titles. Returns types sorted by relevance.
+    """
+    index = _moc_types(base_path)
+    if not index:
+        return []
+
+    query_words = {w.lower() for w in query.split() if len(w) > 1}
+    if not query_words:
+        return list(index.keys())
+
+    scored = []
+    for type_name, titles in index.items():
+        candidates = [type_name.lower()] + [t.lower() for t in titles]
+        hits = sum(1 for w in query_words if any(w in cand for cand in candidates))
+        if hits > 0:
+            scored.append((type_name, hits))
+
+    scored.sort(key=lambda x: (-x[1], x[0]))
+    return [t for t, _ in scored]
+
+
 def _update_recall_count(store: MemoryStore, memory: Memory, now: datetime):
     """Increment recall count and update timestamp, then persist."""
     memory.recall_count += 1
@@ -101,8 +165,11 @@ class ContextRetriever:
         candidates: List[Memory] = []
         refined_mems = [m for m in self.refined.list_refined() if m.type in types]
         if refined_mems:
-            ref_result = self.subagent.recall_search(refined_mems, query)
-            ref_ids = set(ref_result.get("memory_ids", []))
+            if self.subagent:
+                ref_result = self.subagent.recall_search(refined_mems, query)
+                ref_ids = set(ref_result.get("memory_ids", []))
+            else:
+                ref_ids = {m.id for m in refined_mems}
             for m in refined_mems:
                 if m.id in ref_ids:
                     candidates.append(m)
@@ -110,8 +177,11 @@ class ContextRetriever:
         if len(candidates) < top_k and query.strip():
             raw_mems = [m for m in self.store.list() if m.type in types]
             if raw_mems:
-                raw_result = self.subagent.recall_search(raw_mems, query)
-                raw_ids = set(raw_result.get("memory_ids", []))
+                if self.subagent:
+                    raw_result = self.subagent.recall_search(raw_mems, query)
+                    raw_ids = set(raw_result.get("memory_ids", []))
+                else:
+                    raw_ids = {m.id for m in raw_mems}
                 for m in raw_mems:
                     if m.id in raw_ids:
                         candidates.append(m)
@@ -154,11 +224,8 @@ class ContextRetriever:
         return scored[:top_k]
 
     def _classify_types(self, query: str) -> List[str]:
-        """L1: ask subagent which types are relevant."""
+        matched = _moc_match_types(query, self.store.base_path)
+        if matched:
+            return matched
         all_types = _collect_types(self.store, self.refined)
-        if not all_types:
-            return []
-
-        result = self.subagent.classify_types(all_types, query)
-        selected = result.get("types", [])
-        return selected or all_types
+        return all_types
