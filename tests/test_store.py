@@ -57,9 +57,9 @@ class TestMemoryCRUD:
         topic_file = store.base_path / f"{mem.id}.md"
         assert topic_file.exists()
         content = topic_file.read_text()
-        assert "# File test" in content
+        assert "title: File test" in content
         assert "In file." in content
-        assert "lesson" in content.lower()
+        assert "type: lesson" in content
 
     def test_get_memory(self, store):
         created = store.create(title="Get me", type="pattern", content="To be retrieved.")

@@ -1,11 +1,12 @@
 """File-based memory store for Sisyphus.
 
-Each memory is stored as a Markdown topic file.
+Each memory is stored as a Markdown file with YAML frontmatter.
 INDEX.md serves as the always-loaded table of contents.
 """
 
 import re
 import uuid
+import yaml
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,7 +15,6 @@ from typing import Optional, List
 
 @dataclass
 class Memory:
-    """A single memory entry."""
     id: str
     type: str
     title: str
@@ -22,6 +22,11 @@ class Memory:
     tags: list[str] = field(default_factory=list)
     created_at: str = ""
     updated_at: str = ""
+    importance: int = 5
+    links: list[str] = field(default_factory=list)
+    status: str = "active"
+    source: str = ""
+    session_id: str = ""
 
 
 def _now() -> str:
@@ -37,20 +42,10 @@ INDEX_ENTRY = "- [{id}] {type} | {title} | {created_at}\n"
 
 
 class MemoryStore:
-    """Manages memories as Markdown files on disk.
-
-    Layout:
-      <base_path>/
-        INDEX.md          ← Always-loaded table of contents
-        <id>.md           ← Topic files (on-demand)
-    """
-
     def __init__(self, base_path: Path):
         self.base_path = Path(base_path)
         self.base_path.mkdir(parents=True, exist_ok=True)
         self._ensure_index()
-
-    # ── Public API ──────────────────────────────────────────────
 
     def create(
         self,
@@ -58,6 +53,11 @@ class MemoryStore:
         type: str,
         content: str = "",
         tags: Optional[List[str]] = None,
+        importance: int = 5,
+        links: Optional[List[str]] = None,
+        status: str = "active",
+        source: str = "",
+        session_id: str = "",
     ) -> Memory:
         mem = Memory(
             id=_new_id(),
@@ -67,6 +67,11 @@ class MemoryStore:
             tags=tags or [],
             created_at=_now(),
             updated_at=_now(),
+            importance=importance,
+            links=links or [],
+            status=status,
+            source=source,
+            session_id=session_id,
         )
         self._write_topic(mem)
         self._rebuild_index()
@@ -94,6 +99,9 @@ class MemoryStore:
         title: Optional[str] = None,
         content: Optional[str] = None,
         tags: Optional[List[str]] = None,
+        importance: Optional[int] = None,
+        links: Optional[List[str]] = None,
+        status: Optional[str] = None,
     ) -> Optional[Memory]:
         mem = self.get(mem_id)
         if mem is None:
@@ -104,6 +112,12 @@ class MemoryStore:
             mem.content = content
         if tags is not None:
             mem.tags = tags
+        if importance is not None:
+            mem.importance = importance
+        if links is not None:
+            mem.links = links
+        if status is not None:
+            mem.status = status
         mem.updated_at = _now()
         self._write_topic(mem)
         self._rebuild_index()
@@ -115,24 +129,27 @@ class MemoryStore:
             topic_file.unlink()
             self._rebuild_index()
 
-    # ── Internal ────────────────────────────────────────────────
-
     def _ensure_index(self):
         index = self.base_path / "INDEX.md"
         if not index.exists():
             index.write_text(INDEX_HEADER)
 
     def _write_topic(self, mem: Memory):
-        lines = [
-            f"# {mem.title}\n",
-            f"\n",
-            f"- **ID**: {mem.id}\n",
-            f"- **Type**: {mem.type}\n",
-            f"- **Created**: {mem.created_at}\n",
-            f"- **Updated**: {mem.updated_at}\n",
-            f"- **Tags**: {', '.join(mem.tags)}\n",
-            f"\n",
-        ]
+        fm = {
+            "id": mem.id,
+            "type": mem.type,
+            "title": mem.title,
+            "tags": mem.tags,
+            "importance": mem.importance,
+            "links": mem.links,
+            "status": mem.status,
+            "source": mem.source,
+            "session_id": mem.session_id,
+            "created": mem.created_at,
+            "updated": mem.updated_at,
+        }
+        fm_yaml = yaml.dump(fm, default_flow_style=False, allow_unicode=True).strip()
+        lines = [f"---\n{fm_yaml}\n---\n"]
         if mem.content:
             lines.append(mem.content)
             if not mem.content.endswith("\n"):
@@ -142,7 +159,44 @@ class MemoryStore:
 
     def _parse_topic(self, path: Path) -> Memory:
         text = path.read_text()
-        mem_id = _extract_field(text, "ID", path.stem)
+        fm = self._parse_frontmatter(text)
+        if fm is not None:
+            content = self._extract_content_after_fm(text)
+            return Memory(
+                id=fm.get("id", path.stem),
+                type=fm.get("type", "lesson"),
+                title=fm.get("title", ""),
+                content=content,
+                tags=fm.get("tags", []),
+                created_at=fm.get("created", ""),
+                updated_at=fm.get("updated", ""),
+                importance=fm.get("importance", 5),
+                links=fm.get("links", []),
+                status=fm.get("status", "active"),
+                source=fm.get("source", ""),
+                session_id=fm.get("session_id", ""),
+            )
+        return self._parse_old_format(text, path.stem)
+
+    def _parse_frontmatter(self, text: str) -> Optional[dict]:
+        if not text.startswith("---\n"):
+            return None
+        parts = text.split("---\n", 2)
+        if len(parts) < 3:
+            return None
+        try:
+            return yaml.safe_load(parts[1])
+        except yaml.YAMLError:
+            return None
+
+    def _extract_content_after_fm(self, text: str) -> str:
+        parts = text.split("---\n", 2)
+        if len(parts) >= 3:
+            return parts[2].strip()
+        return ""
+
+    def _parse_old_format(self, text: str, default_id: str) -> Memory:
+        mem_id = _extract_field(text, "ID", default_id)
         mem_type = _extract_field(text, "Type", "lesson")
         created = _extract_field(text, "Created", "")
         updated = _extract_field(text, "Updated", "")
@@ -175,10 +229,9 @@ class MemoryStore:
         (self.base_path / "INDEX.md").write_text("".join(lines))
 
 
-# ── Parsing helpers ─────────────────────────────────────────────
+# Old format parsing helpers (kept for backward compatibility)
 
 def _extract_field(text: str, field: str, default: str) -> str:
-    """Extract a metadata field like '- **ID**: abc123' from Markdown."""
     m = re.search(rf"^[-*] \*\*{field}\*\*:\s*(.+)$", text, re.MULTILINE)
     return m.group(1).strip() if m else default
 
@@ -189,18 +242,6 @@ def _extract_title(text: str) -> str:
 
 
 def _extract_content(text: str) -> str:
-    """Extract content after the metadata block.
-
-    Topic file format:
-      # Title\n
-      \n
-      - **ID**: ...\n
-      - **Type**: ...\n
-      ...\n
-      - **Tags**: ...\n
-      \n
-      <actual content>\n
-    """
     parts = re.split(r"^- \*\*Tags\*\*:.*$(?:\n\s*)?", text, flags=re.MULTILINE)
     if len(parts) > 1:
         return parts[1].strip()
