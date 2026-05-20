@@ -189,6 +189,22 @@ def cmd_dream(args):
         print(f"  [{r.id}] {r.title} (importance={r.importance})")
 
 
+def cmd_link(args):
+    from sisyphus.memory.link import LinkAnalyzer
+    store = _store()
+    analyzer = LinkAnalyzer(store)
+    pairs = analyzer.analyze()
+    print(f"Link analysis: {len(pairs)} pair(s) linked.")
+
+
+def cmd_link(args):
+    from sisyphus.memory.link import LinkAnalyzer
+    store = _store()
+    analyzer = LinkAnalyzer(store)
+    pairs = analyzer.analyze()
+    print(f"Link analysis complete: {len(pairs)} pair(s) linked.")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Sisyphus memory management")
     sub = parser.add_subparsers(dest="command")
@@ -227,6 +243,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_dream = sub.add_parser("dream", help="Run reflection engine (dream)")
 
+    p_link = sub.add_parser("link", help="Auto-discover and create links")
+
     return parser
 
 
@@ -255,6 +273,8 @@ def main():
         cmd_refined(args)
     elif args.command == "dream":
         cmd_dream(args)
+    elif args.command == "link":
+        cmd_link(args)
     else:
         parser.print_help()
         sys.exit(1)

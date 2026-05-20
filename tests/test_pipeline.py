@@ -63,6 +63,15 @@ class TestRun:
     def test_should_dream_false_with_no_memories(self, pipeline):
         assert pipeline._should_dream() is False
 
+    def test_should_link_false_with_one_memory(self, pipeline):
+        pipeline.store.create(title="Only one", type="lesson", content="x")
+        assert pipeline._should_link() is False
+
+    def test_should_link_true_with_two_memories(self, pipeline):
+        pipeline.store.create(title="A", type="lesson", content="x")
+        pipeline.store.create(title="B", type="lesson", content="x")
+        assert pipeline._should_link() is True
+
 
 class TestThresholdConfig:
     def test_custom_threshold(self):

@@ -43,6 +43,9 @@ class Pipeline:
                 steps.append("dream")
             self._run_index()
             steps.append("index")
+            if self._should_link():
+                self._run_link()
+                steps.append("link")
             status = "completed"
             body = "Steps: " + ", ".join(steps)
         except Exception as exc:
@@ -84,3 +87,15 @@ class Pipeline:
             self.logger.create_log("dream", body=f"Dream: {len(reflections)} reflections from pipeline.")
         except Exception as exc:
             self.logger.create_log("dream", body=f"Dream skipped: {exc}")
+
+    def _should_link(self) -> bool:
+        return len(self.store.list()) >= 2
+
+    def _run_link(self):
+        try:
+            from sisyphus.memory.link import LinkAnalyzer
+            analyzer = LinkAnalyzer(self.store)
+            pairs = analyzer.analyze()
+            self.logger.create_log("link", body=f"Link: {len(pairs)} pairs linked.")
+        except Exception as exc:
+            self.logger.create_log("link", body=f"Link skipped: {exc}")
