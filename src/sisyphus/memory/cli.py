@@ -190,19 +190,78 @@ def cmd_dream(args):
 
 
 def cmd_link(args):
-    from sisyphus.memory.link import LinkAnalyzer
+    from sisyphus.memory.link import LinkCleaner
     store = _store()
-    analyzer = LinkAnalyzer(store)
-    pairs = analyzer.analyze()
-    print(f"Link analysis: {len(pairs)} pair(s) linked.")
+    cleaner = LinkCleaner(store)
+    result = cleaner.clean()
+    print(f"Link clean: {result['total_cleaned']} memory(ies) cleaned, "
+          f"{result['removed_dead']} dead link(s), "
+          f"{result['removed_duplicates']} duplicate(s), "
+          f"{result['removed_self_refs']} self-ref(s) removed.")
 
 
-def cmd_link(args):
-    from sisyphus.memory.link import LinkAnalyzer
+def cmd_detect_loop(args):
+    from sisyphus.memory.loop import LoopDetector
     store = _store()
-    analyzer = LinkAnalyzer(store)
-    pairs = analyzer.analyze()
-    print(f"Link analysis complete: {len(pairs)} pair(s) linked.")
+    rstore = _refined_store()
+    detector = LoopDetector(store, rstore)
+    loops = detector.detect()
+    if not loops:
+        print("No loops detected.")
+        return
+    print(f"Detected {len(loops)} loop(s):")
+    for lp in loops:
+        print(f"  [{lp['record_id']}] {lp['pattern']} (x{lp['count']})")
+
+
+def cmd_agent(args):
+    from sisyphus.memory.agent import AgentRegistry
+    reg = AgentRegistry(_base())
+    if args.agent_command == "list":
+        agents = reg.all()
+        if not agents:
+            print("No agents found.")
+            return
+        for name in agents:
+            sb = reg.get(name)
+            s = sb.stats()
+            print(f"  {name:20s}  {s['raw']} raw, {s['refined']} refined")
+    elif args.agent_command == "create":
+        reg.create(args.name)
+        print(f"Agent '{args.name}' created.")
+    elif args.agent_command == "show":
+        sb = reg.get(args.name)
+        s = sb.stats()
+        print(f"Agent: {s['agent']}")
+        print(f"Path:  {s['path']}")
+        print(f"Raw:   {s['raw']}")
+        print(f"Refined: {s['refined']}")
+
+
+def cmd_cache(args):
+    from sisyphus.memory.cache import CacheStore
+    cache = CacheStore(_base())
+    if args.cache_command == "rebuild":
+        store = _store()
+        result = cache.rebuild(store)
+        print(f"Cache rebuilt: {result['cached']} memories cached.")
+    elif args.cache_command == "status":
+        s = cache.status()
+        print(f"Total:   {s['total']}")
+        print(f"Rebuilt: {s['last_rebuild']}")
+        if s["by_type"]:
+            print("By type:")
+            for t, c in sorted(s["by_type"].items()):
+                print(f"  {t}: {c}")
+    elif args.cache_command == "search":
+        results = cache.search(args.query)
+        if not results:
+            print("No results.")
+            return
+        for r in results:
+            print(f"  [{r['id']}] {r['type']:20s} | {r['title']}")
+            if r["content"]:
+                print(f"         {r['content'][:100]}")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -243,7 +302,26 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_dream = sub.add_parser("dream", help="Run reflection engine (dream)")
 
-    p_link = sub.add_parser("link", help="Auto-discover and create links")
+    p_link = sub.add_parser("link", help="Clean up broken/duplicate links in memories")
+
+    p_loop = sub.add_parser("detect-loop", help="Detect repeated memory patterns")
+    p_loop.add_argument("--threshold", "-t", type=int, default=3,
+                        help="Min repeats to flag as loop (default: 3)")
+
+    p_agent = sub.add_parser("agent", help="Manage sub-agent memory sandboxes")
+    p_agent_sub = p_agent.add_subparsers(dest="agent_command")
+    p_agent_list = p_agent_sub.add_parser("list", help="List all agent sandboxes")
+    p_agent_create = p_agent_sub.add_parser("create", help="Create a new agent sandbox")
+    p_agent_create.add_argument("name", help="Agent name")
+    p_agent_show = p_agent_sub.add_parser("show", help="Show agent sandbox details")
+    p_agent_show.add_argument("name", help="Agent name")
+
+    p_cache = sub.add_parser("cache", help="SQLite cache operations")
+    p_cache_sub = p_cache.add_subparsers(dest="cache_command")
+    p_cache_rebuild = p_cache_sub.add_parser("rebuild", help="Rebuild cache from files")
+    p_cache_status = p_cache_sub.add_parser("status", help="Show cache status")
+    p_cache_search = p_cache_sub.add_parser("search", help="Search cached memories")
+    p_cache_search.add_argument("query", help="Search query")
 
     return parser
 
@@ -275,6 +353,12 @@ def main():
         cmd_dream(args)
     elif args.command == "link":
         cmd_link(args)
+    elif args.command == "detect-loop":
+        cmd_detect_loop(args)
+    elif args.command == "agent":
+        cmd_agent(args)
+    elif args.command == "cache":
+        cmd_cache(args)
     else:
         parser.print_help()
         sys.exit(1)

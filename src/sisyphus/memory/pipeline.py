@@ -46,6 +46,9 @@ class Pipeline:
             if self._should_link():
                 self._run_link()
                 steps.append("link")
+            if self._should_detect_loop():
+                self._run_detect_loop()
+                steps.append("detect-loop")
             status = "completed"
             body = "Steps: " + ", ".join(steps)
         except Exception as exc:
@@ -53,6 +56,20 @@ class Pipeline:
             body = str(exc)
         self.logger.update_log(log.id, status=status, body=body)
         return {"status": status, "steps": steps}
+
+    def _run_detect_loop(self):
+        try:
+            from sisyphus.memory.loop import LoopDetector
+            detector = LoopDetector(self.store, self.refined)
+            loops = detector.detect()
+            if loops:
+                self.logger.create_log("detect-loop",
+                                       body=f"Detected {len(loops)} loop(s).")
+        except Exception as exc:
+            self.logger.create_log("detect-loop", body=f"Loop detect skipped: {exc}")
+
+    def _should_detect_loop(self) -> bool:
+        return len(self.store.list()) >= 3
 
     def _should_compress(self) -> bool:
         raw_count = len(self.store.list())
@@ -93,9 +110,9 @@ class Pipeline:
 
     def _run_link(self):
         try:
-            from sisyphus.memory.link import LinkAnalyzer
-            analyzer = LinkAnalyzer(self.store)
-            pairs = analyzer.analyze()
-            self.logger.create_log("link", body=f"Link: {len(pairs)} pairs linked.")
+            from sisyphus.memory.link import LinkCleaner
+            cleaner = LinkCleaner(self.store)
+            result = cleaner.clean()
+            self.logger.create_log("link", body=f"Link clean: {result['total_cleaned']} memories cleaned.")
         except Exception as exc:
             self.logger.create_log("link", body=f"Link skipped: {exc}")
