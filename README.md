@@ -94,6 +94,83 @@ sisyphus-memory cache search "type hints"
 
 可在无 LLM API key 环境下安全运行（跳过 LLM 步骤）。
 
+## 子进程 LLM 调度 (Subagent)
+
+所有 LLM 加工（反射 dream、压缩 compress、召回 recall、类型分类 classify_types）通过 **SubagentLauncher** 在独立子进程中执行：
+
+```
+主进程                             子进程
+  │                                  │
+  │  SubagentLauncher.spawn() ──────→│  python -m sisyphus.memory.subagent
+  │                                  │
+  │  写 task.json                    │  读 task.json + 记忆文件
+  │                                  │  → 调用 LLM (OpenAI-compatible)
+  │                                  │  → 写 result.json
+  │  ←── exit ──────────────────────│
+  │                                  │
+  │  读 result.json                  │
+  │  构造 Memory 对象                │
+```
+
+**设计目标**：主进程上下文不接触 LLM 原始响应，防止上下文污染。子进程独立管理 LLM 连接、prompt 构建和响应解析。
+
+子进程支持 5 个 handler，通过 `--handler` 参数指定：
+
+| Handler | 功能 |
+|---------|------|
+| `dream` | 对未加工记忆生成反射洞察 |
+| `compress` | 多记忆退火压缩合并 |
+| `recall_search` | 全文搜索+嵌入排序，返回相关记忆 |
+| `recall_relevant` | 根据 query 筛选最相关的 top-N 记忆 |
+| `classify_types` | 对记忆做类型分类（用于三层召回 L1 阶段） |
+
+无 API key 时 handler 直接返回 `status: skipped`，不崩溃。
+
+## 分层召回 (Retrieval)
+
+三层分层召回架构（**ContextRetriever**）：
+
+```
+用户 query
+    │
+    ▼
+L1: 类型分类 ──→ 限定搜索范围（仅相关类型）
+    │
+    ▼
+L2: REFINED 优先 ──→ 从 reflection/summary 中召回
+    │
+    ▼
+L3: RAW 补缺 ──→ 高重要性/高关联度的原始记忆补充
+    │
+    ▼
+decay_score 排序截断 ──→ 指数衰减（半衰期 30 天）
+```
+
+- **decay_score**：`score *= 0.5^((now - last_recalled_at) / half_life)`，越久未被召回的权重越低
+- **recall_count / last_recalled_at**：每次召回自动更新，支持在线学习
+- 与回路检测（`repeat_count`）语义独立，互补使用
+
+## 自动上下文 (MemoryContext)
+
+**MemoryContext** 为每轮对话自动构建上下文，两种模式：
+
+| 模式 | 说明 |
+|------|------|
+| **全量 (full)** | 每 `refresh_interval` 轮一次完整三层召回，缓存复用 |
+| **增量 (incremental)** | 中间轮次只检索 REFINED 层，轻量快速 |
+
+```python
+from sisyphus.memory.context import MemoryContext
+from sisyphus.memory.store import MemoryStore
+
+store = MemoryStore()
+ctx = MemoryContext(store, refresh_interval=3)
+context = ctx.build(query="Python type hints")
+# → 全量/增量自动切换，返回格式化上下文文本
+```
+
+上下文格式：`<context>` 块 + 每条记忆 ID/类型/权重/内容。
+
 ## 开发
 
 ```bash
@@ -111,7 +188,7 @@ pytest tests/ -v
 ## 测试
 
 ```
-============================= 146 passed in 10s ==============================
+============================= 177 passed in 10s ==============================
 ```
 
 - `tests/test_store.py` — 文件 CRUD + 持久化
@@ -128,3 +205,5 @@ pytest tests/ -v
 - `tests/test_extraction.py` — 记忆提取
 - `tests/test_compression.py` — 退火压缩
 - `tests/test_recall.py` / `test_search.py` / `test_snapshot.py` — 检索与快照
+- `tests/test_retrieval.py` — 三层分层召回 + 衰减权重
+- `tests/test_context.py` — 自动上下文构建
