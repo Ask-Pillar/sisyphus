@@ -97,10 +97,12 @@ def cmd_stats(args):
 
 
 def cmd_snapshot(args):
+    from sisyphus.memory.llm import LLMClient
     from sisyphus.memory.recall import Recall
     from sisyphus.memory.snapshot import FrozenSnapshot
     store = _store()
-    recall = Recall(store=store)
+    llm = LLMClient()
+    recall = Recall(store=store, llm_client=llm)
     snap = FrozenSnapshot(recall=recall, max_memories=args.max, max_chars=args.max_chars)
     print(snap.build(query=args.query))
 
