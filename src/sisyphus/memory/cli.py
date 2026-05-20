@@ -96,6 +96,15 @@ def cmd_stats(args):
         print(f"  {t:20s}  {count}")
 
 
+def cmd_snapshot(args):
+    from sisyphus.memory.recall import Recall
+    from sisyphus.memory.snapshot import FrozenSnapshot
+    store = _store()
+    recall = Recall(store=store)
+    snap = FrozenSnapshot(recall=recall, max_memories=args.max, max_chars=args.max_chars)
+    print(snap.build(query=args.query))
+
+
 def main():
     parser = argparse.ArgumentParser(description="Sisyphus memory management")
     sub = parser.add_subparsers(dest="command")
@@ -120,6 +129,11 @@ def main():
 
     p_stats = sub.add_parser("stats", help="Memory statistics")
 
+    p_snapshot = sub.add_parser("snapshot", help="Generate frozen memory snapshot")
+    p_snapshot.add_argument("--query", "-q", default="", help="Query to focus recall")
+    p_snapshot.add_argument("--max", type=int, default=5, help="Max memories")
+    p_snapshot.add_argument("--max-chars", type=int, default=2000, help="Max snapshot chars")
+
     args = parser.parse_args()
     if args.command == "record":
         cmd_record(args)
@@ -133,6 +147,8 @@ def main():
         cmd_forget(args)
     elif args.command == "stats":
         cmd_stats(args)
+    elif args.command == "snapshot":
+        cmd_snapshot(args)
     else:
         parser.print_help()
         sys.exit(1)
