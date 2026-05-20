@@ -27,6 +27,17 @@ class Memory:
     status: str = "active"
     source: str = ""
     session_id: str = ""
+    # Refined-layer fields
+    evidence: list[str] = field(default_factory=list)
+    compressed_from: list[str] = field(default_factory=list)
+    trigger: str = ""
+    input_count: int = 0
+    llm_calls: int = 0
+    duration_ms: int = 0
+    detected_at: str = ""
+    repeat_count: int = 0
+    repeat_pattern: str = ""
+    resolved: bool = False
 
 
 def _now() -> str:
@@ -148,6 +159,26 @@ class MemoryStore:
             "created": mem.created_at,
             "updated": mem.updated_at,
         }
+        if mem.evidence:
+            fm["evidence"] = mem.evidence
+        if mem.compressed_from:
+            fm["compressed_from"] = mem.compressed_from
+        if mem.trigger:
+            fm["trigger"] = mem.trigger
+        if mem.input_count:
+            fm["input_count"] = mem.input_count
+        if mem.llm_calls:
+            fm["llm_calls"] = mem.llm_calls
+        if mem.duration_ms:
+            fm["duration_ms"] = mem.duration_ms
+        if mem.detected_at:
+            fm["detected_at"] = mem.detected_at
+        if mem.repeat_count:
+            fm["repeat_count"] = mem.repeat_count
+        if mem.repeat_pattern:
+            fm["repeat_pattern"] = mem.repeat_pattern
+        if mem.resolved:
+            fm["resolved"] = mem.resolved
         fm_yaml = yaml.dump(fm, default_flow_style=False, allow_unicode=True).strip()
         lines = [f"---\n{fm_yaml}\n---\n"]
         if mem.content:
@@ -175,6 +206,16 @@ class MemoryStore:
                 status=fm.get("status", "active"),
                 source=fm.get("source", ""),
                 session_id=fm.get("session_id", ""),
+                evidence=fm.get("evidence", []),
+                compressed_from=fm.get("compressed_from", []),
+                trigger=fm.get("trigger", ""),
+                input_count=fm.get("input_count", 0),
+                llm_calls=fm.get("llm_calls", 0),
+                duration_ms=fm.get("duration_ms", 0),
+                detected_at=fm.get("detected_at", ""),
+                repeat_count=fm.get("repeat_count", 0),
+                repeat_pattern=fm.get("repeat_pattern", ""),
+                resolved=fm.get("resolved", False),
             )
         return self._parse_old_format(text, path.stem)
 
