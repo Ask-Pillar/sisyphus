@@ -1,37 +1,22 @@
-"""Tests for DreamEngine — LLM reflection system (v1.1 step1)."""
+"""Tests for DreamEngine — subagent-based reflection (v1.1 step1)."""
 
-import json
 import pytest
 import tempfile
 from pathlib import Path
-from typing import List, Optional
-from sisyphus.memory.store import MemoryStore, Memory
+from sisyphus.memory.store import MemoryStore
 from sisyphus.memory.refined import RefinedStore
 from sisyphus.memory.dream import DreamEngine
 
 
-def _make_mock_llm(responses: Optional[List[dict]] = None):
-    """Create a mock LLM that returns structured JSON responses."""
-    if responses is None:
-        responses = [{
-            "reflections": [{
-                "title": "Pattern: TDD workflow",
-                "content": "The project follows TDD with red-green-clean cycles.",
-                "importance": 8,
-                "evidence": [],
-            }]
-        }]
+class MockSubagent:
+    def __init__(self, reflections=None):
+        self.reflections = reflections or []
+        self.last_memories = None
 
-    class MockLLM:
-        def __init__(self):
-            self.call_count = 0
-
-        def ask(self, prompt: str) -> str:
-            idx = min(self.call_count, len(responses) - 1)
-            self.call_count += 1
-            return json.dumps(responses[idx])
-
-    return MockLLM()
+    def dream(self, memories):
+        self.last_memories = memories
+        return {"status": "ok", "created_ids": [r["id"] for r in self.reflections],
+                "reflections": self.reflections}
 
 
 @pytest.fixture
@@ -59,72 +44,60 @@ def populated_store(stores):
 
 
 class TestDreamEngineInit:
-    def test_init_requires_store_refined_llm(self):
-        mock_llm = _make_mock_llm()
+    def test_init_requires_store_refined_subagent(self):
+        subagent = MockSubagent()
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp) / ".omo" / "memory"
             store = MemoryStore(base_path=base)
             refined = RefinedStore(base_path=base)
-            engine = DreamEngine(store=store, refined_store=refined, llm_client=mock_llm)
+            engine = DreamEngine(store=store, refined_store=refined, subagent=subagent)
             assert engine is not None
 
 
 class TestDream:
     def test_dream_empty_store_returns_empty(self, stores):
         store, refined = stores
-        mock_llm = _make_mock_llm([{"reflections": []}])
-        engine = DreamEngine(store=store, refined_store=refined, llm_client=mock_llm)
+        subagent = MockSubagent()
+        engine = DreamEngine(store=store, refined_store=refined, subagent=subagent)
         result = engine.dream()
         assert len(result) == 0
 
-    def test_dream_generates_reflections(self, populated_store):
+    def test_dream_delegates_to_subagent(self, populated_store):
         store, refined = populated_store
-        mock_llm = _make_mock_llm([{
-            "reflections": [{
-                "title": "Core conventions",
-                "content": "The project has three key conventions: type annotations, TDD, SSOT.",
-                "importance": 8,
-                "evidence": [
-                    store.list()[0].id,
-                    store.list()[1].id,
-                    store.list()[2].id,
-                ],
-            }]
-        }])
-        engine = DreamEngine(store=store, refined_store=refined, llm_client=mock_llm)
+        subagent = MockSubagent(reflections=[
+            {"id": "ref_001", "title": "Core conventions", "content": "...",
+             "importance": 8, "evidence": []},
+        ])
+        engine = DreamEngine(store=store, refined_store=refined, subagent=subagent)
+        result = engine.dream()
+        assert subagent.last_memories is not None
+        assert len(result) == 1
+
+    def test_reflection_has_proper_attributes(self, populated_store):
+        store, refined = populated_store
+        subagent = MockSubagent(reflections=[
+            {"id": "ref_002", "title": "Core conventions",
+             "content": "Three key conventions identified.",
+             "importance": 7, "evidence": [m.id for m in store.list()[:2]]},
+        ])
+        engine = DreamEngine(store=store, refined_store=refined, subagent=subagent)
         result = engine.dream()
         assert len(result) == 1
-        assert result[0].type == "reflection"
-        assert result[0].title == "Core conventions"
-        assert result[0].importance == 8
-
-    def test_reflection_has_evidence_in_frontmatter(self, populated_store):
-        store, refined = populated_store
-        ids = [m.id for m in store.list()]
-        mock_llm = _make_mock_llm([{
-            "reflections": [{
-                "title": "Core conventions",
-                "content": "Three key conventions identified.",
-                "importance": 7,
-                "evidence": ids[:2],
-            }]
-        }])
-        engine = DreamEngine(store=store, refined_store=refined, llm_client=mock_llm)
-        result = engine.dream()
-        assert result[0].evidence == ids[:2]
+        mem = result[0]
+        assert mem.type == "reflection"
+        assert mem.title == "Core conventions"
+        assert mem.importance == 7
+        assert len(mem.evidence) == 2
 
     def test_source_memories_get_refined_by(self, populated_store):
         store, refined = populated_store
         ids = [m.id for m in store.list()]
-        mock_llm = _make_mock_llm([{
-            "reflections": [{
-                "title": "Core conventions",
-                "content": "Key conventions summary.",
-                "importance": 7,
-                "evidence": ids[:2],
-            }]
-        }])
-        engine = DreamEngine(store=store, refined_store=refined, llm_client=mock_llm)
+        subagent = MockSubagent(reflections=[
+            {"id": "ref_003", "title": "Core conventions",
+             "content": "Key conventions summary.",
+             "importance": 7, "evidence": ids[:2]},
+        ])
+        engine = DreamEngine(store=store, refined_store=refined, subagent=subagent)
         result = engine.dream()
         ref_id = result[0].id
         for m in store.list():
@@ -133,15 +106,36 @@ class TestDream:
 
     def test_dream_creates_log_entry(self, populated_store):
         store, refined = populated_store
-        mock_llm = _make_mock_llm([{
-            "reflections": [{
-                "title": "Test log",
-                "content": "Log test.",
-                "importance": 5,
-                "evidence": [],
-            }]
-        }])
-        engine = DreamEngine(store=store, refined_store=refined, llm_client=mock_llm)
-        result = engine.dream()
+        subagent = MockSubagent(reflections=[
+            {"id": "ref_004", "title": "Test log", "content": "Log test.",
+             "importance": 5, "evidence": []},
+        ])
+        engine = DreamEngine(store=store, refined_store=refined, subagent=subagent)
+        engine.dream()
         assert engine.last_log is not None
         assert engine.last_log.command == "dream"
+
+    def test_subagent_empty_result_returns_empty(self, populated_store):
+        store, refined = populated_store
+        subagent = MockSubagent(reflections=[])
+        engine = DreamEngine(store=store, refined_store=refined, subagent=subagent)
+        result = engine.dream()
+        assert len(result) == 0
+
+    def test_subagent_skipped_returns_empty(self, populated_store):
+        store, refined = populated_store
+        subagent = MockSubagent()
+        subagent.reflections = []
+        subagent.dream = lambda m: {"status": "skipped", "message": "No API key"}
+        engine = DreamEngine(store=store, refined_store=refined, subagent=subagent)
+        result = engine.dream()
+        assert len(result) == 0
+
+    def test_subagent_error_returns_empty(self, populated_store):
+        store, refined = populated_store
+        subagent = MockSubagent()
+        subagent.reflections = []
+        subagent.dream = lambda m: {"status": "error", "message": "timeout"}
+        engine = DreamEngine(store=store, refined_store=refined, subagent=subagent)
+        result = engine.dream()
+        assert len(result) == 0

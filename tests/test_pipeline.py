@@ -1,6 +1,5 @@
-"""Tests for auto-trigger pipeline (v1.0 step6)."""
+"""Tests for auto-trigger pipeline with subagent (v1.0 step6)."""
 
-import json
 import pytest
 import tempfile
 from pathlib import Path
@@ -8,11 +7,25 @@ from sisyphus.memory.store import MemoryStore
 from sisyphus.memory.pipeline import Pipeline
 
 
+class MockSubagent:
+    def __init__(self):
+        self.calls = []
+
+    def dream(self, memories):
+        self.calls.append(("dream", len(memories)))
+        return {"status": "ok", "created_ids": [], "reflections": []}
+
+    def compress(self, **kwargs):
+        self.calls.append(("compress", kwargs))
+        return {"status": "ok", "deleted_count": 0}
+
+
 @pytest.fixture
 def pipeline():
     with tempfile.TemporaryDirectory() as tmp:
         base = Path(tmp) / ".omo"
-        yield Pipeline(base_path=base)
+        subagent = MockSubagent()
+        yield Pipeline(base_path=base, subagent=subagent)
 
 
 class TestPipelineInit:
@@ -72,12 +85,22 @@ class TestRun:
         pipeline.store.create(title="B", type="lesson", content="x")
         assert pipeline._should_link() is True
 
+    def test_run_delegates_dream_to_subagent(self, pipeline):
+        for i in range(3):
+            pipeline.store.create(title=f"M{i}", type="lesson", content="x")
+        pipeline.run()
+        subagent = pipeline.subagent
+        assert isinstance(subagent, MockSubagent)
+        dream_calls = [c for c in subagent.calls if c[0] == "dream"]
+        assert len(dream_calls) >= 1
+
 
 class TestThresholdConfig:
     def test_custom_threshold(self):
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp) / ".omo"
-            p = Pipeline(base_path=base, compress_threshold=3)
+            subagent = MockSubagent()
+            p = Pipeline(base_path=base, compress_threshold=3, subagent=subagent)
             assert p.compress_threshold == 3
             for i in range(5):
                 p.store.create(title=f"M{i}", type="lesson", content="x")
@@ -85,7 +108,6 @@ class TestThresholdConfig:
             assert result["status"] == "completed"
 
     def test_run_cleans_old_logs_smoke(self, pipeline):
-        """pipeline should not crash when logs exist from previous runs."""
         pipeline.run()
         pipeline.run()
         assert len(pipeline.logger.list_logs()) >= 2

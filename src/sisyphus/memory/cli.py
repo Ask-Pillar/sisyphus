@@ -8,6 +8,7 @@ from sisyphus.memory.store import MemoryStore
 from sisyphus.memory.refined import RefinedStore
 from sisyphus.memory.moc import MocGenerator
 from sisyphus.memory.log import LogStore
+from sisyphus.memory.subagent import SubagentLauncher
 
 
 def _base() -> Path:
@@ -24,6 +25,10 @@ def _refined_store() -> RefinedStore:
 
 def _log_store() -> LogStore:
     return LogStore(base_path=_base())
+
+
+def _subagent() -> SubagentLauncher:
+    return SubagentLauncher(store_path=_base() / "memory")
 
 
 def cmd_record(args):
@@ -133,12 +138,12 @@ def cmd_stats(args):
 
 
 def cmd_snapshot(args):
-    from sisyphus.memory.llm import LLMClient
     from sisyphus.memory.recall import Recall
     from sisyphus.memory.snapshot import FrozenSnapshot
+
     store = _store()
-    llm = LLMClient()
-    recall = Recall(store=store, llm_client=llm)
+    subagent = _subagent()
+    recall = Recall(store=store, subagent=subagent)
     snap = FrozenSnapshot(recall=recall, max_memories=args.max, max_chars=args.max_chars)
     print(snap.build(query=args.query))
 
@@ -178,11 +183,11 @@ def cmd_refined(args):
 
 def cmd_dream(args):
     from sisyphus.memory.dream import DreamEngine
-    from sisyphus.memory.llm import LLMClient
+
     store = _store()
     rstore = _refined_store()
-    llm = LLMClient()
-    engine = DreamEngine(store=store, refined_store=rstore, llm_client=llm)
+    subagent = _subagent()
+    engine = DreamEngine(store=store, refined_store=rstore, subagent=subagent)
     reflections = engine.dream()
     print(f"Dream complete: {len(reflections)} reflection(s) generated.")
     for r in reflections:
@@ -191,6 +196,7 @@ def cmd_dream(args):
 
 def cmd_link(args):
     from sisyphus.memory.link import LinkCleaner
+
     store = _store()
     cleaner = LinkCleaner(store)
     result = cleaner.clean()
@@ -202,6 +208,7 @@ def cmd_link(args):
 
 def cmd_detect_loop(args):
     from sisyphus.memory.loop import LoopDetector
+
     store = _store()
     rstore = _refined_store()
     detector = LoopDetector(store, rstore)
@@ -216,6 +223,7 @@ def cmd_detect_loop(args):
 
 def cmd_agent(args):
     from sisyphus.memory.agent import AgentRegistry
+
     reg = AgentRegistry(_base())
     if args.agent_command == "list":
         agents = reg.all()
@@ -240,6 +248,7 @@ def cmd_agent(args):
 
 def cmd_cache(args):
     from sisyphus.memory.cache import CacheStore
+
     cache = CacheStore(_base())
     if args.cache_command == "rebuild":
         store = _store()

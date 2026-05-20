@@ -1,14 +1,4 @@
-"""Auto-trigger pipeline for memory processing.
-
-Runs after each conversation turn:
-  1. extractMemories (every turn)
-  2. Loop detection (every turn - v1.1+)
-  3. Trigger detection:
-     - RAW count > threshold → compress
-     - Last dream > 24h + new sessions >= 5 → dream (v1.1+)
-     - Refined changed → index
-  4. Structured logging for every step
-"""
+"""Auto-trigger pipeline for memory processing via subagent."""
 
 from pathlib import Path
 from typing import Optional
@@ -16,19 +6,21 @@ from typing import Optional
 from sisyphus.memory.store import MemoryStore
 from sisyphus.memory.refined import RefinedStore
 from sisyphus.memory.moc import MocGenerator
-from sisyphus.memory.log import LogStore, _now
+from sisyphus.memory.log import LogStore
+from sisyphus.memory.subagent import SubagentLauncher
 
 
 class Pipeline:
-    """Auto-trigger processing pipeline for memory operations."""
+    """Auto-trigger processing pipeline using subagent for LLM work."""
 
-    def __init__(self, base_path: Path, compress_threshold: int = 20):
+    def __init__(self, base_path: Path, compress_threshold: int = 20, subagent=None):
         self.compress_threshold = compress_threshold
         memory_path = Path(base_path) / "memory"
         self.store = MemoryStore(memory_path)
         self.refined = RefinedStore(memory_path)
         self.logger = LogStore(base_path)
         self.moc = MocGenerator(self.store, refined_store=self.refined)
+        self.subagent = subagent or SubagentLauncher(store_path=memory_path)
 
     def run(self) -> dict:
         """Execute one pipeline cycle. Returns result dict with status and steps."""
@@ -60,11 +52,13 @@ class Pipeline:
     def _run_detect_loop(self):
         try:
             from sisyphus.memory.loop import LoopDetector
+
             detector = LoopDetector(self.store, self.refined)
             loops = detector.detect()
             if loops:
-                self.logger.create_log("detect-loop",
-                                       body=f"Detected {len(loops)} loop(s).")
+                self.logger.create_log(
+                    "detect-loop", body=f"Detected {len(loops)} loop(s)."
+                )
         except Exception as exc:
             self.logger.create_log("detect-loop", body=f"Loop detect skipped: {exc}")
 
@@ -77,12 +71,14 @@ class Pipeline:
 
     def _run_compress(self):
         try:
-            from sisyphus.memory.compression import AnnealCompressor
-            from sisyphus.memory.llm import LLMClient
-            llm = LLMClient()
-            comp = AnnealCompressor(store=self.store, llm_client=llm)
-            comp.compress()
-            self.logger.create_log("compress", body=f"Compressed store ({self.compress_threshold}+ memories).")
+            from sisyphus.memory.compression import Compressor
+
+            comp = Compressor(store=self.store, subagent=self.subagent)
+            comp.run()
+            self.logger.create_log(
+                "compress",
+                body=f"Compressed store ({self.compress_threshold}+ memories).",
+            )
         except Exception as exc:
             self.logger.create_log("compress", body=f"Compress skipped: {exc}")
 
@@ -97,11 +93,15 @@ class Pipeline:
     def _run_dream(self):
         try:
             from sisyphus.memory.dream import DreamEngine
-            from sisyphus.memory.llm import LLMClient
-            llm = LLMClient()
-            engine = DreamEngine(store=self.store, refined_store=self.refined, llm_client=llm)
+
+            engine = DreamEngine(
+                store=self.store, refined_store=self.refined, subagent=self.subagent
+            )
             reflections = engine.dream()
-            self.logger.create_log("dream", body=f"Dream: {len(reflections)} reflections from pipeline.")
+            self.logger.create_log(
+                "dream",
+                body=f"Dream: {len(reflections)} reflections from pipeline.",
+            )
         except Exception as exc:
             self.logger.create_log("dream", body=f"Dream skipped: {exc}")
 
@@ -111,8 +111,12 @@ class Pipeline:
     def _run_link(self):
         try:
             from sisyphus.memory.link import LinkCleaner
+
             cleaner = LinkCleaner(self.store)
             result = cleaner.clean()
-            self.logger.create_log("link", body=f"Link clean: {result['total_cleaned']} memories cleaned.")
+            self.logger.create_log(
+                "link",
+                body=f"Link clean: {result['total_cleaned']} memories cleaned.",
+            )
         except Exception as exc:
             self.logger.create_log("link", body=f"Link skipped: {exc}")
