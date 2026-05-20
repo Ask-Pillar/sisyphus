@@ -55,6 +55,14 @@ class TestRun:
         result = pipeline.run()
         assert result["status"] == "completed"
 
+    def test_should_dream_true_with_unprocessed_memories(self, pipeline):
+        for i in range(3):
+            pipeline.store.create(title=f"M{i}", type="lesson", content="x")
+        assert pipeline._should_dream() is True
+
+    def test_should_dream_false_with_no_memories(self, pipeline):
+        assert pipeline._should_dream() is False
+
 
 class TestThresholdConfig:
     def test_custom_threshold(self):

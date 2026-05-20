@@ -38,6 +38,9 @@ class Pipeline:
             if self._should_compress():
                 self._run_compress()
                 steps.append("compress")
+            if self._should_dream():
+                self._run_dream()
+                steps.append("dream")
             self._run_index()
             steps.append("index")
             status = "completed"
@@ -66,3 +69,18 @@ class Pipeline:
     def _run_index(self):
         self.moc.generate()
         self.logger.create_log("index", body="INDEX.md regenerated.")
+
+    def _should_dream(self) -> bool:
+        unprocessed = [m for m in self.store.list() if not m.refined_by]
+        return len(unprocessed) >= 3
+
+    def _run_dream(self):
+        try:
+            from sisyphus.memory.dream import DreamEngine
+            from sisyphus.memory.llm import LLMClient
+            llm = LLMClient()
+            engine = DreamEngine(store=self.store, refined_store=self.refined, llm_client=llm)
+            reflections = engine.dream()
+            self.logger.create_log("dream", body=f"Dream: {len(reflections)} reflections from pipeline.")
+        except Exception as exc:
+            self.logger.create_log("dream", body=f"Dream skipped: {exc}")

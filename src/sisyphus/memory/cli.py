@@ -95,6 +95,8 @@ def cmd_show(args):
         print(f"Evidence:  {', '.join(mem.evidence)}")
     if mem.compressed_from:
         print(f"From:      {', '.join(mem.compressed_from)}")
+    if mem.refined_by:
+        print(f"RefinedBy: {', '.join(mem.refined_by)}")
     if mem.trigger:
         print(f"Trigger:   {mem.trigger}")
     if mem.repeat_count:
@@ -174,6 +176,19 @@ def cmd_refined(args):
         print(f"  [{m.id}] {m.type:20s} | {created} | {m.title}{tags}")
 
 
+def cmd_dream(args):
+    from sisyphus.memory.dream import DreamEngine
+    from sisyphus.memory.llm import LLMClient
+    store = _store()
+    rstore = _refined_store()
+    llm = LLMClient()
+    engine = DreamEngine(store=store, refined_store=rstore, llm_client=llm)
+    reflections = engine.dream()
+    print(f"Dream complete: {len(reflections)} reflection(s) generated.")
+    for r in reflections:
+        print(f"  [{r.id}] {r.title} (importance={r.importance})")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Sisyphus memory management")
     sub = parser.add_subparsers(dest="command")
@@ -210,6 +225,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_refined = sub.add_parser("refined", help="List refined memories")
     p_refined.add_argument("--type", "-t", help="Filter by refined type")
 
+    p_dream = sub.add_parser("dream", help="Run reflection engine (dream)")
+
     return parser
 
 
@@ -236,6 +253,8 @@ def main():
         cmd_log(args)
     elif args.command == "refined":
         cmd_refined(args)
+    elif args.command == "dream":
+        cmd_dream(args)
     else:
         parser.print_help()
         sys.exit(1)

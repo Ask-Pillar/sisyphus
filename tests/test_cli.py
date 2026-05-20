@@ -35,6 +35,7 @@ class TestCliCommands:
         assert "index" in sub_names
         assert "log" in sub_names
         assert "refined" in sub_names
+        assert "dream" in sub_names
 
 
 class _Args:
