@@ -213,8 +213,11 @@ class ContextRetriever:
             return []
 
         if query.strip():
-            result = self.subagent.recall_search(refined_mems, query)
-            ids = set(result.get("memory_ids", []))
+            if self.subagent:
+                result = self.subagent.recall_search(refined_mems, query)
+                ids = set(result.get("memory_ids", []))
+            else:
+                ids = {m.id for m in refined_mems}
             candidates = [m for m in refined_mems if m.id in ids]
         else:
             candidates = refined_mems
