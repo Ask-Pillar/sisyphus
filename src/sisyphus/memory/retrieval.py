@@ -124,13 +124,90 @@ def _moc_match_types(query: str, base_path: Path) -> List[str]:
 
 
 def _keyword_score(memory: Memory, query: str) -> float:
-    """Simple keyword overlap score — fallback when no subagent available."""
+    """Keyword overlap score — character-level for CJK, word-level for EN."""
     if not query.strip():
         return 1.0
-    q_words = set(query.lower().split())
     text = f"{memory.title} {memory.content} {' '.join(memory.tags)}".lower()
-    hits = sum(1 for w in q_words if w in text)
-    return hits / max(len(q_words), 1)
+    q = query.lower()
+    has_cjk = any('\u4e00' <= c <= '\u9fff' for c in q)
+    if has_cjk:
+        bigrams = {q[i:i+2] for i in range(len(q)-1)}
+        bigrams.discard(' ')
+        hits = sum(1 for bg in bigrams if bg in text)
+        return hits / max(len(bigrams), 1)
+    else:
+        q_words = set(q.split())
+        hits = sum(1 for w in q_words if w in text)
+        return hits / max(len(q_words), 1)
+
+
+def _tokenize(text: str) -> List[str]:
+    """Tokenize: CJK → overlapping bigrams, EN → word split."""
+    tokens = []
+    has_cjk = any('\u4e00' <= c <= '\u9fff' for c in text)
+    if has_cjk:
+        tokens = [text[i:i+2] for i in range(len(text)-1) if text[i:i+2].strip()]
+    en_words = [w for w in text.lower().split() if len(w) > 1]
+    return tokens + en_words
+
+
+class BM25Ranker:
+    """Pure Python BM25 text ranker — no external dependencies."""
+
+    def __init__(self, memories: List[Memory], k1: float = 1.2, b: float = 0.75):
+        self.memories = memories
+        self.k1 = k1
+        self.b = b
+        self.docs = []
+        self.avgdl = 0.0
+        self.df = {}
+        self.N = 0
+        if memories:
+            self._index()
+
+    def _index(self):
+        self.N = len(self.memories)
+        total_len = 0
+        for m in self.memories:
+            text = f"{m.title} {m.content} {' '.join(m.tags)}"
+            tokens = _tokenize(text)
+            self.docs.append(tokens)
+            total_len += len(tokens)
+            seen = set(tokens)
+            for t in seen:
+                self.df[t] = self.df.get(t, 0) + 1
+        self.avgdl = total_len / max(self.N, 1)
+
+    def _idf(self, token: str) -> float:
+        n = self.df.get(token, 0)
+        if n == 0:
+            return 0.0
+        import math
+        return math.log((self.N - n + 0.5) / (n + 0.5) + 1.0)
+
+    def _score(self, query: str, doc_tokens: List[str], doc_len: int) -> float:
+        q_tokens = _tokenize(query)
+        if not q_tokens:
+            return 0.0
+        score = 0.0
+        for t in q_tokens:
+            idf = self._idf(t)
+            if idf == 0:
+                continue
+            tf = doc_tokens.count(t)
+            numerator = tf * (self.k1 + 1)
+            denominator = tf + self.k1 * (1 - self.b + self.b * doc_len / max(self.avgdl, 1))
+            score += idf * numerator / denominator
+        return score
+
+    def search(self, query: str, top_k: int = 10) -> List[Tuple[Memory, float]]:
+        scored = []
+        for i, (mem, tokens) in enumerate(zip(self.memories, self.docs)):
+            s = self._score(query, tokens, len(tokens))
+            if s > 0:
+                scored.append((mem, s))
+        scored.sort(key=lambda x: x[1], reverse=True)
+        return scored[:top_k]
 
 
 def _filter_by_keyword(memories: List[Memory], query: str, min_score: float = 0.1) -> List[Memory]:
@@ -182,11 +259,13 @@ class ContextRetriever:
         candidates: List[Memory] = []
         refined_mems = [m for m in self.refined.list_refined() if m.type in types]
         if refined_mems:
+            use_fallback = True
             if self.subagent:
                 ref_result = self.subagent.recall_search(refined_mems, query)
-                ref_ids = set(ref_result.get("memory_ids", []))
-            else:
-                filtered = _filter_by_keyword(refined_mems, query)
+                if ref_result.get("status") in ("ok",):
+                    ref_ids = set(ref_result.get("memory_ids", []))
+                    use_fallback = False
+            if use_fallback:
                 ref_ids = {m.id for m in _filter_by_keyword(refined_mems, query)}
             for m in refined_mems:
                 if m.id in ref_ids:
@@ -195,10 +274,13 @@ class ContextRetriever:
         if len(candidates) < top_k and query.strip():
             raw_mems = [m for m in self.store.list() if m.type in types]
             if raw_mems:
+                use_fallback = True
                 if self.subagent:
                     raw_result = self.subagent.recall_search(raw_mems, query)
-                    raw_ids = set(raw_result.get("memory_ids", []))
-                else:
+                    if raw_result.get("status") in ("ok",):
+                        raw_ids = set(raw_result.get("memory_ids", []))
+                        use_fallback = False
+                if use_fallback:
                     raw_ids = {m.id for m in _filter_by_keyword(raw_mems, query)}
                 for m in raw_mems:
                     if m.id in raw_ids:
@@ -207,7 +289,13 @@ class ContextRetriever:
         if not candidates:
             return []
 
-        scored = [(m, decay_score(m, now)) for m in candidates]
+        # BM25 re-rank for better relevance
+        bm25 = BM25Ranker(candidates)
+        bm25_scored = bm25.search(query, top_k=len(candidates))
+        if bm25_scored:
+            scored = [(m, decay_score(m, now) * (1.0 + bm_s * 0.5)) for m, bm_s in bm25_scored]
+        else:
+            scored = [(m, decay_score(m, now)) for m in candidates]
         scored.sort(key=lambda x: x[1], reverse=True)
         top = scored[:top_k]
 
@@ -231,16 +319,24 @@ class ContextRetriever:
             return []
 
         if query.strip():
+            use_fallback = True
             if self.subagent:
                 result = self.subagent.recall_search(refined_mems, query)
-                ids = set(result.get("memory_ids", []))
-            else:
+                if result.get("status") in ("ok",):
+                    ids = set(result.get("memory_ids", []))
+                    use_fallback = False
+            if use_fallback:
                 ids = {m.id for m in _filter_by_keyword(refined_mems, query)}
             candidates = [m for m in refined_mems if m.id in ids]
         else:
             candidates = refined_mems
 
-        scored = [(m, decay_score(m, now)) for m in candidates]
+        bm25 = BM25Ranker(candidates)
+        bm25_scored = bm25.search(query, top_k=len(candidates))
+        if bm25_scored:
+            scored = [(m, decay_score(m, now) * (1.0 + bm_s * 0.5)) for m, bm_s in bm25_scored]
+        else:
+            scored = [(m, decay_score(m, now)) for m in candidates]
         scored.sort(key=lambda x: x[1], reverse=True)
         return scored[:top_k]
 
