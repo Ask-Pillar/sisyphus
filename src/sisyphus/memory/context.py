@@ -89,6 +89,8 @@ class MemoryContext:
             self.store.clear_dirty()
         else:
             memories = self.retriever.retrieve_refined_only(query=query, top_k=5)
+            if not memories:
+                memories = self.retriever.retrieve(query=query, top_k=10)
 
         self._cached = _format_context(memories, max_chars)
         return self._cached

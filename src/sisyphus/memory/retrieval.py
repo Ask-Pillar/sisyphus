@@ -123,6 +123,23 @@ def _moc_match_types(query: str, base_path: Path) -> List[str]:
     return [t for t, _ in scored]
 
 
+def _keyword_score(memory: Memory, query: str) -> float:
+    """Simple keyword overlap score — fallback when no subagent available."""
+    if not query.strip():
+        return 1.0
+    q_words = set(query.lower().split())
+    text = f"{memory.title} {memory.content} {' '.join(memory.tags)}".lower()
+    hits = sum(1 for w in q_words if w in text)
+    return hits / max(len(q_words), 1)
+
+
+def _filter_by_keyword(memories: List[Memory], query: str, min_score: float = 0.1) -> List[Memory]:
+    """Keep memories with keyword overlap above threshold."""
+    if not query.strip():
+        return memories
+    return [m for m in memories if _keyword_score(m, query) >= min_score]
+
+
 def _update_recall_count(store: MemoryStore, memory: Memory, now: datetime):
     """Increment recall count and update timestamp, then persist."""
     memory.recall_count += 1
@@ -169,7 +186,8 @@ class ContextRetriever:
                 ref_result = self.subagent.recall_search(refined_mems, query)
                 ref_ids = set(ref_result.get("memory_ids", []))
             else:
-                ref_ids = {m.id for m in refined_mems}
+                filtered = _filter_by_keyword(refined_mems, query)
+                ref_ids = {m.id for m in _filter_by_keyword(refined_mems, query)}
             for m in refined_mems:
                 if m.id in ref_ids:
                     candidates.append(m)
@@ -181,7 +199,7 @@ class ContextRetriever:
                     raw_result = self.subagent.recall_search(raw_mems, query)
                     raw_ids = set(raw_result.get("memory_ids", []))
                 else:
-                    raw_ids = {m.id for m in raw_mems}
+                    raw_ids = {m.id for m in _filter_by_keyword(raw_mems, query)}
                 for m in raw_mems:
                     if m.id in raw_ids:
                         candidates.append(m)
@@ -217,7 +235,7 @@ class ContextRetriever:
                 result = self.subagent.recall_search(refined_mems, query)
                 ids = set(result.get("memory_ids", []))
             else:
-                ids = {m.id for m in refined_mems}
+                ids = {m.id for m in _filter_by_keyword(refined_mems, query)}
             candidates = [m for m in refined_mems if m.id in ids]
         else:
             candidates = refined_mems

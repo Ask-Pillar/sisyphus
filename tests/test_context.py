@@ -84,8 +84,8 @@ class TestMemoryContext:
     def test_incremental_uses_refined_only(self, tmp_path):
         store = MemoryStore(base_path=tmp_path / "mem")
         retriever = MockRetriever()
-        retriever.results = []
-        retriever.refined_results = []
+        mem = Memory(id="t1", type="lesson", title="Ref", content="x", importance=5)
+        retriever.refined_results = [(mem, 5.0)]
         ctx = MemoryContext(retriever, store, refresh_interval=5)
         ctx.build("query", turn_count=1)
         ctx.build("query", turn_count=2)
@@ -105,7 +105,8 @@ class TestMemoryContext:
         store = MemoryStore(base_path=tmp_path / "mem")
         retriever = MockRetriever()
         retriever.results = []
-        retriever.refined_results = []
+        mem = Memory(id="t1", type="lesson", title="R", content="x", importance=5)
+        retriever.refined_results = [(mem, 5.0)]
         ctx = MemoryContext(retriever, store, refresh_interval=3)
         ctx.build("q", turn_count=1)
         ctx.build("q", turn_count=4)
@@ -126,7 +127,8 @@ class TestMemoryContext:
         store = MemoryStore(base_path=tmp_path / "mem")
         retriever = MockRetriever()
         retriever.results = []
-        retriever.refined_results = []
+        m = Memory(id="t1", type="x", title="D", content="y", importance=5)
+        retriever.refined_results = [(m, 5.0)]
         ctx = MemoryContext(retriever, store, refresh_interval=10)
         ctx.build("q", turn_count=1)
         assert len(retriever.retrieve_calls) == 0
