@@ -108,6 +108,7 @@ def main():
     from sisyphus.memory.store import MemoryStore
     from sisyphus.memory.refined import RefinedStore
     from sisyphus.memory.retrieval import ContextRetriever
+    from sisyphus.memory.subagent import SubagentLauncher
 
     print("="*70)
     print("Sisyphus A/B Test: With Memory vs Without Memory")
@@ -117,6 +118,7 @@ def main():
     tmp = Path(tempfile.mkdtemp()) / "mem"
     store = MemoryStore(base_path=tmp)
     refined = RefinedStore(base_path=tmp)
+    subagent = SubagentLauncher(store_path=tmp)
 
     for title, mem_type, content in FACTS:
         store.create(title=title, type=mem_type, content=content, tags=[mem_type])
@@ -128,7 +130,7 @@ def main():
         print(f"\nQ{i+1}: {question[:60]}...")
 
         # ── Group A: with memory ──
-        retriever = ContextRetriever(store, refined, None)
+        retriever = ContextRetriever(store, refined, subagent)
         mems = retriever.retrieve(query=question, top_k=5)
         ctx_lines = ["<sisyphus_context>"]
         for m, s in mems:

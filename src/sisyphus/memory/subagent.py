@@ -95,8 +95,9 @@ class SubagentLauncher:
         print(result["created_ids"])
     """
 
-    def __init__(self, store_path: Path):
+    def __init__(self, store_path: Path, fixture_path: Optional[str] = None):
         self.store_path = Path(store_path)
+        self.fixture_path = fixture_path
 
     # ── Public API ──
 
@@ -176,8 +177,11 @@ class SubagentLauncher:
                 json.dump(task, f)
 
             # Spawn subprocess
+            cmd = [sys.executable, "-m", "sisyphus.memory.subagent", task_path]
+            if self.fixture_path:
+                cmd.extend(["--fixture", self.fixture_path])
             proc = subprocess.run(
-                [sys.executable, "-m", "sisyphus.memory.subagent", task_path],
+                cmd,
                 capture_output=True,
                 text=True,
                 timeout=120,
@@ -242,36 +246,56 @@ def main():
 
     Signature::
 
-        python -m sisyphus.memory.subagent <task.json>
+        python -m sisyphus.memory.subagent <task.json> [--fixture <fixture.json>]
+
+    With --fixture, reads canned responses from the fixture file instead of
+    calling LLM. The fixture maps task_type → result dict::
+
+        {"dream": {"status":"ok","reflections":[...]},
+         "recall_search": {"status":"ok","memory_ids":[...]}, ...}
 
     Writes result to ``<task.json>.result``.
     """
     if len(sys.argv) < 2:
-        sys.stderr.write("Usage: python -m sisyphus.memory.subagent <task.json>\n")
+        sys.stderr.write("Usage: python -m sisyphus.memory.subagent <task.json> [--fixture <fixture.json>]\n")
         sys.exit(1)
 
     task_path = sys.argv[1]
+    fixture_path = None
+    if len(sys.argv) >= 4 and sys.argv[2] == "--fixture":
+        fixture_path = sys.argv[3]
+
     task_type, store_path, memories, memory, rest = _load_task(task_path)
 
-    try:
-        if task_type == "dream":
-            result = _handle_dream(Path(store_path), memories)
-        elif task_type == "compress":
-            result = _handle_compress(
-                Path(store_path),
-                threshold=rest.get("threshold", 20),
-                keep_recent=rest.get("keep_recent", 5),
-            )
-        elif task_type == "recall_search":
-            result = _handle_recall_search(memories, rest.get("query", ""))
-        elif task_type == "recall_relevant":
-            result = _handle_recall_relevant(memory, rest.get("query", ""))
-        elif task_type == "classify_types":
-            result = _handle_classify_types(rest.get("types", []), rest.get("query", ""))
-        else:
-            result = {"status": "error", "message": f"Unknown task type: {task_type}"}
-    except Exception as exc:
-        result = {"status": "error", "message": f"{type(exc).__name__}: {exc}"}
+    if fixture_path:
+        try:
+            with open(fixture_path, "r") as f:
+                fixtures = json.load(f)
+            result = fixtures.get(task_type)
+            if result is None:
+                result = {"status": "error", "message": f"No fixture for task_type={task_type}"}
+        except Exception as exc:
+            result = {"status": "error", "message": f"Fixture error: {type(exc).__name__}: {exc}"}
+    else:
+        try:
+            if task_type == "dream":
+                result = _handle_dream(Path(store_path), memories)
+            elif task_type == "compress":
+                result = _handle_compress(
+                    Path(store_path),
+                    threshold=rest.get("threshold", 20),
+                    keep_recent=rest.get("keep_recent", 5),
+                )
+            elif task_type == "recall_search":
+                result = _handle_recall_search(memories, rest.get("query", ""))
+            elif task_type == "recall_relevant":
+                result = _handle_recall_relevant(memory, rest.get("query", ""))
+            elif task_type == "classify_types":
+                result = _handle_classify_types(rest.get("types", []), rest.get("query", ""))
+            else:
+                result = {"status": "error", "message": f"Unknown task type: {task_type}"}
+        except Exception as exc:
+            result = {"status": "error", "message": f"{type(exc).__name__}: {exc}"}
 
     result_path = task_path + ".result"
     with open(result_path, "w") as f:

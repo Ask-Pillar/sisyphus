@@ -24,6 +24,7 @@ from typing import Any, Callable, Dict
 from sisyphus.memory.store import MemoryStore
 from sisyphus.memory.refined import RefinedStore
 from sisyphus.memory.context import AgentMemory
+from sisyphus.memory.subagent import SubagentLauncher
 
 STORE_PATH = Path.home() / ".omo" / "memory"
 
@@ -31,7 +32,8 @@ STORE_PATH = Path.home() / ".omo" / "memory"
 def _setup() -> AgentMemory:
     store = MemoryStore(base_path=STORE_PATH)
     refined = RefinedStore(base_path=STORE_PATH)
-    return AgentMemory(store, refined)
+    subagent = SubagentLauncher(store_path=STORE_PATH)
+    return AgentMemory(store, refined, subagent=subagent)
 
 
 def _handle_write(args: Dict[str, Any]) -> Dict[str, Any]:

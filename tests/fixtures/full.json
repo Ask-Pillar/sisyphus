@@ -1,0 +1,43 @@
+{
+  "dream": {
+    "status": "ok",
+    "created_ids": ["ref_fixture_001", "ref_fixture_002"],
+    "reflections": [
+      {
+        "id": "ref_fixture_001",
+        "title": "Subprocess isolation for LLM safety",
+        "content": "Running LLM operations in subprocesses keeps the main agent context clean and prevents context pollution.",
+        "importance": 8,
+        "evidence": ["mem_fixture_a", "mem_fixture_b"]
+      },
+      {
+        "id": "ref_fixture_002",
+        "title": "Decay-based memory relevance",
+        "content": "Exponential decay with 30-day half-life effectively prioritizes recently used memories.",
+        "importance": 6,
+        "evidence": ["mem_fixture_c"]
+      }
+    ]
+  },
+  "recall_search": {
+    "status": "ok",
+    "memory_ids": ["mem_fixture_a", "mem_fixture_b", "mem_fixture_c"]
+  },
+  "recall_relevant": {
+    "status": "ok",
+    "relevance": 0.85
+  },
+  "classify_types": {
+    "status": "ok",
+    "types": ["lesson", "pattern", "architecture"]
+  },
+  "compress": {
+    "status": "ok",
+    "deleted_count": 5,
+    "summary": {
+      "id": "compressed_fixture",
+      "title": "Compressed memory summary"
+    },
+    "deleted_ids": ["old_1", "old_2", "old_3", "old_4", "old_5"]
+  }
+}
