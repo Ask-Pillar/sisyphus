@@ -35,11 +35,12 @@ class LLMClient:
                 "No API key configured. Set SISYPHUS_LLM_API_KEY or OPENAI_API_KEY."
             )
 
+        max_tokens = int(os.environ.get("SISYPHUS_LLM_MAX_TOKENS", "2048"))
         body = json.dumps({
             "model": self.model,
             "messages": messages,
             "temperature": 0.0,
-            "max_tokens": 500,
+            "max_tokens": max_tokens,
         }).encode()
 
         req = urllib.request.Request(
