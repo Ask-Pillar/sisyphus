@@ -6,9 +6,12 @@ Layers:
     L3: RAW recall — supplement with raw memories if refined results are thin
 
 Output is scored by exponential decay (half-life: 30 days) and capped at top_k.
+
+Optional reranker: Qwen3-Reranker-0.6B (CausalLM + yes/no logit scoring).
 """
 
 import logging
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -151,6 +154,231 @@ def _tokenize(text: str) -> List[str]:
     return tokens + en_words
 
 
+class TFIDFEmbedder:
+    """Pure Python TF-IDF text embedder — zero dependencies.
+
+    Tokenizes with CJK bigrams + EN words, builds vocabulary from
+    a corpus of memories, and computes cosine similarity for ranking.
+    """
+
+    def __init__(self, memories: List[Memory]):
+        self.vocab = []
+        self.vocab_idx = {}
+        self.vectors = []  # list of {idx: tfidf}
+
+        if not memories:
+            return
+
+        # Tokenize and count
+        docs = []
+        df = {}
+        import math
+
+        for m in memories:
+            text = f"{m.title} {m.content} {' '.join(m.tags)}"
+            tokens = _tokenize(text)
+            docs.append(tokens)
+            for t in set(tokens):
+                df[t] = df.get(t, 0) + 1
+
+        N = len(memories)
+        self.vocab = sorted(df.keys())
+        self.vocab_idx = {t: i for i, t in enumerate(self.vocab)}
+
+        for tokens in docs:
+            vec = {}
+            tf = {}
+            for t in tokens:
+                tf[t] = tf.get(t, 0) + 1
+            max_tf = max(tf.values()) if tf else 1
+            for t, count in tf.items():
+                idf = math.log((N - df[t] + 0.5) / (df[t] + 0.5) + 1.0)
+                vec[self.vocab_idx[t]] = (count / max_tf) * idf
+            self.vectors.append(vec)
+
+    def query_vector(self, query: str) -> dict:
+        tokens = _tokenize(query)
+        if not tokens:
+            return {}
+        vec = {}
+        max_tf = max(tokens.count(t) for t in set(tokens))
+        import math
+        for t in set(tokens):
+            if t in self.vocab_idx:
+                tf = tokens.count(t) / max_tf
+                n = sum(1 for v in self.vectors if self.vocab_idx[t] in v)
+                idf = math.log((len(self.vectors) - n + 0.5) / (n + 0.5) + 1.0) if n > 0 else 0.0
+                if tf * idf > 0:
+                    vec[self.vocab_idx[t]] = tf * idf
+        return vec
+
+    @staticmethod
+    def _cosine(a: dict, b: dict) -> float:
+        import math
+        if not a or not b:
+            return 0.0
+        dot = sum(a[k] * b.get(k, 0) for k in a)
+        norm_a = math.sqrt(sum(v ** 2 for v in a.values()))
+        norm_b = math.sqrt(sum(v ** 2 for v in b.values()))
+        if norm_a == 0 or norm_b == 0:
+            return 0.0
+        return dot / (norm_a * norm_b)
+
+    def similarity(self, query: str, doc_idx: int) -> float:
+        q_vec = self.query_vector(query)
+        return self._cosine(q_vec, self.vectors[doc_idx]) if 0 <= doc_idx < len(self.vectors) else 0.0
+
+
+_Q3_EMBED_PATH = os.path.expanduser(
+    "~/.cache/sisyphus/models/models--Qwen--Qwen3-Embedding-0.6B"
+)
+_Q3_RERANK_PATH = os.path.expanduser(
+    "~/.cache/sisyphus/models/models--Qwen--Qwen3-Reranker-0.6B"
+)
+
+
+class Qwen3Embedder:
+    """Qwen3-Embedding-0.6B via sentence-transformers.
+
+    Provides dense-vector cosine similarity ranking.
+    Falls back gracefully if model unavailable.
+    """
+
+    def __init__(self, model_path: str = _Q3_EMBED_PATH, device: str = "cpu"):
+        self._model_path = model_path
+        self._device = device
+        self._model = None
+
+    def _ensure_loaded(self) -> bool:
+        if self._model is not None:
+            return True
+        if not os.path.isdir(self._model_path):
+            logger.warning("Qwen3-Embedding model not found at %s", self._model_path)
+            return False
+        try:
+            from sentence_transformers import SentenceTransformer
+            self._model = SentenceTransformer(
+                self._model_path, trust_remote_code=True, device=self._device
+            )
+            logger.info("Qwen3-Embedding loaded (%s)", self._device)
+            return True
+        except Exception as exc:
+            logger.warning("Failed to load Qwen3-Embedding: %s", exc)
+            return False
+
+    def encode(self, texts):
+        if not self._ensure_loaded():
+            return None
+        return self._model.encode(texts, show_progress_bar=False, batch_size=8)
+
+    def encode_query(self, query: str):
+        if not self._ensure_loaded():
+            return None
+        return self._model.encode(query, show_progress_bar=False)
+
+    def close(self):
+        self._model = None
+
+
+class Qwen3Reranker:
+    """Qwen3-Reranker-0.6B via CausalLM + yes/no logit scoring.
+
+    Uses auto-regressive LM last-token logits for "yes"/"no" tokens to score
+    query-document relevance.  Falls back gracefully if model unavailable.
+    """
+
+    TRUE_TOKEN_ID = 9693   # "yes"
+    FALSE_TOKEN_ID = 2152  # "no"
+
+    def __init__(self, model_path: str = _Q3_RERANK_PATH):
+        self._model_path = model_path
+        self._model = None
+        self._tokenizer = None
+        self._device = "cpu"
+
+    def _ensure_loaded(self) -> bool:
+        if self._model is not None:
+            return True
+        if not os.path.isdir(self._model_path):
+            logger.warning("Qwen3-Reranker model not found at %s", self._model_path)
+            return False
+        try:
+            from transformers import AutoModelForCausalLM, AutoTokenizer
+            import torch
+
+            self._tokenizer = AutoTokenizer.from_pretrained(
+                self._model_path, padding_side="left"
+            )
+            self._tokenizer.pad_token = "<|endoftext|>"
+            self._model = AutoModelForCausalLM.from_pretrained(
+                self._model_path, dtype=torch.float16
+            )
+            self._model.eval()
+            self._model.to(self._device)
+            logger.info("Qwen3-Reranker loaded successfully")
+            return True
+        except Exception as exc:
+            logger.warning("Failed to load Qwen3-Reranker: %s", exc)
+            return False
+
+    @staticmethod
+    def _format_pair(query: str, doc: str, instruction: Optional[str] = None) -> str:
+        if instruction is None:
+            instruction = (
+                "Given a web search query, retrieve relevant passages "
+                "that answer the query"
+            )
+        return (
+            "<|im_start|>system\nJudge whether the Document meets the requirements "
+            "based on the Query and the Instruct provided. Note that the answer can "
+            'only be "yes" or "no".<|im_end|>\n<|im_start|>user\n'
+            f"<Instruct>: {instruction}\n<Query>: {query}\n<Document>: "
+            f"{doc}<|im_end|>\n<|im_start|>assistant\n"
+        )
+
+    def rerank(
+        self,
+        query: str,
+        documents: List[str],
+        top_k: Optional[int] = None,
+        instruction: Optional[str] = None,
+    ) -> List[Tuple[int, float]]:
+        """Score documents by relevance to query.
+
+        Returns list of (doc_index, score) sorted descending.
+        Score is probability of "yes" in [0, 1].
+        """
+        if not self._ensure_loaded():
+            return [(i, 0.0) for i in range(len(documents))]
+
+        import torch
+        from torch import no_grad
+
+        texts = [self._format_pair(query, d, instruction) for d in documents]
+        enc = self._tokenizer(
+            texts, padding=True, truncation=True,
+            max_length=512, return_tensors="pt",
+        )
+        enc = {k: v.to(self._device) for k, v in enc.items()}
+        with no_grad():
+            logits = self._model(**enc).logits
+        last_logits = logits[:, -1, :]
+        true_scores = last_logits[:, self.TRUE_TOKEN_ID]
+        false_scores = last_logits[:, self.FALSE_TOKEN_ID]
+        stacked = torch.stack([false_scores, true_scores], dim=1)
+        probs = torch.nn.functional.log_softmax(stacked, dim=1)
+        scores = probs[:, 1].exp().tolist()
+
+        indexed = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)
+        if top_k is not None:
+            indexed = indexed[:top_k]
+        return indexed
+
+    def close(self):
+        self._model = None
+        self._tokenizer = None
+
+
 class BM25Ranker:
     """Pure Python BM25 text ranker — no external dependencies."""
 
@@ -239,10 +467,14 @@ class ContextRetriever:
             print(mem.title, score)
     """
 
-    def __init__(self, store: MemoryStore, refined: RefinedStore, subagent):
+    def __init__(self, store: MemoryStore, refined: RefinedStore, subagent,
+                 reranker: Optional[Qwen3Reranker] = None,
+                 embedder: Optional[Qwen3Embedder] = None):
         self.store = store
         self.refined = refined
         self.subagent = subagent
+        self.reranker = reranker
+        self.embedder = embedder
 
     def retrieve(self, query: str = "", top_k: int = 8) -> List[Tuple[Memory, float]]:
         """Three-layer retrieve, scored and sorted by decay.
@@ -289,15 +521,58 @@ class ContextRetriever:
         if not candidates:
             return []
 
-        # BM25 re-rank for better relevance
+        # BM25 re-rank + Embedding hybrid
         bm25 = BM25Ranker(candidates)
         bm25_scored = bm25.search(query, top_k=len(candidates))
-        if bm25_scored:
-            scored = [(m, decay_score(m, now) * (1.0 + bm_s * 0.5)) for m, bm_s in bm25_scored]
-        else:
-            scored = [(m, decay_score(m, now)) for m in candidates]
+
+        scored = []
+        if self.embedder is not None and query.strip():
+            try:
+                docs = [
+                    f"{m.title} {m.content} {' '.join(m.tags)}"
+                    for m, _ in bm25_scored
+                ]
+                q_vec = self.embedder.encode_query(query)
+                d_vecs = self.embedder.encode(docs)
+                if q_vec is not None and d_vecs is not None:
+                    import numpy as np
+                    q_np = np.array(q_vec)
+                    for i, (m, bm_s) in enumerate(bm25_scored):
+                        d_np = np.array(d_vecs[i])
+                        cos_sim = float(np.dot(q_np, d_np) / (
+                            np.linalg.norm(q_np) * np.linalg.norm(d_np) + 1e-10
+                        ))
+                        hybrid = decay_score(m, now) * (
+                            1.0 + bm_s * 0.2 + cos_sim * 0.8
+                        )
+                        scored.append((m, hybrid))
+                else:
+                    raise RuntimeError("Embedder returned None")
+            except Exception as exc:
+                logger.warning("Qwen3Embedder failed, falling back to TF-IDF: %s", exc)
+                scored = []
+        if not scored:
+            tfidf = TFIDFEmbedder(candidates)
+            for i, (m, bm_s) in enumerate(bm25_scored):
+                idx = candidates.index(m) if m in candidates else -1
+                tf_s = tfidf.similarity(query, candidates.index(m))
+                hybrid = decay_score(m, now) * (1.0 + bm_s * 0.3 + tf_s * 0.7)
+                scored.append((m, hybrid))
+
         scored.sort(key=lambda x: x[1], reverse=True)
-        top = scored[:top_k]
+
+        # Optional Qwen3-Reranker re-rank (boosts top candidates)
+        if self.reranker is not None and query.strip():
+            try:
+                top_n = scored[:top_k * 2]
+                docs = [m.content or m.title or "" for m, _ in top_n]
+                reranked = self.reranker.rerank(query, docs, top_k=top_k)
+                top = [top_n[i] for i, _ in reranked]
+            except Exception as exc:
+                logger.warning("Reranker failed, falling back to BM25: %s", exc)
+                top = scored[:top_k]
+        else:
+            top = scored[:top_k]
 
         for mem, _ in top:
             try:

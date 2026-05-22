@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sisyphus 海马体记忆架构 v2.0 — Memory Tree</title>
+<style>
+:root{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;--border:#334155;--neocortex:#6366f1;--phr:#8b5cf6;--ec:#f97316;--dg:#f59e0b;--ca3:#10b981;--ca1:#06b6d4;--sleep:#ec4899;--emotion:#ef4444;--output:#84cc16}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;padding:20px}
+.container{max-width:1100px;margin:0 auto}
+h1{font-size:1.6rem;margin-bottom:4px;text-align:center}
+.subtitle{color:var(--muted);text-align:center;margin-bottom:24px;font-size:.85rem}
+.arch{display:flex;flex-direction:column;gap:16px}
+.row{display:flex;gap:16px;align-items:stretch}
+.col{flex:1}
+.box{border:2px solid var(--border);border-radius:12px;padding:16px;background:var(--card);position:relative}
+.box-header{font-weight:700;font-size:.9rem;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.box-sub{color:var(--muted);font-size:.78rem}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:.7rem;font-weight:600}
+.bio{background:rgba(139,92,246,.15);color:#a78bfa}
+.tech{background:rgba(16,185,129,.15);color:#34d399}
+.flow-box{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:.75rem;margin:4px 0}
+.arrow-down{text-align:center;color:var(--muted);font-size:1.2rem;margin:4px 0}
+.arrow-right{color:var(--muted);font-size:1.2rem;display:flex;align-items:center;justify-content:center}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:32px;padding:14px;background:var(--card);border:1px solid var(--border);border-radius:8px}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:.78rem}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.pipeline{display:flex;align-items:center;gap:0;margin:8px 0;flex-wrap:wrap}
+.pipe-step{padding:4px 10px;font-size:.72rem;background:var(--bg);border:1px solid var(--border);border-radius:4px}
+.pipe-arrow{color:var(--muted);margin:0 2px}
+.footer{margin-top:24px;text-align:center;color:var(--muted);font-size:.75rem}
+.side-note{font-size:.7rem;color:var(--muted);margin-top:6px;font-style:italic}
+.tree-viz{font-family:monospace;font-size:.72rem;line-height:1.7;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;margin:6px 0;white-space:pre;overflow-x:auto}
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>🧠 Sisyphus 海马体记忆架构 v2.0</h1>
+<p class="subtitle">Memory Tree 层级摘要树 +  Complementary Learning Systems (CLS) 双系统模型</p>
+
+<!-- ============ ENCODING LAYER ============ -->
+<div class="arch">
+
+  <!-- Top: Input -->
+  <div class="row">
+    <div class="col">
+      <div class="box" style="border-color:var(--neocortex)">
+        <div class="box-header" style="color:var(--neocortex)">
+          🧠 新皮层 Neocortex — 感知输入 & 编码
+          <span class="badge bio">生物</span>
+        </div>
+        <div class="flow-box">用户对话 → LLM 理解 → MemoryStore.create()</div>
+        <div class="flow-box">提取关键实体、类型分类、打标签</div>
+        <div class="box-sub">生物角色: 处理感知刺激 → 提取高层特征 → 路由到海马体</div>
+      </div>
+    </div>
+    <div class="arrow-right">→</div>
+    <div class="col">
+      <div class="box" style="border-color:var(--neocortex)">
+        <div class="box-header" style="color:var(--neocortex)">💻 技术实现</div>
+        <div class="flow-box"><b>RAW层</b>: Markdown文件 append-only</div>
+        <div class="flow-box"><b>REFINED层</b>: LLM 精炼记忆</div>
+        <div class="flow-box"><b>importance</b>: 情感标记 (1-10)</div>
+        <div class="box-sub">写入 ~/.omo/memory/&lt;type&gt;/&lt;id&gt;.md</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow-down">↓</div>
+
+  <!-- PHR Layer -->
+  <div class="row">
+    <div class="col">
+      <div class="box" style="border-color:var(--phr)">
+        <div class="box-header" style="color:var(--phr)">
+          🗂️ 海马旁回 PHR — 路由 & 索引
+          <span class="badge bio">生物</span>
+        </div>
+        <div class="flow-box">MOC 关键词重叠打分 → 确定相关记忆类型</div>
+        <div class="flow-box">INDEX.md 类型分组: lesson/pattern/decision/architecture</div>
+        <div class="box-sub">生物角色: 接收新皮层处理后的特征 → 路由到海马体各子区</div>
+      </div>
+    </div>
+    <div class="arrow-right">→</div>
+    <div class="col">
+      <div class="box" style="border-color:var(--phr)">
+        <div class="box-header" style="color:var(--phr)">💻 技术实现</div>
+        <div class="flow-box"><b>_moc_match_types()</b>: 中文二分词+英文分词</div>
+        <div class="flow-box"><b>_classify_types()</b>: 限定搜索范围</div>
+        <div class="box-sub">MOC ← MocGenerator wikilink索引</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow-down">↓</div>
+
+  <!-- ============ NEW: EC + MEMORY TREE ============ -->
+  <div style="border:2px dashed var(--ec);border-radius:12px;padding:20px;margin:8px 0;background:rgba(249,115,22,.04)">
+    <div style="text-align:center;font-weight:700;margin-bottom:12px;color:var(--ec);font-size:1rem">
+      🌳 内嗅皮层 EC — Memory Tree 层级摘要树 <span style="font-size:.8rem;font-weight:400">(NEW v2.0)</span>
+    </div>
+    <div class="row">
+      <div class="col">
+        <div class="box" style="border-color:var(--ec)">
+          <div class="box-header" style="color:var(--ec)">
+            🔭 空间表征 & 层级导航
+            <span class="badge bio">生物</span>
+          </div>
+          <div class="flow-box">内嗅皮层提供"认知地图"——空间/概念/层级导航</div>
+          <div class="flow-box">grid cell 提供度量坐标，不同尺度映射不同抽象层级</div>
+          <div class="box-sub">生物角色: 海马体与新皮层的桥梁，为记忆提供空间和层级框架</div>
+        </div>
+      </div>
+      <div class="arrow-right">→</div>
+      <div class="col">
+        <div class="box" style="border-color:var(--ec)">
+          <div class="box-header" style="color:var(--ec)">💻 Memory Tree</div>
+          <div class="flow-box"><b>TreeStore</b>: 节点模型 (id, parent_id, level, summary, source_ids)</div>
+          <div class="flow-box"><b>层级索引</b>: 全局摘要 → 领域摘要 → 子主题 → 原始记忆</div>
+          <div class="flow-box"><b>backlink</b>: 每个摘要节点指向原始 RAW/REFINED 文件</div>
+          <div class="flow-box"><b>增量重建</b>: dirty 事件 → 只 rebuild 变动的分支</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tree Visualization -->
+    <div class="row" style="margin-top:8px">
+      <div class="col">
+        <div class="box" style="border-color:var(--ec)">
+          <div class="box-header" style="color:var(--ec)">🌲 层级结构示例</div>
+          <div class="tree-viz">📂 全局记忆摘要 (L0)
+ ├── 🔧 技术架构 (L1)
+ │   ├── 后端架构决策 (L2)
+ │   │   ├── 📄 #uuid1 "改用FastAPI替代Flask" (leaf)
+ │   │   └── 📄 #uuid2 "PostgreSQL分区表设计" (leaf)
+ │   ├── 部署运维实践 (L2)
+ │   │   ├── 📄 #uuid5 "K8s滚动更新策略" (leaf)
+ │   │   └── 📄 #uuid8 "Docker多阶段构建" (leaf)
+ │   └── 技术栈偏好 (L2)
+ │       └── 📄 #uuid3 "Python3.9+ Type Hints" (leaf)
+ ├── 💼 项目管理 (L1)
+ │   └── 方法论偏好 (L2)
+ │       └── 📄 #uuid4 "TDD优先" (leaf)
+ └── 🎯 目标与规划 (L1)
+     └── 📄 #uuid6 "海马体架构升级计划" (leaf)</div>
+          <div class="side-note">MOC/tree/ 目录: tree.json + tree.md (Obsidian兼容)</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="box" style="border-color:var(--ec)">
+          <div class="box-header" style="color:var(--ec)">两条检索路径</div>
+          <div class="flow-box" style="border-color:var(--ec)"><b>🌲 树浏览路径</b> (新):</div>
+          <div style="font-size:.72rem;padding:4px 10px;color:var(--muted)">
+            Query → 匹配 L1/L2 摘要节点 → 展开子树 → 返回该分支全量相关记忆<br>
+            <span style="color:var(--ec)">适用于: 宽泛查询、"关于X你知道什么"</span>
+          </div>
+          <div class="flow-box" style="border-color:var(--ca3);margin-top:6px"><b>🔍 检索路径</b> (已有):</div>
+          <div style="font-size:.72rem;padding:4px 10px;color:var(--muted)">
+            Query → MOC匹配 → EC树限定领域 → DG/CA3/CA1 语义检索<br>
+            <span style="color:var(--ca3)">适用于: 精确查询、"我上次说了什么关于Y"</span>
+          </div>
+          <div class="flow-box" style="border-color:var(--sleep);margin-top:6px"><b>🌙 离线构建</b>:</div>
+          <div style="font-size:.72rem;padding:4px 10px;color:var(--muted)">
+            Sleep Consolidation 阶段 → 聚类叶子 → LLM 生成摘要 → 向上合并 → 更新 tree.json
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow-down">↓</div>
+
+  <!-- HIPPOCAMPUS: DG + CA3 + CA1 -->
+  <div style="border:2px dashed var(--border);border-radius:12px;padding:20px;margin:8px 0;background:rgba(16,185,129,.04)">
+    <div style="text-align:center;font-weight:700;margin-bottom:16px;color:var(--ca3);font-size:1rem">
+      🏛️ 海马体本体 Hippocampus — 记忆编码 & 检索
+    </div>
+    <div class="row">
+      <!-- DG -->
+      <div class="col">
+        <div class="box" style="border-color:var(--dg)">
+          <div class="box-header" style="color:var(--dg)">
+            🔀 齿状回 DG — 模式分离
+            <span class="badge bio">生物</span>
+          </div>
+          <div class="flow-box"><b>Qwen3-Embedding-0.6B</b> (0.6B参数)</div>
+          <div class="flow-box">文本 → 1024维向量</div>
+          <div class="flow-box">相似内容 → 不同向量 (正交化)</div>
+          <div class="side-note">生物角色: 用稀疏编码保证不同经历不混淆，竞争学习+稀疏表示</div>
+        </div>
+      </div>
+      <!-- CA3 -->
+      <div class="col">
+        <div class="box" style="border-color:var(--ca3)">
+          <div class="box-header" style="color:var(--ca3)">
+            🔗 CA3 — 模式完成 & 自联想
+            <span class="badge bio">生物</span>
+          </div>
+          <div class="flow-box"><b>BM25 粗筛</b> → <b>Embedding 余弦相似度</b></div>
+          <div class="flow-box">部分线索 → 唤起完整记忆</div>
+          <div class="flow-box">"serverless" → "AWS Lambda冷启动" ✅</div>
+          <div class="side-note">生物角色: 密集递归连接网络，接收部分输入 → 激活完整存储模式</div>
+        </div>
+      </div>
+      <!-- CA1 -->
+      <div class="col">
+        <div class="box" style="border-color:var(--ca1)">
+          <div class="box-header" style="color:var(--ca1)">
+            ✅ CA1 — 输出 & 精排
+            <span class="badge bio">生物</span>
+          </div>
+          <div class="flow-box"><b>Qwen3-Reranker-0.6B</b> (0.6B参数)</div>
+          <div class="flow-box">Cross-encoder 打分: (query, 候选) → 0-1</div>
+          <div class="flow-box">从CA3召回中精选最相关</div>
+          <div class="side-note">生物角色: 整合CA3输出+内嗅皮层输入 → 输出到新皮层</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tree-aware retrieval detail -->
+    <div class="row" style="margin-top:8px">
+      <div class="col">
+        <div class="box" style="border-color:var(--ec)">
+          <div class="box-header" style="color:var(--ec)">🌲 树感知检索 (Tree-Aware Retrieval)</div>
+          <div class="flow-box">Query → BM25匹配摘要节点 → 取匹配度最高子树 → 展开父/子节点</div>
+          <div class="flow-box">子树内 BM25+余弦 精排 → 返回</div>
+          <div class="side-note">搜索范围从"全部记忆"缩小到"相关子树", 提高命中率和速度</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="box" style="border-color:var(--output)">
+          <div class="box-header" style="color:var(--output)">📊 预期提升</div>
+          <div class="flow-box"><b>命中率</b>: 46% (纯BM25) → 65% (树限定+BM25) → 85% (+Embedding+Reranker)</div>
+          <div class="flow-box"><b>搜索范围</b>: 全量扫描 → 按树剪枝, 百万级记忆也可毫秒响应</div>
+          <div class="flow-box"><b>上下文注入</b>: 可只灌入最相关子树的记忆, 减少token消耗</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow-down">↓</div>
+
+  <!-- Output: back to neocortex -->
+  <div class="row">
+    <div class="col">
+      <div class="box" style="border-color:var(--ca1)">
+        <div class="box-header" style="color:var(--ca1)">📤 CA1 → 新皮层输出</div>
+        <div class="flow-box"><b>decay_score</b>: importance × 0.5^(days/30)</div>
+        <div class="flow-box"><b>recall_count</b>: 每次检索+1, 越用越强</div>
+        <div class="flow-box"><b>AgentMemory.before_turn()</b>: 注入 &lt;sisyphus_context&gt;</div>
+      </div>
+    </div>
+    <div class="arrow-right">→</div>
+    <div class="col">
+      <div class="box" style="border-color:var(--output)">
+        <div class="box-header" style="color:var(--output)">📥 Agent 决策</div>
+        <div class="flow-box">带上下文的 LLM 回答</div>
+        <div class="flow-box">新记忆回写 (dirty标记 → 下轮全量/增量刷新)</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============ CONSOLIDATION ============ -->
+<div style="margin-top:24px">
+  <div style="text-align:center;font-weight:700;margin-bottom:12px;color:var(--sleep);font-size:1rem">
+    🌙 睡眠巩固系统 Sleep Consolidation — 离线记忆巩固 + 树构建
+  </div>
+  <div class="row">
+    <div class="col">
+      <div class="box" style="border-color:var(--sleep)">
+        <div class="box-header" style="color:var(--sleep)">SWS 慢波睡眠</div>
+        <div class="flow-box"><b>DreamEngine 反射</b>: 未加工记忆 → LLM 生成 insight</div>
+        <div class="flow-box">创建 reflection/summary → refined/ 目录</div>
+        <div class="side-note">生物对应: 海马→新皮层回放, 提取模式</div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="box" style="border-color:var(--sleep)">
+        <div class="box-header" style="color:var(--sleep)">REM 快速眼动</div>
+        <div class="flow-box"><b>Compressor 退火压缩</b>: 旧记忆合并摘要</div>
+        <div class="flow-box">threshold=20条触发, keep_recent=5保留最新</div>
+        <div class="side-note">生物对应: 情绪记忆整合, 突触修剪</div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="box" style="border-color:var(--sleep)">
+        <div class="box-header" style="color:var(--sleep)">🌳 树构建 (NEW)</div>
+        <div class="flow-box"><b>聚类</b>: 新记忆按语义/类型聚类</div>
+        <div class="flow-box"><b>摘要生成</b>: SubagentLauncher → LLM 生成各级摘要</div>
+        <div class="flow-box"><b>树合并</b>: 新分支挂入现有树, backlink 更新</div>
+        <div class="side-note">对应生物: 内嗅皮层-海马体层级地图的夜间重建</div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="box" style="border-color:var(--sleep)">
+        <div class="box-header" style="color:var(--sleep)">巩固 Consolidation</div>
+        <div class="flow-box"><b>LoopDetector</b>: 检测重复模式 ≥3次</div>
+        <div class="flow-box"><b>LinkCleaner</b>: 断链清理/去重/自引用</div>
+        <div class="flow-box"><b>recall_count更新</b>: 唤醒记忆加强权重</div>
+        <div class="side-note">生物对应: 系统巩固, 短期→长期迁移</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ COMPARISON TABLE ============ -->
+<div style="margin-top:24px">
+  <div class="box" style="border-color:var(--border)">
+    <div class="box-header">📊 生物→技术 完整映射 (v2.0)</div>
+    <table style="width:100%;font-size:.78rem;border-collapse:collapse;margin-top:8px">
+      <tr style="color:var(--muted);border-bottom:1px solid var(--border)">
+        <th style="text-align:left;padding:6px">脑区</th><th style="text-align:left;padding:6px">生物功能</th><th style="text-align:left;padding:6px">Sisyphus 实现</th><th style="text-align:left;padding:6px">模型/算法</th><th style="text-align:left;padding:6px">状态</th>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:6px">🧠 新皮层</td><td style="padding:6px">感知处理, 高层特征提取</td><td style="padding:6px">LLM编码 → RAW存储</td><td style="padding:6px">MemoryStore.create()</td><td style="color:var(--ca3)">✅</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:6px">🗂️ PHR</td><td style="padding:6px">路由刺激到海马体</td><td style="padding:6px">MOC类型匹配</td><td style="padding:6px">_moc_match_types()</td><td style="color:var(--ca3)">✅</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:6px">🌳 <b>内嗅皮层 EC</b></td><td style="padding:6px">认知地图, 空间/层级导航</td><td style="padding:6px"><b>Memory Tree 层级摘要树</b></td><td style="padding:6px">TreeStore + SubagentLauncher</td><td style="color:var(--ec)"><b>🆕 计划中</b></td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:6px">🔀 齿状回 DG</td><td style="padding:6px">模式分离 (经历不混淆)</td><td style="padding:6px">文本→向量, 正交化</td><td style="padding:6px">Qwen3-Embedding-0.6B</td><td style="color:var(--ca3)">✅ 待装torch</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:6px">🔗 CA3</td><td style="padding:6px">模式完成 (部分线索→完整)</td><td style="padding:6px">BM25 + Embedding 混合检索</td><td style="padding:6px">BM25Ranker + cosine simil</td><td style="color:var(--ca3)">✅ BM25已跑</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:6px">✅ CA1</td><td style="padding:6px">整合输出, 信息精排</td><td style="padding:6px">Cross-encoder 精排</td><td style="padding:6px">Qwen3-Reranker-0.6B</td><td style="color:var(--ca3)">✅ 待装torch</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:6px">🌙 睡眠</td><td style="padding:6px">记忆巩固, 短期→长期</td><td style="padding:6px">Dream + Compress + <b>树构建</b></td><td style="padding:6px">DreamEngine + Compressor + TreeBuilder</td><td style="color:var(--ec)"><b>🆕 树构建计划中</b></td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:6px">❤️ 杏仁核</td><td style="padding:6px">情感标记, 重要记忆加强</td><td style="padding:6px">importance字段+衰减</td><td style="padding:6px">decay_score()</td><td style="color:var(--ca3)">✅</td>
+      </tr>
+      <tr>
+        <td style="padding:6px">🔁 再巩固</td><td style="padding:6px">每次提取都加强记忆</td><td style="padding:6px">recall_count递增</td><td style="padding:6px">_update_recall_count()</td><td style="color:var(--ca3)">✅</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<!-- ============ PIPELINE FLOW ============ -->
+<div style="margin-top:24px" class="box">
+  <div class="box-header">🔄 完整检索流水线 — 双路径 (一次 before_turn 调用)</div>
+  <div style="font-size:.75rem;margin-top:8px;color:var(--muted)">根据 query 类型自动选择路径:</div>
+
+  <div style="margin-top:8px;font-size:.78rem">
+    <div style="font-weight:700;color:var(--ec);margin-bottom:4px">🌲 路径 A — 树浏览 (宽泛查询)</div>
+    <div class="pipeline">
+      <div class="pipe-step" style="border-color:var(--neocortex)">Query</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step" style="border-color:var(--ec)">EC: BM25匹配摘要节点</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step" style="border-color:var(--ec)">展开匹配子树</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step" style="border-color:var(--ca3)">子树内 BM25+余弦精排</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step" style="border-color:var(--emotion)">杏仁核: 衰减+权重</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step" style="border-color:var(--output)">注入Agent上下文</div>
+    </div>
+  </div>
+
+  <div style="margin-top:12px;font-size:.78rem">
+    <div style="font-weight:700;color:var(--ca3);margin-bottom:4px">🔍 路径 B — 精确检索 (具体查询)</div>
+    <div class="pipeline">
+      <div class="pipe-step" style="border-color:var(--neocortex)">Query</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step" style="border-color:var(--phr)">MOC类型匹配</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step" style="border-color:var(--ec)">EC: 树限定搜索领域</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step" style="border-color:var(--dg)">DG: Embedding向量化</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step" style="border-color:var(--ca3)">CA3: BM25+余弦检索</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step" style="border-color:var(--ca1)">CA1: Reranker精排</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step" style="border-color:var(--emotion)">杏仁核: 衰减+权重</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step" style="border-color:var(--output)">注入Agent上下文</div>
+    </div>
+  </div>
+
+  <div style="margin-top:12px;font-size:.78rem">
+    <div style="font-weight:700;color:var(--sleep);margin-bottom:4px">🌙 夜间构建 (Sleep Consolidation)</div>
+    <div class="pipeline">
+      <div class="pipe-step" style="border-color:var(--sleep)">新记忆聚类</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step" style="border-color:var(--sleep)">Subagent LLM生成摘要</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step" style="border-color:var(--ec)">挂入 Memory Tree</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step" style="border-color:var(--sleep)">Dream/Compress合并</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step" style="border-color:var(--sleep)">LoopDetect + LinkClean</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step" style="border-color:var(--ca3)">tree.json 更新</div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <p>Sisyphus v2.0 · 196 tests · 当前 BM25(46%) · 目标: 树限定+Embedding+Reranker → 85%+ · Human-like Memory Tree 架构</p>
+</div>
+
+</div>
+</body>
+</html>
