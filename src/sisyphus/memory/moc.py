@@ -7,6 +7,8 @@ Replaces the flat INDEX.md format with structured sections.
 from pathlib import Path
 from typing import Optional
 
+from sisyphus.memory.utils import atomic_write
+
 from .store import MemoryStore
 from .refined import RefinedStore
 
@@ -45,7 +47,7 @@ class MocGenerator:
         while lines and lines[-1] == "\n":
             lines.pop()
         lines.append("\n")
-        (self.store.base_path / "INDEX.md").write_text("".join(lines))
+        atomic_write(self.store.base_path / "INDEX.md", "".join(lines))
 
     def _write_dimension(self, dimension: str, memories):
         sections = self._group_by_type(memories)
@@ -55,7 +57,7 @@ class MocGenerator:
             for m in sections[mem_type]:
                 lines.append(f"- [[{m.id}|{m.title}]]\n")
             lines.append("\n")
-        (self.store.base_path / f"MOC-{dimension}.md").write_text("".join(lines))
+        atomic_write(self.store.base_path / f"MOC-{dimension}.md", "".join(lines))
 
     def _group_by_type(self, memories):
         sections = {}

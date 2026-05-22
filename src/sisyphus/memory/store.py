@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, List
 
+from sisyphus.memory.utils import atomic_write
+
 
 @dataclass
 class Memory:
@@ -176,7 +178,7 @@ class MemoryStore:
     def _ensure_index(self):
         index = self.base_path / "INDEX.md"
         if not index.exists():
-            index.write_text(INDEX_HEADER)
+            atomic_write(index, INDEX_HEADER)
 
     def _write_topic(self, mem: Memory):
         fm = {
@@ -225,7 +227,7 @@ class MemoryStore:
             if not mem.content.endswith("\n"):
                 lines.append("\n")
         topic_file = self.base_path / f"{mem.id}.md"
-        topic_file.write_text("".join(lines))
+        atomic_write(topic_file, "".join(lines))
 
     def _parse_topic(self, path: Path) -> Memory:
         text = path.read_text()
@@ -311,7 +313,7 @@ class MemoryStore:
         for m in memories:
             created = m.created_at[:19].replace("T", " ") if m.created_at else ""
             lines.append(INDEX_ENTRY.format(id=m.id, type=m.type, title=m.title, created_at=created))
-        (self.base_path / "INDEX.md").write_text("".join(lines))
+        atomic_write(self.base_path / "INDEX.md", "".join(lines))
 
 
 # Old format parsing helpers (kept for backward compatibility)

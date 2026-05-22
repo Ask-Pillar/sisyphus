@@ -25,15 +25,23 @@ from sisyphus.memory.store import MemoryStore
 from sisyphus.memory.refined import RefinedStore
 from sisyphus.memory.context import AgentMemory
 from sisyphus.memory.subagent import SubagentLauncher
+from sisyphus.memory.pipeline import Pipeline
 
 STORE_PATH = Path.home() / ".omo" / "memory"
 
+# Module-level singleton, initialised once on first use
+_agent: AgentMemory = None
+
 
 def _setup() -> AgentMemory:
+    global _agent
+    if _agent is not None:
+        return _agent
     store = MemoryStore(base_path=STORE_PATH)
     refined = RefinedStore(base_path=STORE_PATH)
     subagent = SubagentLauncher(store_path=STORE_PATH)
-    return AgentMemory(store, refined, subagent=subagent)
+    _agent = AgentMemory(store, refined, subagent=subagent)
+    return _agent
 
 
 def _handle_write(args: Dict[str, Any]) -> Dict[str, Any]:
@@ -52,19 +60,17 @@ def _handle_search(args: Dict[str, Any]) -> Dict[str, Any]:
     top_k = args.get("top_k", 8)
     agent = _setup()
     ctx = agent.before_turn(query=query)
-    store = agent.store
-    results = []
-    for m in store.list():
-        if not query or query.lower() in m.title.lower() or query.lower() in m.content.lower():
-            results.append({
-                "id": m.id, "type": m.type, "title": m.title,
-                "content": m.content[:200], "importance": m.importance,
-            })
-            if len(results) >= top_k:
-                break
+    results = agent.retriever.retrieve(query=query, top_k=top_k)
     return {
         "context": ctx,
-        "results": results,
+        "results": [
+            {
+                "id": m.id, "type": m.type, "title": m.title,
+                "content": m.content[:200], "importance": m.importance,
+                "score": round(float(s), 4),
+            }
+            for m, s in results
+        ],
     }
 
 
@@ -90,6 +96,52 @@ def _handle_stats(args: Dict[str, Any]) -> Dict[str, Any]:
         "total_refined": len(refined_mems),
         "by_type": by_type,
     }
+
+
+def _handle_get(args: Dict[str, Any]) -> Dict[str, Any]:
+    mem_id = args["id"]
+    agent = _setup()
+    mem = agent.store.get(mem_id)
+    if mem is None:
+        return {"error": f"Memory {mem_id} not found"}
+    return {
+        "id": mem.id, "type": mem.type, "title": mem.title,
+        "content": mem.content, "tags": mem.tags,
+        "importance": mem.importance, "status": mem.status,
+        "created_at": mem.created_at, "updated_at": mem.updated_at,
+    }
+
+
+def _handle_list(args: Dict[str, Any]) -> Dict[str, Any]:
+    type_filter = args.get("type", None)
+    agent = _setup()
+    mems = agent.store.list(type_filter=type_filter)
+    refined = agent.refined.list_refined()
+    all_mems = mems + [m for m in refined if type_filter is None or m.type == type_filter]
+    return {
+        "total": len(all_mems),
+        "memories": [
+            {
+                "id": m.id, "type": m.type, "title": m.title,
+                "importance": m.importance, "created_at": m.created_at,
+            }
+            for m in all_mems
+        ],
+    }
+
+
+def _handle_delete(args: Dict[str, Any]) -> Dict[str, Any]:
+    mem_id = args["id"]
+    agent = _setup()
+    agent.store.delete(mem_id)
+    return {"deleted": mem_id}
+
+
+def _handle_pipeline(args: Dict[str, Any]) -> Dict[str, Any]:
+    agent = _setup()
+    pipeline = Pipeline(base_path=STORE_PATH.parent, subagent=agent.subagent)
+    result = pipeline.run()
+    return result
 
 
 TOOLS: Dict[str, Dict[str, Any]] = {
@@ -130,6 +182,39 @@ TOOLS: Dict[str, Dict[str, Any]] = {
         "description": "查看记忆统计概览",
         "inputSchema": {"type": "object", "properties": {}},
     },
+    "get_memory": {
+        "description": "根据 ID 获取单条记忆详情",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "string", "description": "记忆 ID"},
+            },
+            "required": ["id"],
+        },
+    },
+    "list_memories": {
+        "description": "列出所有记忆，可按类型过滤",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "type": {"type": "string", "description": "可选，按类型过滤"},
+            },
+        },
+    },
+    "delete_memory": {
+        "description": "删除一条记忆",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "string", "description": "要删除的记忆 ID"},
+            },
+            "required": ["id"],
+        },
+    },
+    "run_pipeline": {
+        "description": "执行记忆流水线（压缩、梦境、索引、链接、循环检测）",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
 }
 
 HANDLERS: Dict[str, Callable] = {
@@ -137,6 +222,10 @@ HANDLERS: Dict[str, Callable] = {
     "search_memory": _handle_search,
     "get_context": _handle_context,
     "memory_stats": _handle_stats,
+    "get_memory": _handle_get,
+    "list_memories": _handle_list,
+    "delete_memory": _handle_delete,
+    "run_pipeline": _handle_pipeline,
 }
 
 
