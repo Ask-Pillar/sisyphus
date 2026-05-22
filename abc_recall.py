@@ -1,7 +1,9 @@
+"""Recall@k benchmark — BM25, Embedding, and ContextRetriever (P3) comparison."""
 import tempfile, json, numpy as np
 from pathlib import Path
 from sisyphus.memory.store import MemoryStore
-from sisyphus.memory.retrieval import BM25Ranker, Qwen3Embedder
+from sisyphus.memory.refined import RefinedStore
+from sisyphus.memory.retrieval import BM25Ranker, Qwen3Embedder, ContextRetriever
 
 TOPIC_ITEMS = {
     "Storage": ["存储架构: 四层 (RAW/REFINED/DREAM/RECALL), append-only文件存储",
@@ -98,6 +100,7 @@ QUERIES = [
 
 tmp = Path(tempfile.mkdtemp()) / "mem"
 store = MemoryStore(base_path=tmp)
+refined = RefinedStore(base_path=tmp)
 for topic, items in TOPIC_ITEMS.items():
     for idx, content in enumerate(items):
         store.create(title=f"{topic}_{idx}", type=topic, content=content,
@@ -113,17 +116,23 @@ embedder._ensure_loaded()
 embed_texts = [f"{m.title} {m.content} {' '.join(m.tags)}" for m in memories]
 mem_vectors = embedder._model.encode(embed_texts, show_progress_bar=False, batch_size=4)
 
+# ContextRetriever (P3 pipeline)
+retriever = ContextRetriever(store, refined, subagent=None,
+                              reranker=None, embedder=embedder)
+
+
 def cos(a, b):
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-10)
 
 print(f"\n{'='*70}")
 print(f"Recall@k — {N} memories x {len(QUERIES)} queries")
 print(f"{'='*70}")
-print(f"{'':3s} {'Query':<27s} {'BM25@1':6s} {'@3':5s} {'@5':5s} {'Emb@1':6s} {'@3':5s} {'@5':5s}")
-print("-" * 65)
+print(f"{'':3s} {'Query':<27s} {'BM25@1':6s} {'@3':5s} {'@5':5s} {'Emb@1':6s} {'@3':5s} {'@5':5s} {'CRet@1':6s} {'@3':5s} {'@5':5s}")
+print("-" * 98)
 
 a_at1 = a_at3 = a_at5 = 0
 b_at1 = b_at3 = b_at5 = 0
+c_at1 = c_at3 = c_at5 = 0
 
 for i, (q, target) in enumerate(QUERIES):
     bm25_res = bm25.search(q, top_k=5)
@@ -141,6 +150,13 @@ for i, (q, target) in enumerate(QUERIES):
     b3 = target in [memories[j].title for j in emb_sorted[:3]]
     b5 = target in [memories[j].title for j in emb_sorted[:5]]
 
+    # ContextRetriever (P3): retrieve full pipeline
+    cr_res = retriever.retrieve(q, top_k=5)
+    cr_titles = [m.title for m, s in cr_res]
+    c1 = target == (cr_titles[0] if cr_titles else "")
+    c3 = target in cr_titles[:3]
+    c5 = target in cr_titles[:5]
+
     if a1:
         a_at1 += 1
     if a3:
@@ -153,11 +169,17 @@ for i, (q, target) in enumerate(QUERIES):
         b_at3 += 1
     if b5:
         b_at5 += 1
+    if c1:
+        c_at1 += 1
+    if c3:
+        c_at3 += 1
+    if c5:
+        c_at5 += 1
 
-    if not (a1 or b1):
+    if not (a1 or b1 or c1):
         def m(x):
             return "Y" if x else "N"
-        print(f"{i+1:2d} {q[:26]:<26s} {m(a1):6s} {m(a3):5s} {m(a5):5s} {m(b1):6s} {m(b3):5s} {m(b5):5s}")
+        print(f"{i+1:2d} {q[:26]:<26s} {m(a1):6s} {m(a3):5s} {m(a5):5s} {m(b1):6s} {m(b3):5s} {m(b5):5s} {m(c1):6s} {m(c3):5s} {m(c5):5s}")
 
 print()
 T = len(QUERIES)
@@ -165,3 +187,9 @@ print(f"{'Method':<35} {'@1':>6} {'@3':>6} {'@5':>6}")
 print("-" * 55)
 print(f"{'BM25':<35} {a_at1:>2}/{T}={a_at1*100//T:>2}% {a_at3:>2}/{T}={a_at3*100//T:>2}% {a_at5:>2}/{T}={a_at5*100//T:>2}%")
 print(f"{'Embedding':<35} {b_at1:>2}/{T}={b_at1*100//T:>2}% {b_at3:>2}/{T}={b_at3*100//T:>2}% {b_at5:>2}/{T}={b_at5*100//T:>2}%")
+print(f"{'ContextRetriever (P3)':<35} {c_at1:>2}/{T}={c_at1*100//T:>2}% {c_at3:>2}/{T}={c_at3*100//T:>2}% {c_at5:>2}/{T}={c_at5*100//T:>2}%")
+
+if c_at1 * 100 // T >= 80:
+    print(f"\n✓ P3 GATE PASSED: ContextRetriever@1 = {c_at1*100//T}% ≥ 80%")
+else:
+    print(f"\n✗ P3 GATE NOT MET: ContextRetriever@1 = {c_at1*100//T}% < 80%")

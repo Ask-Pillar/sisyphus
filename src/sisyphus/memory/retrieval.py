@@ -576,17 +576,20 @@ class ContextRetriever:
         if len(candidates) < top_k and query.strip():
             raw_mems = [m for m in self.store.list() if m.type in types]
             if raw_mems:
-                use_fallback = True
                 if self.subagent:
                     raw_result = self.subagent.recall_search(raw_mems, query)
                     if raw_result.get("status") in ("ok",):
                         raw_ids = set(raw_result.get("memory_ids", []))
-                        use_fallback = False
-                if use_fallback:
-                    raw_ids = {m.id for m in _filter_by_keyword(raw_mems, query)}
-                for m in raw_mems:
-                    if m.id in raw_ids:
-                        candidates.append(m)
+                        for m in raw_mems:
+                            if m.id in raw_ids:
+                                candidates.append(m)
+                    else:
+                        # Subagent returned error — use all type-matched raw mems
+                        candidates.extend(raw_mems)
+                else:
+                    # No subagent: use all type-matched raw memories as candidates
+                    # BM25 ranking handles relevance filtering
+                    candidates.extend(raw_mems)
 
         if not candidates:
             return []
@@ -612,17 +615,19 @@ class ContextRetriever:
                 d_vecs = self.embedder.encode(docs)
                 if q_vec is not None and d_vecs is not None:
                     import numpy as np
-                if q_vec is not None and d_vecs is not None:
-                    import numpy as np
                     q_np = np.array(q_vec)
+                    # Normalize BM25 scores to [0, 1] for fair combination with cosine
+                    bm_scores = np.array([s for _, s in bm25_scored])
+                    bm_min, bm_max = bm_scores.min(), bm_scores.max()
+                    bm_range = bm_max - bm_min if bm_max > bm_min else 1.0
                     for i, (m, bm_s) in enumerate(bm25_scored):
                         d_np = np.array(d_vecs[i])
                         cos_sim = float(np.dot(q_np, d_np) / (
                             np.linalg.norm(q_np) * np.linalg.norm(d_np) + 1e-10
                         ))
-                        hybrid = decay_score(m, now) * (
-                            1.0 + bm_s * 0.2 + cos_sim * 0.8
-                        )
+                        bm_norm = (bm_s - bm_min) / bm_range
+                        relevance = 0.5 * bm_norm + 0.5 * cos_sim
+                        hybrid = relevance * (1.0 + 0.2 * decay_score(m, now))
                         scored.append((m, hybrid))
                 else:
                     raise RuntimeError("Embedder returned None")
@@ -636,7 +641,8 @@ class ContextRetriever:
                 if idx < 0:
                     continue
                 tf_s = tfidf.similarity(query, idx)
-                hybrid = decay_score(m, now) * (1.0 + bm_s * 0.3 + tf_s * 0.7)
+                relevance = 0.6 * bm_s + 0.4 * tf_s
+                hybrid = relevance * (1.0 + 0.2 * decay_score(m, now))
                 scored.append((m, hybrid))
 
         scored.sort(key=lambda x: x[1], reverse=True)
