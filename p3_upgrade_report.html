@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P3 检索改造报告</title>
+<style>
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; max-width: 960px; margin: 40px auto; padding: 0 20px; background: #f8f9fa; color: #1a1a2e; }
+  h1 { font-size: 24px; border-bottom: 3px solid #4a6cf7; padding-bottom: 12px; margin-bottom: 28px; }
+  h2 { font-size: 18px; color: #4a6cf7; margin-top: 32px; margin-bottom: 14px; border-left: 3px solid #4a6cf7; padding-left: 10px; }
+  h3 { font-size: 15px; margin-top: 20px; margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #e9ecef; }
+  th { background: #f1f3f5; font-weight: 600; }
+  .num { text-align: center; }
+  .best { color: #2d8a4e; font-weight: 700; }
+  .hl { background: #d3f9d8; }
+  .warn { background: #fff3bf; }
+  .fail { background: #ffe0e0; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+  .tag-ok { background: #d3f9d8; color: #2d8a4e; }
+  .tag-fail { background: #ffe0e0; color: #c0392b; }
+  .tag-skip { background: #e9ecef; color: #868e96; }
+  .tag-warn { background: #fff3bf; color: #e67700; }
+  .summary-box { background: linear-gradient(135deg, #4a6cf7, #6c5ce7); color: #fff; border-radius: 12px; padding: 20px 24px; margin: 16px 0; }
+  .summary-box .big { font-size: 42px; font-weight: 700; }
+  .summary-box .row { display: flex; gap: 32px; margin-top: 10px; }
+  .summary-box .row > div { flex: 1; text-align: center; }
+  .summary-box .row .num { font-size: 26px; font-weight: 700; }
+  .summary-box .row .label { font-size: 13px; opacity: 0.8; }
+  .code { background: #f1f3f5; padding: 2px 6px; border-radius: 3px; font-family: monospace; font-size: 13px; }
+  ul { font-size: 14px; line-height: 1.7; }
+  .file-list { font-size: 14px; margin: 8px 0; }
+  .file-list li { padding: 4px 0; }
+</style>
+</head>
+<body>
+
+<h1>P3 检索改造 — 实操说明书验收报告</h1>
+
+<div class="summary-box">
+  <div class="big">256 ✓</div>
+  <div style="font-size:14px;opacity:0.85;">单元测试全绿 · 4 步改造完成 3 步 · 1 步撤销</div>
+  <div class="row">
+    <div><div class="num">15/30</div><div class="label">@1 = 50%</div></div>
+    <div><div class="num">24/30</div><div class="label">@3 = 80%</div></div>
+    <div><div class="num">27/30</div><div class="label">@5 = 90%</div></div>
+  </div>
+</div>
+
+<h2>一、改动清单</h2>
+<table>
+  <tr><th>步骤</th><th>说明</th><th>文件</th><th>行数</th><th>状态</th></tr>
+  <tr>
+    <td>Step 1</td>
+    <td>候选集不足时 BM25 全量补足——修复 MOC 类型硬截断</td>
+    <td><span class="code">retrieval.py</span></td>
+    <td>~15</td>
+    <td><span class="tag tag-ok">✓ 完成</span></td>
+  </tr>
+  <tr>
+    <td>Step 2</td>
+    <td>两阶段流水线：BM25 粗筛(<span class="code">top_k×3</span>) → Embedding 精排</td>
+    <td><span class="code">retrieval.py</span></td>
+    <td>~40</td>
+    <td><span class="tag tag-ok">✓ 完成</span></td>
+  </tr>
+  <tr>
+    <td>Step 3</td>
+    <td>BM25 索引中 title ×2 加权</td>
+    <td><span class="code">retrieval.py</span></td>
+    <td>1</td>
+    <td><span class="tag tag-fail">✗ 撤销</span></td>
+  </tr>
+  <tr>
+    <td>Step 4</td>
+    <td>TF-IDF fallback 从 <span class="code">list.index()</span> 改为 <span class="code">dict</span> 查找</td>
+    <td><span class="code">retrieval.py</span></td>
+    <td>~3</td>
+    <td><span class="tag tag-ok">✓ 完成</span></td>
+  </tr>
+  <tr>
+    <td>Test</td>
+    <td>适配空 query 新行为（类型匹配记忆全部返回）</td>
+    <td><span class="code">test_retrieval.py</span><br><span class="code">test_path_retrieval.py</span></td>
+    <td>~5</td>
+    <td><span class="tag tag-ok">✓ 完成</span></td>
+  </tr>
+</table>
+
+<h2>二、Recall@k Benchmark 最终结果</h2>
+<p>58 条记忆 × 30 条 query，覆盖 14 个类型</p>
+<table>
+  <tr><th>Method</th><th class="num">@1</th><th class="num">@3</th><th class="num">@5</th></tr>
+  <tr><td>BM25（纯文本基线）</td><td class="num">56%</td><td class="num">80%</td><td class="num">90%</td></tr>
+  <tr><td>Qwen3-Embedding-0.6B（语义基线）</td><td class="num">50%</td><td class="num">83%</td><td class="num">90%</td></tr>
+  <tr class="hl"><td><strong>ContextRetriever（P3 两阶段）</strong></td><td class="num"><strong>50%</strong></td><td class="num"><strong>80%</strong></td><td class="num"><strong>90%</strong></td></tr>
+  <tr><td style="color:#888;">ContextRetriever（0.75cos+0.25bm25 融合，参考）</td><td class="num" style="color:#888;">56%</td><td class="num" style="color:#888;">86%</td><td class="num" style="color:#888;">90%</td></tr>
+</table>
+
+<h2>三、迭代实验记录</h2>
+<table>
+  <tr><th>版本</th><th>评分公式</th><th>pre_n</th><th class="num">@1</th><th class="num">@3</th><th class="num">@5</th></tr>
+  <tr><td>BM25 基线</td><td>纯 BM25</td><td>—</td><td class="num">56%</td><td class="num">80%</td><td class="num">90%</td></tr>
+  <tr><td>Embedding 基线</td><td>纯余弦</td><td>—</td><td class="num">50%</td><td class="num">83%</td><td class="num">90%</td></tr>
+  <tr><td>v1: 两阶段(纯余弦)</td><td><span class="code">cos × (1+0.05×decay)</span></td><td>15</td><td class="num">50%</td><td class="num">80%</td><td class="num">90%</td></tr>
+  <tr><td>v2: 两阶段(纯余弦)</td><td><span class="code">cos × (1+0.05×decay)</span></td><td>20</td><td class="num">50%</td><td class="num">80%</td><td class="num">90%</td></tr>
+  <tr><td>v3: 两阶段(title×2)</td><td><span class="code">cos × (1+0.05×decay)</span></td><td>20</td><td class="num">50%</td><td class="num">80%</td><td class="num">90%</td></tr>
+  <tr class="hl"><td><strong>v4: 融合(best)</strong></td><td><strong><span class="code">0.75cos + 0.25bm25_norm</span></strong></td><td><strong>20</strong></td><td class="num best"><strong>56%</strong></td><td class="num best"><strong>86%</strong></td><td class="num best"><strong>90%</strong></td></tr>
+</table>
+
+<h2>四、Step 3 撤销原因</h2>
+<p>Title 重复后 BM25 自身 benchmark 出现退化：</p>
+<table>
+  <tr><th>指标</th><th>改前</th><th>改后</th><th>变化</th></tr>
+  <tr><td>BM25 @1</td><td>56%</td><td>56%</td><td class="num">→ 持平</td></tr>
+  <tr class="warn"><td>BM25 @3</td><td>83%</td><td>80%</td><td class="num">↓ -3%</td></tr>
+  <tr><td>BM25 @5</td><td>90%</td><td>90%</td><td class="num">→ 持平</td></tr>
+</table>
+<p>原因：Title 重复稀释了 content 中关键词的相对权重，依赖 content 匹配的 query（如"BM25的k1和b参数默认值是多少？"）在 BM25 top-3 中丢失。</p>
+
+<h2>五、P3 Gate 评估</h2>
+<table>
+  <tr><th>门禁</th><th>目标</th><th>实际</th><th>结果</th></tr>
+  <tr class="fail"><td>ContextRetriever @1 ≥ 80%</td><td>80%</td><td>50%</td><td><span class="tag tag-fail">✗ 未通过</span></td></tr>
+  <tr class="warn"><td>ContextRetriever @3 ≥ 85%</td><td>85%</td><td>80%</td><td><span class="tag tag-fail">✗ 未通过</span></td></tr>
+  <tr><td>ContextRetriever @3 (blend 参考)</td><td>85%</td><td>86%</td><td><span class="tag tag-ok">✓</span></td></tr>
+  <tr><td>单元测试 ≥ 248 passed</td><td>248</td><td>256</td><td><span class="tag tag-ok">✓</span></td></tr>
+  <tr><td>Path retrieval 全绿</td><td>17/17</td><td>17/17</td><td><span class="tag tag-ok">✓</span></td></tr>
+</table>
+
+<h2>六、结论</h2>
+<ul>
+  <li><strong>Step 1 ✓</strong>：类型过滤修复——候选不足时 BM25 全量补足，消除了 MOC 误匹配导致的全漏风险</li>
+  <li><strong>Step 2 ✓</strong>：两阶段架构实现——BM25 粗筛 + Embedding 精排 + TF-IDF fallback</li>
+  <li><strong>Step 3 ✗</strong>：Title 加权——反效果，已回滚</li>
+  <li><strong>Step 4 ✓</strong>：TF-IDF O(N²)→O(1)</li>
+  <li><strong>测试 ✓</strong>：256/256 全绿</li>
+  <li><strong>P3 Gate ✗</strong>：纯余弦精排无法达到 80%@1。Qwen3-Embedding-0.6B 的 @1 上限为 50%。</li>
+  <li><strong>最优方案</strong>：两阶段结构 + <span class="code">0.75cos + 0.25bm25_norm</span> 融合评分（56%@1, 86%@3）</li>
+</ul>
+
+<h2>七、提交文件</h2>
+<ul class="file-list">
+  <li><span class="code">src/sisyphus/memory/retrieval.py</span> — 核心改造（候选集构建 + 两阶段排序 + TF-IDF fallback）</li>
+  <li><span class="code">tests/test_retrieval.py</span> — 测试适配（空 query 行为）</li>
+  <li><span class="code">tests/test_path_retrieval.py</span> — 测试适配（空 query 行为）</li>
+  <li><span class="code">P3_UPGRADE_REPORT.html</span> — 本报告</li>
+</ul>
+
+</body>
+</html>
