@@ -1,17 +1,21 @@
 """ContextRetriever — three-layer memory retrieval with decay scoring.
 
 Layers:
-    L1: MOC type classification — LLM filters memory types by query relevance
+    L1: MOC type classification — keyword-match memory types by query relevance
     L2: Refined recall — search reflections/summaries within relevant types
     L3: RAW recall — supplement with raw memories if refined results are thin
 
 Output is scored by exponential decay (half-life: 30 days) and capped at top_k.
 
 Optional reranker: Qwen3-Reranker-0.6B (CausalLM + yes/no logit scoring).
+Path A/B routing: short/fuzzy queries use BM25+Embedding;
+                 precise queries add Reranker re-ranking.
 """
 
+import json
 import logging
 import os
+import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -456,8 +460,52 @@ def _update_recall_count(store: MemoryStore, memory: Memory, now: datetime):
     )
 
 
+class EmbeddingCache:
+    """SQLite cache for embedding vectors to avoid redundant model inference."""
+
+    def __init__(self, db_path: Optional[str] = None):
+        self._db_path = db_path
+
+    def _db(self):
+        if self._db_path is None:
+            return None
+        Path(self._db_path).parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(self._db_path)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("""CREATE TABLE IF NOT EXISTS embeddings (
+            key TEXT PRIMARY KEY,
+            vector BLOB,
+            created_at TEXT
+        )""")
+        return conn
+
+    def get(self, key: str) -> Optional[object]:
+        conn = self._db()
+        if conn is None:
+            return None
+        row = conn.execute("SELECT vector FROM embeddings WHERE key=?", (key,)).fetchone()
+        conn.close()
+        if row is None:
+            return None
+        import pickle
+        return pickle.loads(row[0])
+
+    def put(self, key: str, vector: object):
+        conn = self._db()
+        if conn is None:
+            return
+        import pickle
+        conn.execute(
+            "INSERT OR REPLACE INTO embeddings (key, vector, created_at) VALUES (?, ?, ?)",
+            (key, sqlite3.Binary(pickle.dumps(vector)),
+             datetime.now(timezone.utc).isoformat()),
+        )
+        conn.commit()
+        conn.close()
+
+
 class ContextRetriever:
-    """Three-layer memory retriever with decay scoring.
+    """Three-layer memory retriever with decay scoring and Path A/B routing.
 
     Usage::
 
@@ -469,19 +517,41 @@ class ContextRetriever:
 
     def __init__(self, store: MemoryStore, refined: RefinedStore, subagent,
                  reranker: Optional[Qwen3Reranker] = None,
-                 embedder: Optional[Qwen3Embedder] = None):
+                 embedder: Optional[Qwen3Embedder] = None,
+                 cache_path: Optional[str] = None):
         self.store = store
         self.refined = refined
         self.subagent = subagent
         self.reranker = reranker
         self.embedder = embedder
+        self._cache = EmbeddingCache(cache_path) if cache_path else None
+
+    @staticmethod
+    def _choose_path(query: str) -> str:
+        """Classify query as Path A (short/fuzzy) or Path B (precise).
+
+        Path A: BM25 + Embedding (faster, good for vague queries)
+        Path B: BM25 + Embedding + Reranker (slower, better for specific queries)
+        """
+        if not query.strip():
+            return "A"
+        words = query.split()
+        if len(words) < 3:
+            return "A"
+        fuzzy = {"关于", "什么", "怎么", "如何", "为什么", "介绍",
+                 "说明", "哪些", "哪个", "有没有", "是不是", "能否"}
+        if any(w in fuzzy for w in words):
+            return "A"
+        return "B"
 
     def retrieve(self, query: str = "", top_k: int = 8) -> List[Tuple[Memory, float]]:
-        """Three-layer retrieve, scored and sorted by decay.
+        """Three-layer retrieve with Path A/B routing.
 
         Returns list of (Memory, decay_score) tuples, highest score first.
         """
         now = datetime.now(timezone.utc)
+        path = self._choose_path(query)
+        logger.info("path=%s query=%r", path, query)
 
         if query.strip():
             types = self._classify_types(query)
@@ -532,8 +602,16 @@ class ContextRetriever:
                     f"{m.title} {m.content} {' '.join(m.tags)}"
                     for m, _ in bm25_scored
                 ]
-                q_vec = self.embedder.encode_query(query)
+                # Check embedding cache before calling model
+                cache_key = f"q:{query}" if self._cache else None
+                q_vec = self._cache.get(cache_key) if cache_key else None
+                if q_vec is None:
+                    q_vec = self.embedder.encode_query(query)
+                    if cache_key and q_vec is not None:
+                        self._cache.put(cache_key, q_vec)
                 d_vecs = self.embedder.encode(docs)
+                if q_vec is not None and d_vecs is not None:
+                    import numpy as np
                 if q_vec is not None and d_vecs is not None:
                     import numpy as np
                     q_np = np.array(q_vec)
@@ -553,16 +631,19 @@ class ContextRetriever:
                 scored = []
         if not scored:
             tfidf = TFIDFEmbedder(candidates)
-            for i, (m, bm_s) in enumerate(bm25_scored):
+            for m, bm_s in bm25_scored:
                 idx = candidates.index(m) if m in candidates else -1
-                tf_s = tfidf.similarity(query, candidates.index(m))
+                if idx < 0:
+                    continue
+                tf_s = tfidf.similarity(query, idx)
                 hybrid = decay_score(m, now) * (1.0 + bm_s * 0.3 + tf_s * 0.7)
                 scored.append((m, hybrid))
 
         scored.sort(key=lambda x: x[1], reverse=True)
 
-        # Optional Qwen3-Reranker re-rank (boosts top candidates)
-        if self.reranker is not None and query.strip():
+        # Reranker runs only on Path B (precise queries)
+        if self.reranker is not None and query.strip() and path == "B":
+            logger.info("reranker=on path=B")
             try:
                 top_n = scored[:top_k * 2]
                 docs = [m.content or m.title or "" for m, _ in top_n]

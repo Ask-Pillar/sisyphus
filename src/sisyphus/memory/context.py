@@ -124,7 +124,8 @@ class AgentMemory:
         self.store = store
         self.subagent = subagent
         self.refined = refined or RefinedStore(base_path=store.base_path)
-        self.retriever = ContextRetriever(self.store, self.refined, subagent)
+        cache_path = str(store.base_path / "cache" / "embeddings.db")
+        self.retriever = ContextRetriever(self.store, self.refined, subagent, cache_path=cache_path)
         self.context = MemoryContext(self.retriever, self.store, refresh_interval)
         self._turn = 0
 
