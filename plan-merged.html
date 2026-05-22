@@ -57,7 +57,7 @@ code{font-size:.78rem;background:#ffffff08;padding:1px 5px;border-radius:3px}
     <code>~/.omo/memory/</code> + <code>tree/</code> 拆小文件 + <code>_lock/</code> + <code>cache/</code>
   </div>
   <div class="card"><h3>进程模型</h3>
-    <code>sisyphus-mcp</code> 常驻，多客户端（多进程/SSE），文件锁协调
+    <code>sisyphus-mcp</code> 常驻，<strong>stdio 1:1</strong>（每客户端一个进程），文件锁协调<br>定论：不做 SSE，当前最多 2 进程（MCP + CLI）
   </div>
   <div class="card"><h3>渐进增强</h3>
     零依赖 → LLM API → 本地模型 → GPU，每层可验证命中率
@@ -77,7 +77,7 @@ code{font-size:.78rem;background:#ffffff08;padding:1px 5px;border-radius:3px}
         <div style="font-size:.82rem">
           <div style="margin-bottom:6px"><span class="tag tag-p0">原子写入</span> 替换所有 <code>write_text</code></div>
           <div style="margin-bottom:6px"><span class="tag tag-p0">目录锁</span> <code>_lock/</code> mkdir 原子 + pid 死锁检测</div>
-          <div style="margin-bottom:6px"><span class="tag tag-p0">SQLite WAL</span> <code>PRAGMA journal_mode=WAL</code></div>
+          <div style="margin-bottom:6px"><span class="tag tag-p0">SQLite WAL</span> <code>PRAGMA journal_mode=WAL</code> + <code>wal_autocheckpoint=1000</code></div>
           <div><span class="tag tag-p0">MCP 工具</span> 修 search + 加 get/list/delete/run_pipeline</div>
         </div>
       </div>
@@ -156,6 +156,16 @@ code{font-size:.78rem;background:#ffffff08;padding:1px 5px;border-radius:3px}
     <div class="grid2">
       <div>
         <div style="font-size:.82rem">
+          <div><strong>路径选择逻辑</strong>（P3 前置设计，需 ABC 验证）</div>
+          <pre style="font-size:.72rem;background:#ffffff06;border-radius:4px;padding:8px;margin:4px 0 8px;overflow-x:auto;font-family:SFMono,monospace">
+def _choose_path(query, moc_types):
+    vague_words = {"关于","什么","了解","知道","介绍"}
+    if len(query) < 15 or any(w in query for w in vague_words):
+        return "A"  # 宽泛 → 树浏览
+    if moc_types:
+        return "B"  # MOC 精确命中 → 精确检索
+    return "A"      # 默认树浏览
+</pre>
           <div><strong>路径 A — 树浏览</strong>（宽泛 query）</div>
           <div class="flow" style="margin:4px 0 10px">
             <span class="flow-step">EC BM25 摘要</span><span class="flow-arrow">→</span>
@@ -172,7 +182,7 @@ code{font-size:.78rem;background:#ffffff08;padding:1px 5px;border-radius:3px}
             <span class="flow-step">CA1 精排</span><span class="flow-arrow">→</span>
             <span class="flow-step">decay</span>
           </div>
-          <div style="margin-top:6px"><span class="tag tag-p3">向量缓存</span> SQLite blob 存 embedding，避免重算</div>
+          <div style="margin-top:6px"><span class="tag tag-p3">向量缓存</span> SQLite blob（复用 CacheStore），不额外写 npy</div>
         </div>
       </div>
       <div>
@@ -206,7 +216,7 @@ code{font-size:.78rem;background:#ffffff08;padding:1px 5px;border-radius:3px}
         </div>
         <div style="margin-top:8px;font-size:.82rem">
           <div><span class="tag tag-p4">触发</span> RAW ≥ 20 / 每日首次 / 手动</div>
-          <div><span class="tag tag-p4">无 LLM</span> 跳过 Dream+Compress+TreeBuilder，跑剩下 4 步</div>
+          <div><span class="tag tag-p4">无 LLM</span> 跳过 Dream+Compress；TreeBuilder 降级为 title 拼接摘要（从 v1），树仍可构建</div>
           <div><span class="tag tag-p4">锁</span> 全流程持 <code>_lock/</code></div>
         </div>
       </div>
@@ -219,7 +229,7 @@ code{font-size:.78rem;background:#ffffff08;padding:1px 5px;border-radius:3px}
         </table>
       </div>
     </div>
-    <div class="insight">产出：一站式离线巩固，无 LLM 时跑 4/7 步，不空转</div>
+    <div class="insight">产出：一站式离线巩固，无 LLM 时跳过 Dream+Compress，TreeBuilder title 拼接降级，跑 5/7 步不空转</div>
   </div>
 
 </div>
@@ -228,9 +238,9 @@ code{font-size:.78rem;background:#ffffff08;padding:1px 5px;border-radius:3px}
   <h2>命中率演进路径</h2>
   <div class="card">
     <div class="bar"><div class="bar-fill bg-p0" style="width:58%">当前 58% (BM25 only)</div></div>
-    <div class="bar"><div class="bar-fill bg-p1" style="width:70%">P0 修 + 树锁 + 原子写 → 70%</div></div>
-    <div class="bar"><div class="bar-fill bg-p2" style="width:80%">P1-2 TreeStore+Builder → ~80%</div></div>
-    <div class="bar"><div class="bar-fill bg-p3" style="width:90%">P3 双路径+Embedding → 90%+</div></div>
+    <div class="bar"><div class="bar-fill bg-p0" style="width:62%">P0 原子写 + 锁（不影响命中率，纯安全）→ 58-62%</div></div>
+    <div class="bar"><div class="bar-fill bg-p1" style="width:70%">P1-2 TreeStore+Builder 树剪枝 → ~70%</div></div>
+    <div class="bar"><div class="bar-fill bg-p3" style="width:80%">P3 双路径+Embedding → ≥80%（gate，不达标不进 P4）</div></div>
     <div class="bar"><div class="bar-fill bg-p4" style="width:85%">P4 Sleep+Reranker → 85%+ top-1</div></div>
     <div style="margin-top:8px;font-size:.78rem;color:var(--muted)">
       每 Phase 结束时跑 abc 测试验证，不达标不进下 Phase
@@ -282,9 +292,9 @@ code{font-size:.78rem;background:#ffffff08;padding:1px 5px;border-radius:3px}
         <table>
           <tr><th>Phase</th><th>预期 top-1</th></tr>
           <tr><td>当前</td><td>58%</td></tr>
-          <tr><td>P0</td><td>60-65%（锁不影响命中率）</td></tr>
+          <tr><td>P0</td><td>58-62%（安全改造，命中率不变）</td></tr>
           <tr><td>P1-2</td><td>~70%（树剪枝减少噪声）</td></tr>
-          <tr><td>P3</td><td>80-90%（Embedding 加成）</td></tr>
+          <tr><td>P3</td><td>≥80%（gate，不达标不进 P4）</td></tr>
           <tr><td>P4</td><td>85%+ top-1（Reranker 精排）</td></tr>
         </table>
       </div>
@@ -312,6 +322,23 @@ code{font-size:.78rem;background:#ffffff08;padding:1px 5px;border-radius:3px}
       <tr><td><code>tests/test_tree_builder.py</code></td><td><span class="tag tag-p2">P2</span></td><td>新建</td></tr>
       <tr><td><code>tests/test_tree_retriever.py</code></td><td><span class="tag tag-p3">P3</span></td><td>新建</td></tr>
       <tr><td><code>tests/test_sleep.py</code></td><td><span class="tag tag-p4">P4</span></td><td>新建</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="section">
+  <h2>锁定决策清单（评审后修订）</h2>
+  <div class="card">
+    <table>
+      <tr><th>#</th><th>决策</th><th>结论</th><th>来源</th></tr>
+      <tr><td>1</td><td>多客户端方案</td><td><strong>stdio 1:1</strong>，每客户端一个进程，不进 SSE</td><td>评审 #3</td></tr>
+      <tr><td>2</td><td>路径选择逻辑</td><td>启发式：query 长度 + 模糊词 + MOC 匹配度，需 ABC 验证</td><td>评审 #1</td></tr>
+      <tr><td>3</td><td>无 LLM 树更新</td><td>TreeBuilder title 拼接降级，树可构建，不退化</td><td>评审 #2</td></tr>
+      <tr><td>4</td><td>P0 命中率预期</td><td>58-62%（纯安全改造，不改检索逻辑）</td><td>评审 #4</td></tr>
+      <tr><td>5</td><td>P3 gate 阈值</td><td><strong>≥80%</strong>，不达标不进 P4</td><td>评审 #5</td></tr>
+      <tr><td>6</td><td>WAL 配置</td><td><code>journal_mode=WAL</code> + <code>wal_autocheckpoint=1000</code></td><td>评审 #6</td></tr>
+      <tr><td>7</td><td>向量存储</td><td><strong>SQLite blob</strong>（复用 CacheStore），不额外写 npy 文件</td><td>评审 #7</td></tr>
+      <tr><td>8</td><td>Sleep 触发</td><td>RAW ≥ 20（原 v2 标准），v1 的 10 条阈值废弃</td><td>评审次要</td></tr>
     </table>
   </div>
 </div>
