@@ -3,202 +3,258 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sisyphus ABC 检索测试报告</title>
+<title>Sisyphus ABC 检索测试大汇总</title>
 <style>
-  :root { --bg: #1a1a2e; --card: #16213e; --accent: #e94560; --text: #eee; --muted: #889; }
+  :root { --bg: #0f0f1a; --card: #1a1a2e; --accent: #e94560; --text: #eee; --muted: #666; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 20px; line-height: 1.6; }
-  h1 { text-align: center; font-size: 1.8rem; margin-bottom: 4px; }
-  .subtitle { text-align: center; color: var(--muted); font-size: 0.9rem; margin-bottom: 24px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 24px; }
-  .card { background: var(--card); border-radius: 12px; padding: 20px; border: 1px solid #ffffff0a; }
-  .card h2 { font-size: 1rem; color: var(--accent); margin-bottom: 12px; }
-  .card table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-  .card td, .card th { padding: 6px 8px; text-align: left; border-bottom: 1px solid #ffffff0a; }
-  .card th { color: var(--muted); font-weight: 500; font-size: 0.8rem; }
-  .acc { font-weight: 700; font-size: 1.1rem; }
-  .acc-good { color: #4ade80; }
-  .acc-ok { color: #facc15; }
-  .acc-bad { color: #f87171; }
-  .bar-bg { background: #ffffff0a; border-radius: 4px; height: 20px; width: 100%; overflow: hidden; position: relative; }
-  .bar-fill { height: 100%; border-radius: 4px; transition: width 0.8s ease; display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; font-size: 0.75rem; color: #fff; }
-  .bar-good { background: linear-gradient(90deg, #4ade80, #22c55e); }
-  .bar-ok { background: linear-gradient(90deg, #facc15, #eab308); }
-  .bar-bad { background: linear-gradient(90deg, #f87171, #ef4444); }
-  .summary-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-  .tag { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
-  .tag-green { background: #4ade8020; color: #4ade80; }
-  .tag-yellow { background: #facc1520; color: #facc15; }
-  .tag-red { background: #f8717120; color: #f87171; }
-  .tag-blue { background: #60a5fa20; color: #60a5fa; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 24px; line-height: 1.6; }
+  h1 { text-align: center; font-size: 1.6rem; margin-bottom: 4px; letter-spacing: -0.5px; }
+  .subtitle { text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 24px; }
+  h2 { font-size: 1.1rem; margin-bottom: 12px; border-left: 3px solid var(--accent); padding-left: 10px; }
+  h3 { font-size: 0.95rem; margin-bottom: 8px; color: #ccc; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-bottom: 24px; }
+  .card { background: var(--card); border-radius: 10px; padding: 16px; border: 1px solid #ffffff0a; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  td, th { padding: 5px 8px; text-align: left; border-bottom: 1px solid #ffffff08; }
+  th { color: var(--muted); font-weight: 500; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; }
+  .val { font-weight: 700; font-size: 1rem; font-variant-numeric: tabular-nums; }
+  .g { color: #4ade80; } .y { color: #facc15; } .r { color: #f87171; } .b { color: #60a5fa; }
+  .bar { background: #ffffff08; border-radius: 4px; height: 22px; overflow: hidden; margin: 4px 0; display: flex; }
+  .bar-fill { height: 100%; border-radius: 4px; display: flex; align-items: center; justify-content: flex-end; padding: 0 6px; font-size: 0.72rem; font-weight: 600; color: #fff; min-width: fit-content; transition: width 1s ease; }
+  .bg-g { background: linear-gradient(90deg, #22c55e, #4ade80); }
+  .bg-y { background: linear-gradient(90deg, #eab308, #facc15); }
+  .bg-r { background: linear-gradient(90deg, #ef4444, #f87171); }
+  .bg-b { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+  .tag { display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
+  .tag-g { background: #4ade8020; color: #4ade80; }
+  .tag-y { background: #facc1520; color: #facc15; }
+  .tag-r { background: #f8717120; color: #f87171; }
+  .tag-b { background: #60a5fa20; color: #60a5fa; }
+  .insight { background: #ffffff06; border-radius: 6px; padding: 10px 14px; margin-top: 10px; border-left: 3px solid var(--accent); font-size: 0.82rem; }
+  .row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 0.85rem; }
   .section { margin-bottom: 28px; }
-  .section-title { font-size: 1.2rem; border-left: 3px solid var(--accent); padding-left: 12px; margin-bottom: 12px; }
-  .key-insight { background: #ffffff08; border-radius: 8px; padding: 12px 16px; margin-top: 12px; border-left: 3px solid var(--accent); font-size: 0.9rem; }
-  .key-insight strong { color: var(--accent); }
-  td.num { font-variant-numeric: tabular-nums; }
-  @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
+  .flex { display: flex; gap: 12px; flex-wrap: wrap; }
+  .badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; background: #ffffff0a; }
+  @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } body { padding: 12px; } }
 </style>
 </head>
 <body>
 
-<h1>🧠 Sisyphus ABC 检索测试报告</h1>
-<p class="subtitle">2026-05-22 ｜ 全本地模型 ｜ 零 API Key</p>
+<h1>Sisyphus ABC 检索测试大汇总</h1>
+<p class="subtitle">2026-05-22 ｜ 三组测试 ｜ 全本地模型 ｜ CPU-only</p>
 
-<!-- ===== 1. 三组测试概要 ===== -->
-<div class="section">
-  <h2 class="section-title">三组测试对比</h2>
-  <div class="grid">
-    <div class="card">
-      <h2>Test A: 旧数据跨语言</h2>
-      <div class="summary-row"><span>数据</span><span>30 条英文技术笔记</span></div>
-      <div class="summary-row"><span>Query</span><span>中文查英文</span></div>
-      <div class="summary-row"><span>多样</span><span>⭐ 高 — 30 个不同技术领域</span></div>
-      <div class="bar-bg" style="margin:8px 0"><div class="bar-fill bar-good" style="width:96%">BM25 46%</div></div>
-      <div class="bar-bg"><div class="bar-fill bar-good" style="width:96%">Embedding 96%</div></div>
-    </div>
-    <div class="card">
-      <h2>Test B: Sisyphus 含重复</h2>
-      <div class="summary-row"><span>数据</span><span>265 条（含重复副本）</span></div>
-      <div class="summary-row"><span>Query</span><span>中文查中文</span></div>
-      <div class="summary-row"><span>多样</span><span>⭐⭐ 中 — 代码记忆 + 检索副本</span></div>
-      <div class="bar-bg" style="margin:8px 0"><div class="bar-fill bar-ok" style="width:70%">BM25 70%</div></div>
-      <div class="bar-bg"><div class="bar-fill bar-good" style="width:83%">Embedding 83%</div></div>
-      <div class="bar-bg"><div class="bar-fill bar-ok" style="width:80%">Reranker 80%</div></div>
-    </div>
-    <div class="card">
-      <h2>Test C: Sisyphus 去重</h2>
-      <div class="summary-row"><span>数据</span><span>58 条唯一记忆</span></div>
-      <div class="summary-row"><span>Query</span><span>中文查中文</span></div>
-      <div class="summary-row"><span>多样</span><span>⭐ 低 — 全是 Sisyphus 组件</span></div>
-      <div class="bar-bg" style="margin:8px 0"><div class="bar-fill bar-ok" style="width:56%">BM25 56%</div></div>
-      <div class="bar-bg"><div class="bar-fill bar-bad" style="width:50%">Embedding 50%</div></div>
-      <div class="bar-bg"><div class="bar-fill bar-bad" style="width:46%">FlashRank 46%</div></div>
-    </div>
+<div class="grid">
+  <div class="card">
+    <h3>Test A: 旧数据</h3>
+    <div class="row"><span>数据</span><span>30 条英文技术笔记</span></div>
+    <div class="row"><span>Query</span><span>中文查英文</span></div>
+    <div class="row"><span>多样性</span><span>高 — 30个不同技术领域</span></div>
+    <div class="row"><span>来源</span><span><code>abc_local.py</code></span></div>
+  </div>
+  <div class="card">
+    <h3>Test B: Sisyphus 去重</h3>
+    <div class="row"><span>数据</span><span>58 条唯一中文记忆</span></div>
+    <div class="row"><span>Query</span><span>中文查中文</span></div>
+    <div class="row"><span>多样性</span><span>低 — 全是 Sisyphus 组件</span></div>
+    <div class="row"><span>来源</span><span><code>abc_sisyphus.py</code></span></div>
+  </div>
+  <div class="card">
+    <h3>Test C: +FlashRank</h3>
+    <div class="row"><span>数据</span><span>同上 58 条</span></div>
+    <div class="row"><span>Query</span><span>中文查中文</span></div>
+    <div class="row"><span>对比</span><span>BM25 → FlashRank 重排</span></div>
+    <div class="row"><span>来源</span><span><code>abc_flashrank.py</code></span></div>
   </div>
 </div>
 
-<!-- ===== 2. 58条去重详细结果 ===== -->
 <div class="section">
-  <h2 class="section-title">Test C 详细结果（58 条，30 查询）</h2>
-  <div class="grid">
-    <div class="card">
-      <h2>Top-1 准确率</h2>
-      <table>
-        <tr><th>方法</th><th>准确率</th><th>判定</th></tr>
-        <tr><td>BM25 only</td><td class="acc acc-ok">56%</td><td><span class="tag tag-yellow">基线</span></td></tr>
-        <tr><td>Qwen3-Embedding</td><td class="acc acc-bad">50%</td><td><span class="tag tag-red">同质数据劣势</span></td></tr>
-        <tr><td>FlashRank MultiBERT-L-12</td><td class="acc acc-bad">46%</td><td><span class="tag tag-red">英文模型</span></td></tr>
-      </table>
-      <div class="key-insight">
-        <strong>关键发现：</strong>58 条同质中文代码记忆中，BM25 关键词匹配反超 Embedding 语义检索。
-        Embedding 的向量空间太密，无法区分"存储架构四层"和"精炼层去重"这样的相似内容。
-      </div>
-    </div>
-    <div class="card">
-      <h2>Recall@k（BM25）</h2>
-      <table>
-        <tr><th>K</th><th>召回率</th><th>判定</th></tr>
-        <tr><td>@1</td><td class="acc acc-ok">56%</td><td><span class="tag tag-yellow">需改进</span></td></tr>
-        <tr><td>@3</td><td class="acc acc-good">83%</td><td><span class="tag tag-green">良好</span></td></tr>
-        <tr><td>@5</td><td class="acc acc-good">90%</td><td><span class="tag tag-green">优秀</span></td></tr>
-      </table>
-      <div class="key-insight">
-        <strong>实际有效准确率 90%：</strong>Agent 不看 top-1，而是取 top-5 给 LLM 判断。
-        绝大多数情况下正确答案都在候选列表中。
-      </div>
-    </div>
-    <div class="card">
-      <h2>速度对比</h2>
-      <table>
-        <tr><th>方法</th><th>单条耗时</th><th>推理</th></tr>
-        <tr><td>BM25</td><td>~0.03s</td><td><span class="tag tag-green">纯 Python</span></td></tr>
-        <tr><td>Embedding (CPU)</td><td>~0.3s</td><td><span class="tag tag-yellow">sentence-transformers</span></td></tr>
-        <tr><td>FlashRank (ONNX)</td><td>~0.18s</td><td><span class="tag tag-green">ONNX CPU</span></td></tr>
-        <tr><td>Qwen3-Reranker (CPU)</td><td>~20s</td><td><span class="tag tag-red">太慢</span></td></tr>
-      </table>
-    </div>
-  </div>
-</div>
-
-<!-- ===== 3. 测试详情逐条 ===== -->
-<div class="section">
-  <h2 class="section-title">Test C 逐条对比</h2>
-  <div class="card" style="overflow-x:auto">
+  <h2>三组 Top-1 准确率总表</h2>
+  <div class="card">
     <table>
-      <tr><th>#</th><th>Query</th><th>Target</th><th>BM25</th><th>Embed</th><th>FlashRank</th></tr>
+      <tr><th>方法</th><th>Test A</th><th>Test B</th><th>Test C</th></tr>
+      <tr>
+        <td>BM25</td>
+        <td class="val y">46%</td>
+        <td class="val y">56%</td>
+        <td class="val y">56%</td>
+      </tr>
+      <tr>
+        <td>Qwen3-Embedding</td>
+        <td class="val g">96%</td>
+        <td class="val r">50%</td>
+        <td class="val r">50%</td>
+      </tr>
+      <tr>
+        <td>Qwen3-Reranker</td>
+        <td class="val b">—</td>
+        <td class="val r">50%</td>
+        <td class="val r">—</td>
+      </tr>
+      <tr>
+        <td>FlashRank MultiBERT-L-12</td>
+        <td class="val b">—</td>
+        <td class="val b">—</td>
+        <td class="val r">46%</td>
+      </tr>
     </table>
+    <div class="insight">
+      <strong>核心发现：</strong>Embedding 在大而杂数据上碾压（96%），
+      在小而同质数据上不如 BM25（50% vs 56%）。
+      FlashRank（英文模型）在中文上拖后腿到 46%。
+    </div>
   </div>
 </div>
 
-<!-- ===== 4. 错误分析 ===== -->
 <div class="section">
-  <h2 class="section-title">错误模式分析</h2>
+  <h2>Test A 详细 — 旧数据 30 条（中文查英文）</h2>
   <div class="grid">
     <div class="card">
-      <h2>BM25 错在哪</h2>
-      <table>
-        <tr><th>类型</th><th>占比</th><th>说明</th></tr>
-        <tr><td>同 category 错条目</td><td>~60%</td><td>关键词重叠多，BM25 分不清 Storage_0 vs Storage_1</td></tr>
-        <tr><td>跨 category 错</td><td>~40%</td><td>查询词太短/太泛，匹配到无关类别</td></tr>
-      </table>
+      <div class="row"><span>BM25</span><span class="val y">14/30 = 46%</span></div>
+      <div class="bar"><div class="bar-fill bg-y" style="width:46%">46%</div></div>
+      <div class="row" style="margin-top:8px"><span>Qwen3-Embedding</span><span class="val g">29/30 = 96%</span></div>
+      <div class="bar"><div class="bar-fill bg-g" style="width:96%">96%</div></div>
+      <div class="insight">
+        跨语言语义检索，Embedding 完胜。<br>
+        <span class="tag tag-g">优势极大</span> 中文 query 匹配英文技术术语
+      </div>
     </div>
     <div class="card">
-      <h2>Embedding 错在哪</h2>
+      <h3>逐条结果</h3>
       <table>
-        <tr><th>类型</th><th>占比</th><th>说明</th></tr>
-        <tr><td>同质数据混淆</td><td>~80%</td><td>所有 Sisyphus 记忆向量挤在一起，余弦分不开</td></tr>
-        <tr><td>精确数字/参数</td><td>~20%</td><td>Embedding 不擅长 0.35 vs 0.5 这类精确值</td></tr>
+        <tr><th>#</th><th>Query</th><th>BM25</th><th>Embed</th></tr>
+        <tr><td>1</td><td>container orchestration</td><td class="r">N</td><td class="g">Y</td></tr>
+        <tr><td>2</td><td>反向代理负载均衡</td><td class="g">Y</td><td class="g">Y</td></tr>
+        <tr><td>3</td><td>非关系型数据库分组统计</td><td class="r">N</td><td class="g">Y</td></tr>
+        <tr><td>4</td><td>网页布局系统</td><td class="g">Y</td><td class="g">Y</td></tr>
+        <tr><td>5</td><td>类型参数约束</td><td class="g">Y</td><td class="g">Y</td></tr>
+        <tr><td>6</td><td>serverless启动延迟</td><td class="r">N</td><td class="g">Y</td></tr>
+        <tr><td>7</td><td>CI持续集成流水线</td><td class="r">N</td><td class="r">N</td></tr>
+        <tr><td>8</td><td>搜索索引结构</td><td class="r">N</td><td class="g">Y</td></tr>
+        <tr><td>9</td><td>移动UI声明式框架</td><td class="g">Y</td><td class="g">Y</td></tr>
+        <tr><td>10</td><td>消息传输精确一次</td><td class="r">N</td><td class="g">Y</td></tr>
+        <tr><td>11</td><td>Java框架自动装配</td><td class="r">N</td><td class="g">Y</td></tr>
+        <tr><td>12</td><td>苹果UI数据绑定</td><td class="g">Y</td><td class="g">Y</td></tr>
+        <tr><td>13</td><td>子模块版本管理</td><td class="g">Y</td><td class="g">Y</td></tr>
+        <tr><td>14</td><td>大数据批处理</td><td class="r">N</td><td class="g">Y</td></tr>
+        <tr><td>15</td><td>协程异步编程</td><td class="g">Y</td><td class="g">Y</td></tr>
+        <tr><td>16</td><td>消息队列消费者组</td><td class="g">Y</td><td class="g">Y</td></tr>
+        <tr><td>17</td><td>深度学习梯度计算</td><td class="r">N</td><td class="g">Y</td></tr>
+        <tr><td>18</td><td>认证token结构</td><td class="g">Y</td><td class="g">Y</td></tr>
+        <tr><td>19</td><td>域名解析过程</td><td class="g">Y</td><td class="g">Y</td></tr>
+        <tr><td>20</td><td>前端打包优化</td><td class="r">N</td><td class="g">Y</td></tr>
+        <tr><td>21</td><td>数据库查询优化</td><td class="r">N</td><td class="g">Y</td></tr>
+        <tr><td>22</td><td>失败消息处理</td><td class="r">N</td><td class="g">Y</td></tr>
+        <tr><td>23</td><td>移动端安全认证</td><td class="r">N</td><td class="g">Y</td></tr>
+        <tr><td>24</td><td>API查询性能问题</td><td class="g">Y</td><td class="g">Y</td></tr>
+        <tr><td>25</td><td>抽象接口定义</td><td class="g">Y</td><td class="g">Y</td></tr>
+        <tr><td>26</td><td>网络传输新协议</td><td class="g">Y</td><td class="g">Y</td></tr>
+        <tr><td>27</td><td>位图概率过滤器</td><td class="r">N</td><td class="g">Y</td></tr>
+        <tr><td>28</td><td>数据序列化格式</td><td class="g">Y</td><td class="g">Y</td></tr>
+        <tr><td>29</td><td>安全shell隧道</td><td class="r">N</td><td class="g">Y</td></tr>
+        <tr><td>30</td><td>版本管理选择性提交</td><td class="r">N</td><td class="g">Y</td></tr>
       </table>
-      <div class="key-insight">
-        <strong>结论：</strong>小而专数据用 BM25，大而杂数据用 Embedding。
-        最佳策略是 BM25 主检索 + Embedding 语义兜底。
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Test B 详细 — 58 条唯一中文记忆</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>Top-1 准确率</h3>
+      <div class="row"><span>BM25</span><span class="val y">17/30 = 56%</span></div>
+      <div class="bar"><div class="bar-fill bg-y" style="width:56%">56%</div></div>
+      <div class="row"><span>Qwen3-Embedding</span><span class="val r">15/30 = 50%</span></div>
+      <div class="bar"><div class="bar-fill bg-r" style="width:50%">50%</div></div>
+      <div class="row"><span>Qwen3-Reranker</span><span class="val r">15/30 = 50%</span></div>
+      <div class="bar"><div class="bar-fill bg-r" style="width:50%">50%</div></div>
+    </div>
+    <div class="card">
+      <h3>Recall@k</h3>
+      <div class="row"><span>BM25 @1</span><span class="val y">56%</span></div>
+      <div class="row"><span>BM25 @3</span><span class="val g">83%</span></div>
+      <div class="row"><span>BM25 @5</span><span class="val g">90%</span></div>
+      <div style="margin-top:6px"></div>
+      <div class="row"><span>Embedding @1</span><span class="val r">50%</span></div>
+      <div class="row"><span>Embedding @3</span><span class="val g">83%</span></div>
+      <div class="row"><span>Embedding @5</span><span class="val g">90%</span></div>
+      <div class="insight">
+        <strong>有效准确率 90%：</strong>Agent 取 top-5 给 LLM 判断，
+        绝大多数情况正确答案在候选列表中。
+      </div>
+    </div>
+    <div class="card">
+      <h3>速度</h3>
+      <div class="row"><span>BM25</span><span class="val g">~0.03s</span></div>
+      <div class="row"><span>Embedding (CPU)</span><span class="val y">~0.3s</span></div>
+      <div class="row"><span>Reranker (CPU)</span><span class="val r">~20s</span><span class="badge">GPU only</span></div>
+      <div class="row"><span>Embedding 编码 58条</span><span class="val y">~25s</span><span class="badge">一次性</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Test C 详细 — 58条 + FlashRank</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>Top-1 准确率</h3>
+      <div class="row"><span>BM25</span><span class="val y">17/30 = 56%</span></div>
+      <div class="bar"><div class="bar-fill bg-y" style="width:56%">56%</div></div>
+      <div class="row"><span>Qwen3-Embedding</span><span class="val r">15/30 = 50%</span></div>
+      <div class="bar"><div class="bar-fill bg-r" style="width:50%">50%</div></div>
+      <div class="row"><span>FlashRank MultiBERT-L-12</span><span class="val r">14/30 = 46%</span></div>
+      <div class="bar"><div class="bar-fill bg-r" style="width:46%">46%</div></div>
+      <div class="insight">
+        FlashRank (ONNX CPU) 247ms/query，但英文模型在中文上
+        比纯 BM25 还差。不适合本场景。
       </div>
     </div>
   </div>
 </div>
 
-<!-- ===== 5. 硬件环境 ===== -->
 <div class="section">
-  <h2 class="section-title">测试环境</h2>
+  <h2>错误模式分析</h2>
   <div class="grid">
     <div class="card">
-      <h2>硬件</h2>
+      <h3>BM25 错在哪</h3>
       <table>
-        <tr><td>CPU</td><td>Intel i7-4870HQ</td></tr>
-        <tr><td>GPU</td><td>AMD Radeon R9 M370X (2GB, 2015 GCN)</td></tr>
-        <tr><td>内存</td><td>16GB</td></tr>
-        <tr><td>OS</td><td>macOS</td></tr>
+        <tr><th>模式</th><th>占比</th><th>举例</th></tr>
+        <tr><td>同 category 错条目</td><td>~60%</td><td>Storage_0 替 Storage_1</td></tr>
+        <tr><td>跨 category 错</td><td>~40%</td><td>查询词太短/太泛</td></tr>
       </table>
     </div>
     <div class="card">
-      <h2>模型</h2>
+      <h3>Embedding 错在哪</h3>
       <table>
-        <tr><td>Embedding</td><td>Qwen3-Embedding-0.6B (1024d)</td></tr>
-        <tr><td>Reranker</td><td>Qwen3-Reranker-0.6B (CausalLM)</td></tr>
-        <tr><td>Reranker 备选</td><td>FlashRank ms-marco-MultiBERT-L-12 (ONNX)</td></tr>
+        <tr><th>模式</th><th>占比</th><th>说明</th></tr>
+        <tr><td>同质数据混淆</td><td>~80%</td><td>58 条向量挤在一团</td></tr>
+        <tr><td>精确值失败</td><td>~20%</td><td>0.35 vs 0.5 这类</td></tr>
       </table>
-    </div>
-    <div class="card">
-      <h2>结论</h2>
-      <div class="key-insight">
-        <strong>CPU-only 可行：</strong>BM25 + Qwen3-Embedding 组合在 Intel CPU 上 ~0.3s/条，
-        满足生产需求。Reranker (20s/条) 仅推荐 GPU 环境使用。
-        <br><br>
-        <strong>公司 GPU 计划：</strong>当前机器 (AMD R9 M370X) MPS 比 CPU 更慢。
-        用户将在公司机器上尝试完整 MCP server + GPU Reranker。
+      <div class="insight">
+        <strong>结论：</strong>BM25 主检索 + Embedding 语义兜底是最优策略。
+        56% top-1 够用——@5 有 90%，Agent 靠 LLM 做最终判断。
       </div>
     </div>
   </div>
 </div>
 
-<script>
-// Add bar colors to accuracy values
-document.querySelectorAll('.acc').forEach(el => {
-  const v = parseFloat(el.textContent);
-  if (v >= 80) el.style.color = '#4ade80';
-  else if (v >= 55) el.style.color = '#facc15';
-  else el.style.color = '#f87171';
-});
-</script>
+<div class="section">
+  <h2>测试环境</h2>
+  <div class="grid">
+    <div class="card">
+      <div class="row"><span>CPU</span><span>Intel i7-4870HQ</span></div>
+      <div class="row"><span>GPU</span><span>AMD R9 M370X (2GB, GCN 2015)</span></div>
+      <div class="row"><span>内存</span><span>16GB</span></div>
+      <div class="row"><span>Python</span><span>3.9.9</span></div>
+    </div>
+    <div class="card">
+      <div class="row"><span>Embedding</span><span>Qwen3-Embedding-0.6B</span></div>
+      <div class="row"><span>Reranker</span><span>Qwen3-Reranker-0.6B</span></div>
+      <div class="row"><span>FlashRank</span><span>ms-marco-MultiBERT-L-12</span></div>
+      <div class="row"><span>设备</span><span>CPU-only（本机 MPS 更慢）</span></div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
