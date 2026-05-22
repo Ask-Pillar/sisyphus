@@ -548,7 +548,14 @@ class ContextRetriever:
     def retrieve(self, query: str = "", top_k: int = 8) -> List[Tuple[Memory, float]]:
         """Three-layer retrieve with Path A/B routing.
 
-        Returns list of (Memory, decay_score) tuples, highest score first.
+        Architecture:
+            L1: Type classification — MOC keyword match or full fallback
+            Stage 1: BM25 coarse filter — top_k × 3 broad recall
+            Stage 2: Embedding fine re-rank — cosine + 5% decay modifier
+            Fallback: TF-IDF when embedder unavailable
+            Path B: Optional Qwen3-Reranker for precise queries
+
+        Returns list of (Memory, score) tuples, highest score first.
         """
         now = datetime.now(timezone.utc)
         path = self._choose_path(query)
@@ -559,54 +566,41 @@ class ContextRetriever:
         else:
             types = _collect_types(self.store, self.refined)
 
-        candidates: List[Memory] = []
-        refined_mems = [m for m in self.refined.list_refined() if m.type in types]
-        if refined_mems:
-            use_fallback = True
-            if self.subagent:
-                ref_result = self.subagent.recall_search(refined_mems, query)
-                if ref_result.get("status") in ("ok",):
-                    ref_ids = set(ref_result.get("memory_ids", []))
-                    use_fallback = False
-            if use_fallback:
-                ref_ids = {m.id for m in _filter_by_keyword(refined_mems, query)}
-            for m in refined_mems:
-                if m.id in ref_ids:
-                    candidates.append(m)
+        all_raw = self.store.list()
+        all_refined = self.refined.list_refined()
+        if types:
+            refined_mems = [m for m in all_refined if m.type in types]
+            raw_mems = [m for m in all_raw if m.type in types]
+        else:
+            refined_mems = all_refined
+            raw_mems = all_raw
+        candidates = list({m.id: m for m in refined_mems + raw_mems}.values())
 
         if len(candidates) < top_k and query.strip():
-            raw_mems = [m for m in self.store.list() if m.type in types]
-            if raw_mems:
-                if self.subagent:
-                    raw_result = self.subagent.recall_search(raw_mems, query)
-                    if raw_result.get("status") in ("ok",):
-                        raw_ids = set(raw_result.get("memory_ids", []))
-                        for m in raw_mems:
-                            if m.id in raw_ids:
-                                candidates.append(m)
-                    else:
-                        # Subagent returned error — use all type-matched raw mems
-                        candidates.extend(raw_mems)
-                else:
-                    # No subagent: use all type-matched raw memories as candidates
-                    # BM25 ranking handles relevance filtering
-                    candidates.extend(raw_mems)
+            all_mems = list({m.id: m for m in all_raw + all_refined}.values())
+            bm25_all = BM25Ranker(all_mems)
+            supplement = [m for m, _ in bm25_all.search(query, top_k=top_k * 2)]
+            existing_ids = {m.id for m in candidates}
+            for m in supplement:
+                if m.id not in existing_ids:
+                    candidates.append(m)
+                    existing_ids.add(m.id)
 
         if not candidates:
             return []
 
-        # BM25 re-rank + Embedding hybrid
+        PRE_FILTER_N = top_k * 3
         bm25 = BM25Ranker(candidates)
-        bm25_scored = bm25.search(query, top_k=len(candidates))
+        bm25_pre = bm25.search(query, top_k=PRE_FILTER_N)
+        pre_candidates = [m for m, _ in bm25_pre] if bm25_pre else candidates
 
         scored = []
         if self.embedder is not None and query.strip():
             try:
                 docs = [
                     f"{m.title} {m.content} {' '.join(m.tags)}"
-                    for m, _ in bm25_scored
+                    for m in pre_candidates
                 ]
-                # Check embedding cache before calling model
                 cache_key = f"q:{query}" if self._cache else None
                 q_vec = self._cache.get(cache_key) if cache_key else None
                 if q_vec is None:
@@ -617,47 +611,37 @@ class ContextRetriever:
                 if q_vec is not None and d_vecs is not None:
                     import numpy as np
                     q_np = np.array(q_vec)
-                    # Normalize BM25 scores to [0, 1] for fair combination with cosine
-                    bm_scores = np.array([s for _, s in bm25_scored])
-                    bm_min, bm_max = bm_scores.min(), bm_scores.max()
-                    bm_range = bm_max - bm_min if bm_max > bm_min else 1.0
-                    for i, (m, bm_s) in enumerate(bm25_scored):
+                    q_norm = np.linalg.norm(q_np) + 1e-10
+                    for i, m in enumerate(pre_candidates):
                         d_np = np.array(d_vecs[i])
                         cos_sim = float(np.dot(q_np, d_np) / (
-                            np.linalg.norm(q_np) * np.linalg.norm(d_np) + 1e-10
+                            q_norm * (np.linalg.norm(d_np) + 1e-10)
                         ))
-                        bm_norm = (bm_s - bm_min) / bm_range
-                        relevance = 0.5 * bm_norm + 0.5 * cos_sim
-                        hybrid = relevance * (1.0 + 0.2 * decay_score(m, now))
-                        scored.append((m, hybrid))
+                        score = cos_sim * (1.0 + 0.05 * decay_score(m, now))
+                        scored.append((m, score))
                 else:
                     raise RuntimeError("Embedder returned None")
             except Exception as exc:
-                logger.warning("Qwen3Embedder failed, falling back to TF-IDF: %s", exc)
+                logger.warning("Qwen3Embedder failed, TF-IDF fallback: %s", exc)
                 scored = []
+
         if not scored:
-            # TF-IDF fallback: score ALL candidates (not just bm25_scored)
+            candidate_idx = {id(m): i for i, m in enumerate(candidates)}
             tfidf = TFIDFEmbedder(candidates)
-            if bm25_scored:
-                for m, bm_s in bm25_scored:
-                    idx = candidates.index(m) if m in candidates else -1
-                    if idx < 0:
-                        continue
-                    tf_s = tfidf.similarity(query, idx)
-                    relevance = 0.6 * bm_s + 0.4 * tf_s
-                    hybrid = relevance * (1.0 + 0.2 * decay_score(m, now))
-                    scored.append((m, hybrid))
-            else:
-                # BM25 had zero matches — fall back to TF-IDF + decay only
+            for m in pre_candidates:
+                idx = candidate_idx.get(id(m), -1)
+                if idx < 0:
+                    continue
+                tf_s = tfidf.similarity(query, idx)
+                score = tf_s * (1.0 + 0.05 * decay_score(m, now))
+                if tf_s > 0 or not query.strip():
+                    scored.append((m, score))
+            if not scored:
                 for m in candidates:
-                    idx = candidates.index(m)
-                    tf_s = tfidf.similarity(query, idx)
-                    hybrid = decay_score(m, now) * (1.0 + tf_s)
-                    scored.append((m, hybrid))
+                    scored.append((m, decay_score(m, now)))
 
-        scored.sort(key=lambda x: x[1], reverse=True)
+        scored.sort(key=lambda x: -x[1])
 
-        # Reranker runs only on Path B (precise queries)
         if self.reranker is not None and query.strip() and path == "B":
             logger.info("reranker=on path=B")
             try:

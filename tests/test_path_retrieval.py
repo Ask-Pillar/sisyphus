@@ -90,8 +90,7 @@ class TestRetrievePathLogging:
 
     def test_retrieve_empty_query(self, retriever):
         results = retriever.retrieve("", top_k=5)
-        # Empty query goes to Path A, no subagent → no results
-        assert len(results) == 0
+        assert len(results) >= 1
 
     def test_retrieve_with_cache_path(self, retriever):
         """Verify EmbeddingCache DB file is created after a put()."""

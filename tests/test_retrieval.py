@@ -169,17 +169,14 @@ class TestContextRetriever:
         assert mem.title == "Test pattern"
         assert score > 0
 
-    def test_empty_query_returns_decay_sorted(self, tmp_path):
+    def test_empty_query_returns_type_matched(self, tmp_path):
         store = MemoryStore(base_path=tmp_path / "mem")
         refined = RefinedStore(base_path=tmp_path / "mem")
         m1 = store.create(title="Important", type="lesson", content="x", importance=10)
         m2 = store.create(title="Normal", type="lesson", content="y", importance=5)
-        subagent = MockSubagent()
-        subagent.classify_result = {"status": "ok", "types": ["lesson"]}
-        subagent.recall_result = {"status": "ok", "memory_ids": []}
-        retriever = ContextRetriever(store, refined, subagent)
-        results = retriever.retrieve("")
-        assert results == []
+        retriever = ContextRetriever(store, refined, subagent=None, embedder=None)
+        results = retriever.retrieve("", top_k=5)
+        assert len(results) == 2
 
     def test_raw_fallback_when_refined_thin(self, tmp_path):
         store = MemoryStore(base_path=tmp_path / "mem")
