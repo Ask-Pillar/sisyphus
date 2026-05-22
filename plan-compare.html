@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memory Tree 规划对比 — v1 旧计划 vs v2 新架构</title>
+<style>
+:root{--bg:#0f0f1a;--card:#1a1a2e;--text:#eee;--muted:#666;--accent:#e94560;--green:#4ade80;--yellow:#facc15;--blue:#60a5fa}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);padding:24px;line-height:1.6}
+h1{text-align:center;font-size:1.5rem;margin-bottom:4px}
+.subtitle{text-align:center;color:var(--muted);font-size:.85rem;margin-bottom:24px}
+h2{font-size:1.1rem;margin:20px 0 12px;border-left:3px solid var(--accent);padding-left:10px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}
+.card{background:var(--card);border-radius:10px;padding:16px;border:1px solid #ffffff0a}
+.card h3{font-size:.9rem;margin-bottom:8px;color:#ccc}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+td,th{padding:5px 8px;text-align:left;border-bottom:1px solid #ffffff08;vertical-align:top}
+th{color:var(--muted);font-weight:500;font-size:.75rem}
+.tag{display:inline-block;padding:1px 7px;border-radius:4px;font-size:.68rem;font-weight:600}
+.tag-v1{background:#e9456020;color:#e94560}
+.tag-v2{background:#60a5fa20;color:#60a5fa}
+.tag-both{background:#4ade8020;color:#4ade80}
+.g{color:var(--green)}.y{color:var(--yellow)}.r{color:var(--accent)}.b{color:var(--blue)}
+.section{margin-bottom:24px}
+code{font-size:.78rem;background:#ffffff08;padding:1px 5px;border-radius:3px}
+.v1{background:rgba(233,69,96,.04);border-left:3px solid var(--accent)}
+.v2{background:rgba(96,165,250,.04);border-left:3px solid var(--blue)}
+.verdict{background:#ffffff06;border-radius:6px;padding:10px 14px;margin-top:10px;font-size:.82rem;border-left:3px solid var(--green)}
+@media(max-width:700px){.two-col{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<h1>Memory Tree 规划对比</h1>
+<p class="subtitle">v1 旧计划 (<code>.omo/plans/memory-tree.md</code>) vs v2 新架构（Sisyphus 独立 MCP Server）</p>
+
+<div class="section">
+  <h2>总览</h2>
+  <div class="two-col">
+    <div class="card v1">
+      <h3><span class="tag tag-v1">v1</span> 旧计划</h3>
+      <div class="row"><span>范围</span> Memory Tree 4 Phase</div>
+      <div class="row"><span>设计哲学</span> 增量式功能模块</div>
+      <div class="row"><span>视角</span> 组件级，从 TreeStore 自底向上</div>
+      <div class="row"><span>文件</span> <code>tree.json</code> 单文件全量</div>
+      <div class="row"><span>进程模型</span> 未定义</div>
+      <div class="row"><span>命中率目标</span> 56% → 70%</div>
+    </div>
+    <div class="card v2">
+      <h3><span class="tag tag-v2">v2</span> 新架构</h3>
+      <div class="row"><span>范围</span> 完整 MCP Server + 双路径检索 + Sleep Pipeline</div>
+      <div class="row"><span>设计哲学</span> 独立服务，渐进增强</div>
+      <div class="row"><span>视角</span> 系统级，从 MCP 客户端视角向下</div>
+      <div class="row"><span>文件</span> <code>tree/</code> 目录拆小文件 + <code>_lock/</code> 锁</div>
+      <div class="row"><span>进程模型</span> 常驻 MCP 单进程，文件锁协进程</div>
+      <div class="row"><span>命中率目标</span> 58% → 85%+ top-1</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>逐项对比</h2>
+
+  <div class="card" style="margin-bottom:14px">
+    <h3>1. 文件布局</h3>
+    <table>
+      <tr><th style="width:20%">方面</th><th style="width:40%">v1 旧计划</th><th style="width:40%">v2 新架构</th></tr>
+      <tr>
+        <td>树存储</td>
+        <td><code>tree.json</code> 单文件全量序列化<br><span class="r">⚠ 改一行改全量，并发写脆</span></td>
+        <td><code>tree/</code> 目录：<code>_meta.json</code> + <code>l0.json</code> + <code>l1/*.json</code> + <code>l2/*.json</code><br><span class="g">✅ 新增只写叶子文件，不改全量</span></td>
+      </tr>
+      <tr>
+        <td>写锁</td>
+        <td>未明确定义<br><span class="r">⚠ 只说"建议加锁"</span></td>
+        <td><code>_lock/</code> 目录锁（mkdir 原子），pid 死锁检测<br><span class="g">✅ 具体实现</span></td>
+      </tr>
+      <tr>
+        <td>原子写入</td>
+        <td>提了临时文件 rename，但没集成进现有代码<br><span class="y">△ 有概念无落地</span></td>
+        <td><code>atomic_write()</code> 函数定义明确，要改 <code>store.py</code> 替换 <code>write_text</code><br><span class="g">✅ 可执行</span></td>
+      </tr>
+      <tr>
+        <td>向量缓存</td>
+        <td>未涉及</td>
+        <td><code>cache/embeddings/</code> 或 SQLite blob<br><span class="b">🆕 新增</span></td>
+      </tr>
+      <tr>
+        <td>模型存储</td>
+        <td>未涉及</td>
+        <td><code>models/Qwen3-Embedding-0.6B/</code><br><span class="b">🆕 新增</span></td>
+      </tr>
+    </table>
+    <div class="verdict"><span class="tag tag-v2">v2 胜</span> 拆文件 + 锁实现 + 向量缓存，更完整</div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <h3>2. 进程模型</h3>
+    <table>
+      <tr><th style="width:20%">方面</th><th>v1 旧计划</th><th>v2 新架构</th></tr>
+      <tr>
+        <td>进程定义</td>
+        <td>未定义<br><span class="r">⚠ 没提怎么跑</span></td>
+        <td><code>sisyphus-mcp</code> 常驻单进程，stdio JSON-RPC 2.0<br><span class="g">✅ 明确</span></td>
+      </tr>
+      <tr>
+        <td>客户端</td>
+        <td>未涉及</td>
+        <td>OpenCode / Claude Desktop / Cursor 等 MCP 客户端<br><span class="b">🆕 新增</span></td>
+      </tr>
+      <tr>
+        <td>多客户端</td>
+        <td>未涉及</td>
+        <td>多进程方案：每个客户端一个 MCP 进程，文件锁协调<br><span class="y">△ 单 stdio 1:1，需确认方案</span></td>
+      </tr>
+      <tr>
+        <td>进程分层</td>
+        <td>未定义</td>
+        <td>MCP Tool Layer → AgentMemory 门面 → store/retrieval → SubagentLauncher<br><span class="g">✅ 分层清晰</span></td>
+      </tr>
+    </table>
+    <div class="verdict"><span class="tag tag-v2">v2 胜</span> 新架构定义了完整的进程模型，v1 根本没提</div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <h3>3. 检索架构</h3>
+    <table>
+      <tr><th style="width:20%">方面</th><th>v1 旧计划</th><th>v2 新架构</th></tr>
+      <tr>
+        <td>检索路径</td>
+        <td>单路径：BM25 匹配摘要 → 展开子树 → 精排<br><span class="y">△ 只有路径 A</span></td>
+        <td>双路径：宽泛 query 走树浏览（A），精确 query 走海马体检索（B）<br><span class="g">✅ 更完整</span></td>
+      </tr>
+      <tr>
+        <td>路径选择</td>
+        <td>未定义<br><span class="r">⚠ 没区分</span></td>
+        <td>启发式：query 长度 + 关键词 + MOC 匹配度<br><span class="y">△ 启发式需验证</span></td>
+      </tr>
+      <tr>
+        <td>完整链路</td>
+        <td>BM25 → 子树 → 排序<br><span class="y">△ 缺少多模态</span></td>
+        <td>路径 B: MOC→Tree→DG Embedding→CA3 BM25+余弦→CA1 Reranker→杏仁核<br><span class="g">✅ 海马体全链路</span></td>
+      </tr>
+      <tr>
+        <td>降级链</td>
+        <td>树不存在 → 回退 BM25<br><span class="y">△ 只有一级降级</span></td>
+        <td>无 Embedding → TF-IDF 降级；无 Reranker → 跳过；无树 → 全量 BM25<br><span class="g">✅ 四级降级链</span></td>
+      </tr>
+    </table>
+    <div class="verdict"><span class="tag tag-v2">v2 胜</span> 双路径 + 完整海马体链路 + 四级降级</div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <h3>4. Memory Tree</h3>
+    <table>
+      <tr><th style="width:20%">方面</th><th>v1 旧计划</th><th>v2 新架构</th></tr>
+      <tr>
+        <td>Phase 划分</td>
+        <td>4 个独立 Phase：TreeStore → Builder → Retriever → 增量<br><span class="g">✅ 渐进式，可逐 Phase 测试</span></td>
+        <td>整合进 Sleep Pipeline，作为 7 步之一<br><span class="y">△ 耦合度更高</span></td>
+      </tr>
+      <tr>
+        <td>聚类策略</td>
+        <td>按 type 粗聚类 → BM25 余弦细聚类<br><span class="g">✅ 两阶段聚类</span></td>
+        <td>按语义/type 聚类<br><span class="y">△ "语义"未具体定义</span></td>
+      </tr>
+      <tr>
+        <td>无 LLM 降级</td>
+        <td>title 拼接做摘要<br><span class="g">✅ 有定义</span></td>
+        <td>未明确定义 TreeBuilder 无 LLM 降级<br><span class="r">⚠ 建议补上</span></td>
+      </tr>
+      <tr>
+        <td>增量更新</td>
+        <td><code>find_best_parent</code> BM25 匹配父节点<br><span class="y">△ 阈值问题未解决</span></td>
+        <td>新增 = 新文件 <code>l2/<id>.json</code>，天然原子<br><span class="g">✅ 拆文件解决了改全量问题</span></td>
+      </tr>
+    </table>
+    <div class="verdict"><span class="tag tag-v1">v1 胜聚类设计</span> <span class="tag tag-v2">v2 胜增量写入</span> 两者互补</div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <h3>5. Sleep Consolidation</h3>
+    <table>
+      <tr><th style="width:20%">方面</th><th>v1 旧计划</th><th>v2 新架构</th></tr>
+      <tr>
+        <td>范围</td>
+        <td>仅树构建<br><span class="y">△ 只做一件事</span></td>
+        <td>7 步全流程：LoopDetect → Compress → Dream → TreeBuilder → EmbeddingCache → MOC → LinkCleaner<br><span class="g">✅ 完整离线巩固</span></td>
+      </tr>
+      <tr>
+        <td>触发条件</td>
+        <td>新增叶子 ≥ 10 / 距上次 7 天 / 手动<br><span class="g">✅ 有定义</span></td>
+        <td>RAW ≥ 20 / 每日首次启动<br><span class="y">△ 阈值不同，需统一</span></td>
+      </tr>
+      <tr>
+        <td>锁范围</td>
+        <td>未涉及</td>
+        <td>全流程持有 <code>_lock/</code>，完成后释放<br><span class="g">✅ 明确</span></td>
+      </tr>
+      <tr>
+        <td>无 LLM 降级</td>
+        <td>未涉及</td>
+        <td>需补充：无 LLM 时跳过 Dream/Compress/TreeBuilder，只跑 LoopDetect+MOC+LinkClean<br><span class="r">⚠ 建议明确定义</span></td>
+      </tr>
+    </table>
+    <div class="verdict"><span class="tag tag-v2">v2 胜</span> 完整的 7 步流水线，v1 只做了其中一步</div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <h3>6. MCP 工具集</h3>
+    <table>
+      <tr><th style="width:20%">方面</th><th>v1 旧计划</th><th>v2 新架构</th></tr>
+      <tr>
+        <td>工具数量</td>
+        <td>未涉及 MCP<br><span class="r">⚠ 完全没提</span></td>
+        <td>8 个工具：write_memory / get_context / search_memory / memory_stats / get_memory / list_memories / delete_memory / run_pipeline<br><span class="g">✅ 完整定义</span></td>
+      </tr>
+      <tr>
+        <td>当前状态</td>
+        <td>—</td>
+        <td>✅ 已有 3 个（write/get_context/stats），⚠ 需修 1 个（search），❌ 新增 4 个（get/list/delete/run）<br><span class="g">✅ 有现状评估</span></td>
+      </tr>
+    </table>
+    <div class="verdict"><span class="tag tag-v2">v2 胜</span> 新架构定义了完整的 MCP 接口，v1 未涉及</div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <h3>7. 依赖分层</h3>
+    <table>
+      <tr><th style="width:20%">方面</th><th>v1 旧计划</th><th>v2 新架构</th></tr>
+      <tr>
+        <td>分层设计</td>
+        <td>未涉及<br><span class="r">⚠ 没提</span></td>
+        <td>4 层渐进增强：零依赖 → LLM API → 本地模型 → GPU<br><span class="g">✅ 完整</span></td>
+      </tr>
+      <tr>
+        <td>各层命中率</td>
+        <td>56% → 70%（单一目标）<br><span class="y">△ 只有 BM25 目标</span></td>
+        <td>58% → 70% → 80% → 90%+ → 85%+<br><span class="g">✅ 每层有可验证目标</span></td>
+      </tr>
+      <tr>
+        <td>降级行为</td>
+        <td>未定义</td>
+        <td>每层缺失自动降级下一层<br><span class="g">✅ 明确</span></td>
+      </tr>
+    </table>
+    <div class="verdict"><span class="tag tag-v2">v2 胜</span> 新架构定义了完整的渐进增强策略</div>
+  </div>
+
+</div>
+
+<div class="section">
+  <h2>关键差异总结</h2>
+  <div class="two-col">
+    <div class="card v1">
+      <h3><span class="tag tag-v1">v1</span> 保留了但 v2 没有的</h3>
+      <table>
+        <tr><td>4 Phase 渐进实现</td><td>每 Phase 可独立测试再合并，风险低</td></tr>
+        <tr><td>按 type → 余弦的两阶段聚类</td><td>聚类粒度可控，适合同质数据</td></tr>
+        <tr><td>精确的测试数预期（每 Phase 6-7 个）</td><td>可验证的完成度指标</td></tr>
+        <tr><td>无 LLM 时 title 拼接摘要</td><td>v2 未定义 TreeBuilder 降级</td></tr>
+      </table>
+    </div>
+    <div class="card v2">
+      <h3><span class="tag tag-v2">v2</span> 新增而 v1 没有的</h3>
+      <table>
+        <tr><td>MCP Server + 8 工具</td><td>可被 AI 客户端直接调用</td></tr>
+        <tr><td>双路径检索架构</td><td>宽泛 query 和精确 query 分流处理</td></tr>
+        <tr><td>完整 Sleep 7 步流水线</td><td>一站式离线巩固</td></tr>
+        <tr><td>4 层渐进增强 + 命中率目标</td><td>每层有可验证的交付标准</td></tr>
+        <tr><td>文件锁实现（_lock/ + pid）</td><td>明确可执行的并发方案</td></tr>
+        <tr><td>向量缓存（embeddings/）</td><td>避免重复编码</td></tr>
+        <tr><td>模型存储目录</td><td>模型文件归属清晰</td></tr>
+        <tr><td>代码差距分析（高/中/低优先级）</td><td>可排期执行</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>合并建议</h2>
+  <div class="card">
+    <table>
+      <tr><th>保留 v1</th><th>采用 v2</th><th>需澄清/修改</th></tr>
+      <tr>
+        <td>4 Phase 渐进式实现（降低风险）</td>
+        <td>MCP Server + 8 工具</td>
+        <td>路径选择启发式需验证</td>
+      </tr>
+      <tr>
+        <td>两阶段聚类（type → 余弦）</td>
+        <td>拆文件树结构（l0/l1/l2）</td>
+        <td>TreeBuilder 无 LLM 降级（title 拼接）</td>
+      </tr>
+      <tr>
+        <td>每 Phase 独立测试</td>
+        <td>原子写入 + mkdir 锁</td>
+        <td>Sleep 触发阈值统一</td>
+      </tr>
+      <tr>
+        <td>无 LLM title 拼接摘要</td>
+        <td>双路径检索架构</td>
+        <td>向量存 SQLite 还是 npy</td>
+      </tr>
+      <tr>
+        <td>—</td>
+        <td>4 层渐进增强</td>
+        <td>多客户端方案（多进程 vs SSE）</td>
+      </tr>
+      <tr>
+        <td>—</td>
+        <td>完整 Sleep 7 步</td>
+        <td>无 LLM 时 Sleep 跑哪几步</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<div class="section">
+  <h2>实施建议</h2>
+  <div class="two-col">
+    <div class="card">
+      <h3>接下来先做什么</h3>
+      <table>
+        <tr><td>1</td><td>加 <code>atomic_write()</code> 替换所有 <code>write_text</code></td><td>高</td></tr>
+        <tr><td>2</td><td>修 MCP <code>search_memory</code> 走双路径</td><td>高</td></tr>
+        <tr><td>3</td><td>加 4 个新 MCP 工具</td><td>高</td></tr>
+        <tr><td>4</td><td>实现 <code>tree/_lock/</code> 目录锁</td><td>高</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>可以后做</h3>
+      <table>
+        <tr><td>5</td><td>Memory Tree Phase 1-4</td><td>中</td></tr>
+        <tr><td>6</td><td>向量缓存 <code>embeddings/</code></td><td>中</td></tr>
+        <tr><td>7</td><td>Sleep Pipeline 7 步</td><td>中</td></tr>
+        <tr><td>8</td><td>命中率测试验证</td><td>低</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

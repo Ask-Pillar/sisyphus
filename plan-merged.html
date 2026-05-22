@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sisyphus Memory Architecture — 合并实施框架</title>
+<style>
+:root{--bg:#0f0f1a;--card:#1a1a2e;--text:#eee;--muted:#666;--accent:#e94560;--green:#4ade80;--yellow:#facc15;--blue:#60a5fa;--purple:#a78bfa}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);padding:24px;line-height:1.6}
+h1{text-align:center;font-size:1.5rem;margin-bottom:4px}
+.subtitle{text-align:center;color:var(--muted);font-size:.85rem;margin-bottom:24px}
+h2{font-size:1.1rem;margin:24px 0 12px;border-left:3px solid var(--accent);padding-left:10px}
+h3{font-size:.95rem;margin:16px 0 8px;color:#ccc}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:16px}
+.grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:16px}
+.card{background:var(--card);border-radius:10px;padding:16px;border:1px solid #ffffff0a}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+td,th{padding:5px 8px;text-align:left;border-bottom:1px solid #ffffff08;vertical-align:top}
+th{color:var(--muted);font-weight:500;font-size:.75rem}
+.tag{display:inline-block;padding:1px 7px;border-radius:4px;font-size:.68rem;font-weight:600}
+.tag-p0{background:#f8717120;color:#f87171}
+.tag-p1{background:#facc1520;color:#facc15}
+.tag-p2{background:#60a5fa20;color:#60a5fa}
+.tag-p3{background:#a78bfa20;color:#a78bfa}
+.tag-p4{background:#4ade8020;color:#4ade80}
+.g{color:var(--green)}.y{color:var(--yellow)}.r{color:var(--accent)}.b{color:var(--blue)}.p{color:var(--purple)}
+code{font-size:.78rem;background:#ffffff08;padding:1px 5px;border-radius:3px}
+.bar{background:#ffffff08;border-radius:4px;height:22px;overflow:hidden;margin:4px 0;display:flex}
+.bar-fill{height:100%;border-radius:4px;display:flex;align-items:center;padding:0 8px;font-size:.7rem;font-weight:600;color:#fff}
+.bg-p0{background:linear-gradient(90deg,#ef4444,#f87171)}
+.bg-p1{background:linear-gradient(90deg,#eab308,#facc15)}
+.bg-p2{background:linear-gradient(90deg,#3b82f6,#60a5fa)}
+.bg-p3{background:linear-gradient(90deg,#8b5cf6,#a78bfa)}
+.bg-p4{background:linear-gradient(90deg,#22c55e,#4ade80)}
+.phase-box{border-radius:10px;padding:14px;margin-bottom:12px;border:1px solid #ffffff0a}
+.phase-box.p0{border-left:4px solid #f87171;background:rgba(248,113,113,.04)}
+.phase-box.p1{border-left:4px solid #facc15;background:rgba(250,204,21,.04)}
+.phase-box.p2{border-left:4px solid #60a5fa;background:rgba(96,165,250,.04)}
+.phase-box.p3{border-left:4px solid #a78bfa;background:rgba(167,139,250,.04)}
+.phase-box.p4{border-left:4px solid #4ade80;background:rgba(74,222,128,.04)}
+.flow{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin:6px 0;font-size:.78rem}
+.flow-step{padding:3px 8px;background:#ffffff08;border-radius:4px;border:1px solid #ffffff0a}
+.flow-arrow{color:var(--muted)}
+.insight{background:#ffffff06;border-radius:6px;padding:10px 14px;margin-top:8px;font-size:.82rem;border-left:3px solid var(--green)}
+@media(max-width:700px){.grid2,.grid3{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<h1>Sisyphus Memory Architecture</h1>
+<p class="subtitle">v1 Phase 渐进 + v2 MCP 系统 = 合并实施框架</p>
+
+<div class="grid3">
+  <div class="card"><h3>文件布局</h3>
+    <code>~/.omo/memory/</code> + <code>tree/</code> 拆小文件 + <code>_lock/</code> + <code>cache/</code>
+  </div>
+  <div class="card"><h3>进程模型</h3>
+    <code>sisyphus-mcp</code> 常驻，多客户端（多进程/SSE），文件锁协调
+  </div>
+  <div class="card"><h3>渐进增强</h3>
+    零依赖 → LLM API → 本地模型 → GPU，每层可验证命中率
+  </div>
+</div>
+
+<div class="section">
+  <h2>5 Phase 实施路线图</h2>
+
+  <div class="phase-box p0">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div><span class="tag tag-p0">P0</span> <strong>基础设施 — 文件安全 + MCP 工具</strong></div>
+      <div><span class="r">高优先级</span></div>
+    </div>
+    <div class="grid2">
+      <div>
+        <div style="font-size:.82rem">
+          <div style="margin-bottom:6px"><span class="tag tag-p0">原子写入</span> 替换所有 <code>write_text</code></div>
+          <div style="margin-bottom:6px"><span class="tag tag-p0">目录锁</span> <code>_lock/</code> mkdir 原子 + pid 死锁检测</div>
+          <div style="margin-bottom:6px"><span class="tag tag-p0">SQLite WAL</span> <code>PRAGMA journal_mode=WAL</code></div>
+          <div><span class="tag tag-p0">MCP 工具</span> 修 search + 加 get/list/delete/run_pipeline</div>
+        </div>
+      </div>
+      <div>
+        <table>
+          <tr><th>文件</th><th>改动</th><th>状态</th></tr>
+          <tr><td><code>store.py</code></td><td><code>write_text</code> → <code>atomic_write</code></td><td class="y">待改</td></tr>
+          <tr><td><code>moc.py</code></td><td>同上</td><td class="y">待改</td></tr>
+          <tr><td><code>server/mcp.py</code></td><td>修 search + 加 4 工具</td><td class="y">待改</td></tr>
+          <tr><td><code>retrieval.py</code></td><td>双路径入口</td><td class="y">待改</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="insight">产出：安全文件写入 + 完整 8 工具 MCP server，可接 agent</div>
+  </div>
+
+  <div class="phase-box p1">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div><span class="tag tag-p1">P1</span> <strong>Memory Tree Phase 1 — TreeStore + 锁</strong></div>
+      <div><span class="y">中优先级</span></div>
+    </div>
+    <div class="grid2">
+      <div>
+        <div style="font-size:.82rem">
+          <div style="margin-bottom:6px"><span class="tag tag-p1">树结构</span> <code>_meta.json</code> + <code>l0/l1/l2</code> 拆小文件</div>
+          <div style="margin-bottom:6px"><span class="tag tag-p1">TreeNode 模型</span> id, parent_id, level, summary, source_ids</div>
+          <div style="margin-bottom:6px"><span class="tag tag-p1">CRUD</span> get/subtree/path/root/add/remove/save</div>
+          <div><span class="tag tag-p1">原子写入</span> 叶子新增天然原子，_meta rename 原子写</div>
+        </div>
+      </div>
+      <div>
+        <table>
+          <tr><th>文件</th><th>说明</th></tr>
+          <tr><td><code>tree/tree_store.py</code></td><td>TreeStore 类，树 CRUD</td></tr>
+          <tr><td><code>tree/_meta.json</code></td><td>父子关系 + 层级</td></tr>
+          <tr><td><code>tree/l2/*.json</code></td><td>叶子节点，一条一个文件</td></tr>
+          <tr><td><code>tests/test_tree_store.py</code></td><td>~7 个测试</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="insight">产出：可工作的树存储，新增叶子只写一个文件，不碰全量</div>
+  </div>
+
+  <div class="phase-box p2">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div><span class="tag tag-p2">P2</span> <strong>Memory Tree Phase 2 — TreeBuilder</strong></div>
+      <div><span class="y">中优先级</span></div>
+    </div>
+    <div class="grid2">
+      <div>
+        <div style="font-size:.82rem">
+          <div style="margin-bottom:6px"><span class="tag tag-p2">粗聚类</span> 按 type/tag 分组</div>
+          <div style="margin-bottom:6px"><span class="tag tag-p2">细聚类</span> BM25 + 余弦 > 0.3 再分</div>
+          <div style="margin-bottom:6px"><span class="tag tag-p2">摘要生成</span> SubagentLauncher → LLM（无 key 时 title 拼接）</div>
+          <div><span class="tag tag-p2">自底向上</span> l2 叶子 → l1 领域摘要 → l0 全局摘要</div>
+        </div>
+      </div>
+      <div>
+        <table>
+          <tr><th>文件</th><th>说明</th></tr>
+          <tr><td><code>tree/tree_builder.py</code></td><td>TreeBuilder 建树引擎</td></tr>
+          <tr><td><code>tree/l1/*.json</code></td><td>领域摘要节点</td></tr>
+          <tr><td><code>tree/l0.json</code></td><td>全局摘要（极少改动）</td></tr>
+          <tr><td><code>tests/test_tree_builder.py</code></td><td>~6 个测试</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="insight">产出：从原始记忆自动建树，无 LLM 时不崩，title 拼接降级</div>
+  </div>
+
+  <div class="phase-box p3">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div><span class="tag tag-p3">P3</span> <strong>双路径检索 + 向量缓存</strong></div>
+      <div><span class="y">中优先级</span></div>
+    </div>
+    <div class="grid2">
+      <div>
+        <div style="font-size:.82rem">
+          <div><strong>路径 A — 树浏览</strong>（宽泛 query）</div>
+          <div class="flow" style="margin:4px 0 10px">
+            <span class="flow-step">EC BM25 摘要</span><span class="flow-arrow">→</span>
+            <span class="flow-step">展开子树</span><span class="flow-arrow">→</span>
+            <span class="flow-step">子树内精排</span><span class="flow-arrow">→</span>
+            <span class="flow-step">decay 加权</span>
+          </div>
+          <div><strong>路径 B — 精确检索</strong>（具体 query）</div>
+          <div class="flow" style="margin:4px 0 6px">
+            <span class="flow-step">MOC 匹配</span><span class="flow-arrow">→</span>
+            <span class="flow-step">EC 树剪枝</span><span class="flow-arrow">→</span>
+            <span class="flow-step">DG Embedding</span><span class="flow-arrow">→</span>
+            <span class="flow-step">CA3 BM25+余弦</span><span class="flow-arrow">→</span>
+            <span class="flow-step">CA1 精排</span><span class="flow-arrow">→</span>
+            <span class="flow-step">decay</span>
+          </div>
+          <div style="margin-top:6px"><span class="tag tag-p3">向量缓存</span> SQLite blob 存 embedding，避免重算</div>
+        </div>
+      </div>
+      <div>
+        <table>
+          <tr><th>文件</th><th>说明</th></tr>
+          <tr><td><code>tree/tree_retriever.py</code></td><td>树感知检索</td></tr>
+          <tr><td><code>retrieval.py</code></td><td>双路径路由 + 四级降级链</td></tr>
+          <tr><td><code>cache/embeddings.py</code></td><td>向量缓存层（SQLite）</td></tr>
+          <tr><td><code>tests/test_tree_retriever.py</code></td><td>~6 个测试</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="insight">产出：双路径检索，各级降级链完整，命中率预估 top-1 80%+</div>
+  </div>
+
+  <div class="phase-box p4">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div><span class="tag tag-p4">P4</span> <strong>Sleep Consolidation 流水线</strong></div>
+      <div><span class="p">低优先级</span></div>
+    </div>
+    <div class="grid2">
+      <div>
+        <div class="flow">
+          <span class="flow-step">LoopDetect</span><span class="flow-arrow">→</span>
+          <span class="flow-step">Compress</span><span class="flow-arrow">→</span>
+          <span class="flow-step">Dream</span><span class="flow-arrow">→</span>
+          <span class="flow-step">TreeBuilder</span><span class="flow-arrow">→</span>
+          <span class="flow-step">EmbedCache</span><span class="flow-arrow">→</span>
+          <span class="flow-step">MOC</span><span class="flow-arrow">→</span>
+          <span class="flow-step">LinkClean</span>
+        </div>
+        <div style="margin-top:8px;font-size:.82rem">
+          <div><span class="tag tag-p4">触发</span> RAW ≥ 20 / 每日首次 / 手动</div>
+          <div><span class="tag tag-p4">无 LLM</span> 跳过 Dream+Compress+TreeBuilder，跑剩下 4 步</div>
+          <div><span class="tag tag-p4">锁</span> 全流程持 <code>_lock/</code></div>
+        </div>
+      </div>
+      <div>
+        <table>
+          <tr><th>文件</th><th>说明</th></tr>
+          <tr><td><code>pipeline/sleep.py</code></td><td>Sleep 编排器</td></tr>
+          <tr><td><code>cli/tree.py</code></td><td>CLI tree rebuild 命令</td></tr>
+          <tr><td><code>tests/test_sleep.py</code></td><td>~6 个测试</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="insight">产出：一站式离线巩固，无 LLM 时跑 4/7 步，不空转</div>
+  </div>
+
+</div>
+
+<div class="section">
+  <h2>命中率演进路径</h2>
+  <div class="card">
+    <div class="bar"><div class="bar-fill bg-p0" style="width:58%">当前 58% (BM25 only)</div></div>
+    <div class="bar"><div class="bar-fill bg-p1" style="width:70%">P0 修 + 树锁 + 原子写 → 70%</div></div>
+    <div class="bar"><div class="bar-fill bg-p2" style="width:80%">P1-2 TreeStore+Builder → ~80%</div></div>
+    <div class="bar"><div class="bar-fill bg-p3" style="width:90%">P3 双路径+Embedding → 90%+</div></div>
+    <div class="bar"><div class="bar-fill bg-p4" style="width:85%">P4 Sleep+Reranker → 85%+ top-1</div></div>
+    <div style="margin-top:8px;font-size:.78rem;color:var(--muted)">
+      每 Phase 结束时跑 abc 测试验证，不达标不进下 Phase
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>依赖分层（运行态，非开发顺序）</h2>
+  <div class="grid4">
+    <div class="card" style="border-top:3px solid #4ade80">
+      <div><span class="tag tag-p4">L1</span> 零依赖</div>
+      <div style="font-size:.78rem;margin-top:6px">pyyaml + stdlib<br>BM25 / TF-IDF<br>文件 CRUD / MOC<br>命中率 ~70%</div>
+    </div>
+    <div class="card" style="border-top:3px solid #facc15">
+      <div><span class="tag tag-p1">L2</span> LLM API</div>
+      <div style="font-size:.78rem;margin-top:6px">SISYPHUS_LLM_API_KEY<br>Dream / Compress / Recall<br>命中率 ~80%</div>
+    </div>
+    <div class="card" style="border-top:3px solid #60a5fa">
+      <div><span class="tag tag-p2">L3</span> 本地模型</div>
+      <div style="font-size:.78rem;margin-top:6px">Qwen3-Embedding-0.6B<br>CPU 可跑 ~0.3s/条<br>命中率 90%+</div>
+    </div>
+    <div class="card" style="border-top:3px solid #a78bfa">
+      <div><span class="tag tag-p3">L4</span> GPU 加速</div>
+      <div style="font-size:.78rem;margin-top:6px">Qwen3-Reranker-0.6B<br>需要 GPU 显存<br>命中率 85%+ top-1</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>测试策略</h2>
+  <div class="grid2">
+    <div class="card">
+      <h3>每 Phase 目标</h3>
+      <table>
+        <tr><th>Phase</th><th>新增测试</th><th>验证方式</th></tr>
+        <tr><td>P0</td><td>~8 个</td><td>atomic_write + _lock/ + MCP 工具</td></tr>
+        <tr><td>P1</td><td>~7 个</td><td>TreeStore CRUD + 文件落地</td></tr>
+        <tr><td>P2</td><td>~6 个</td><td>聚类 + 摘要生成 + 降级</td></tr>
+        <tr><td>P3</td><td>~6 个</td><td>双路径检索 + 降级链</td></tr>
+        <tr><td>P4</td><td>~6 个</td><td>Sleep 全流程 + 增量</td></tr>
+        <tr><td><strong>总计</strong></td><td><strong>~33 个</strong></td><td>196 + 33 = <strong>229 测试</strong></td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>命中率验证</h3>
+      <div style="font-size:.82rem">
+        <div style="margin-bottom:6px">每 Phase 完成后跑 <code>abc_*.py</code> 测试</div>
+        <table>
+          <tr><th>Phase</th><th>预期 top-1</th></tr>
+          <tr><td>当前</td><td>58%</td></tr>
+          <tr><td>P0</td><td>60-65%（锁不影响命中率）</td></tr>
+          <tr><td>P1-2</td><td>~70%（树剪枝减少噪声）</td></tr>
+          <tr><td>P3</td><td>80-90%（Embedding 加成）</td></tr>
+          <tr><td>P4</td><td>85%+ top-1（Reranker 精排）</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>文件清单汇总</h2>
+  <div class="card">
+    <table>
+      <tr><th>文件</th><th>Phase</th><th>操作</th></tr>
+      <tr><td><code>src/sisyphus/memory/store.py</code></td><td><span class="tag tag-p0">P0</span></td><td><code>write_text</code> → <code>atomic_write()</code></td></tr>
+      <tr><td><code>src/sisyphus/memory/moc.py</code></td><td><span class="tag tag-p0">P0</span></td><td>同上</td></tr>
+      <tr><td><code>src/sisyphus/server/mcp.py</code></td><td><span class="tag tag-p0">P0</span></td><td>修 search + 加 4 工具</td></tr>
+      <tr><td><code>src/sisyphus/memory/tree/tree_store.py</code></td><td><span class="tag tag-p1">P1</span></td><td>新建，TreeStore + TreeNode</td></tr>
+      <tr><td><code>src/sisyphus/memory/tree/tree_builder.py</code></td><td><span class="tag tag-p2">P2</span></td><td>新建，聚类 + 摘要引擎</td></tr>
+      <tr><td><code>src/sisyphus/memory/tree/tree_retriever.py</code></td><td><span class="tag tag-p3">P3</span></td><td>新建，树感知检索</td></tr>
+      <tr><td><code>src/sisyphus/memory/retrieval.py</code></td><td><span class="tag tag-p3">P3</span></td><td>加双路径路由 + 降级链</td></tr>
+      <tr><td><code>src/sisyphus/memory/cache/embeddings.py</code></td><td><span class="tag tag-p3">P3</span></td><td>新建，向量缓存</td></tr>
+      <tr><td><code>src/sisyphus/pipeline/sleep.py</code></td><td><span class="tag tag-p4">P4</span></td><td>新建，Sleep 编排器</td></tr>
+      <tr><td><code>src/sisyphus/cli/tree.py</code></td><td><span class="tag tag-p4">P4</span></td><td>新建，CLI 命令</td></tr>
+      <tr><td><code>tests/test_atomic_write.py</code></td><td><span class="tag tag-p0">P0</span></td><td>新建</td></tr>
+      <tr><td><code>tests/test_tree_store.py</code></td><td><span class="tag tag-p1">P1</span></td><td>新建</td></tr>
+      <tr><td><code>tests/test_tree_builder.py</code></td><td><span class="tag tag-p2">P2</span></td><td>新建</td></tr>
+      <tr><td><code>tests/test_tree_retriever.py</code></td><td><span class="tag tag-p3">P3</span></td><td>新建</td></tr>
+      <tr><td><code>tests/test_sleep.py</code></td><td><span class="tag tag-p4">P4</span></td><td>新建</td></tr>
+    </table>
+  </div>
+</div>
+
+</body>
+</html>
