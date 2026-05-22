@@ -14,7 +14,6 @@ def atomic_write(path: Path, content: str, encoding: str = "utf-8") -> None:
     """Write content atomically via tempfile + rename.
 
     On POSIX, rename is atomic if source and target are on the same filesystem.
-    Falls back to shutil.move on cross-filesystem rename failure.
     """
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(content, encoding=encoding)

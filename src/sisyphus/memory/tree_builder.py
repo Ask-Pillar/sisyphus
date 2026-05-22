@@ -38,16 +38,17 @@ class TreeBuilder:
 
         clusters = self._coarse_cluster(all_mems)
         l1_ids = []
+        # Pre-collect existing leaf titles for O(1) dedup
+        existing_leaves = {n.title for n in self.tree.list_nodes(level=2)}
         for cluster_title, mems in clusters:
-            subclusters = self._fine_cluster(mems, threshold=0.3)
-            for sub_mems in subclusters:
-                titles = [m.title for m in sub_mems]
-                summary = self._summary_from_titles(titles)
-                l1_node = self._upsert_l1(cluster_title, summary)
-                l1_ids.append(l1_node.id)
-                for m in sub_mems:
-                    if not self._leaf_exists(m.id):
-                        self.tree.add_leaf(l1_node.id, m.title, m.content[:200])
+            all_titles = [m.title for m in mems]
+            summary = self._summary_from_titles(all_titles)
+            l1_node = self._upsert_l1(cluster_title, summary)
+            l1_ids.append(l1_node.id)
+            for m in mems:
+                if m.title not in existing_leaves:
+                    self.tree.add_leaf(l1_node.id, m.title, m.content[:200])
+                    existing_leaves.add(m.title)
 
         self._update_l0()
         return l1_ids
@@ -127,11 +128,6 @@ class TreeBuilder:
             if node.title == title:
                 return node
         return None
-
-    def _leaf_exists(self, memory_id: str) -> bool:
-        """Check if a leaf node for this memory already exists."""
-        all_nodes = self.tree.list_nodes(level=2)
-        return any(n.title == memory_id or n.id.endswith(memory_id[-12:]) for n in all_nodes)
 
     def _update_l0(self):
         """Update l0 global summary from all L1 cluster titles."""

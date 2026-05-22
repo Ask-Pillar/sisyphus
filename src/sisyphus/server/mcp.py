@@ -117,7 +117,12 @@ def _handle_list(args: Dict[str, Any]) -> Dict[str, Any]:
     agent = _setup()
     mems = agent.store.list(type_filter=type_filter)
     refined = agent.refined.list_refined()
-    all_mems = mems + [m for m in refined if type_filter is None or m.type == type_filter]
+    seen_ids = set()
+    all_mems = []
+    for m in mems + [m for m in refined if type_filter is None or m.type == type_filter]:
+        if m.id not in seen_ids:
+            seen_ids.add(m.id)
+            all_mems.append(m)
     return {
         "total": len(all_mems),
         "memories": [

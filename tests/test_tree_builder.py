@@ -94,7 +94,7 @@ class TestTreeBuilderBuild:
         first_l1 = len(builder.tree.list_nodes(level=1))
         builder.build()
         second_l1 = len(builder.tree.list_nodes(level=1))
-        assert second_l1 >= first_l1
+        assert second_l1 == first_l1, f"idempotent build: {second_l1} != {first_l1}"
 
     def test_backward_compatible(self, builder):
         """Existing MemoryStore data still works after TreeBuilder build."""

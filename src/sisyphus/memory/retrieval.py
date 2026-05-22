@@ -472,6 +472,7 @@ class EmbeddingCache:
         Path(self._db_path).parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(self._db_path)
         conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA wal_autocheckpoint=1000")
         conn.execute("""CREATE TABLE IF NOT EXISTS embeddings (
             key TEXT PRIMARY KEY,
             vector BLOB,

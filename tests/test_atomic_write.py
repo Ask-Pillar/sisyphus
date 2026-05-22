@@ -90,7 +90,7 @@ class TestDirLock:
         lock.release()
         assert not (tmp_path / "double").exists()
 
-    def test_concurrent_write_via_lock(self, tmp_path: Path):
+    def test_sequential_write_via_lock(self, tmp_path: Path):
         f = tmp_path / "shared.txt"
 
         def _writer(pid_suffix: str):
