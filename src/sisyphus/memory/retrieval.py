@@ -636,15 +636,24 @@ class ContextRetriever:
                 logger.warning("Qwen3Embedder failed, falling back to TF-IDF: %s", exc)
                 scored = []
         if not scored:
+            # TF-IDF fallback: score ALL candidates (not just bm25_scored)
             tfidf = TFIDFEmbedder(candidates)
-            for m, bm_s in bm25_scored:
-                idx = candidates.index(m) if m in candidates else -1
-                if idx < 0:
-                    continue
-                tf_s = tfidf.similarity(query, idx)
-                relevance = 0.6 * bm_s + 0.4 * tf_s
-                hybrid = relevance * (1.0 + 0.2 * decay_score(m, now))
-                scored.append((m, hybrid))
+            if bm25_scored:
+                for m, bm_s in bm25_scored:
+                    idx = candidates.index(m) if m in candidates else -1
+                    if idx < 0:
+                        continue
+                    tf_s = tfidf.similarity(query, idx)
+                    relevance = 0.6 * bm_s + 0.4 * tf_s
+                    hybrid = relevance * (1.0 + 0.2 * decay_score(m, now))
+                    scored.append((m, hybrid))
+            else:
+                # BM25 had zero matches — fall back to TF-IDF + decay only
+                for m in candidates:
+                    idx = candidates.index(m)
+                    tf_s = tfidf.similarity(query, idx)
+                    hybrid = decay_score(m, now) * (1.0 + tf_s)
+                    scored.append((m, hybrid))
 
         scored.sort(key=lambda x: x[1], reverse=True)
 
