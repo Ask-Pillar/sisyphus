@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Sisyphus 记忆架构 v3.0</title>
+<style>
+:root{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;--border:#334155;--neocortex:#6366f1;--phr:#8b5cf6;--ec:#f97316;--ca3:#10b981;--ca1:#06b6d4;--sleep:#ec4899;--emotion:#ef4444;--mcp:#84cc16}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.6;padding:20px}
+.container{max-width:1000px;margin:0 auto}
+h1{font-size:1.5rem;text-align:center;margin-bottom:4px}
+.subtitle{text-align:center;color:var(--muted);font-size:.85rem;margin-bottom:24px}
+h2{font-size:1.1rem;margin:28px 0 14px;border-left:3px solid var(--neocortex);padding-left:12px}
+.row{display:flex;gap:14px;margin-bottom:14px;flex-wrap:wrap}
+.col{flex:1;min-width:280px}
+.card{background:var(--card);border-radius:12px;padding:18px;border:1px solid var(--border);position:relative}
+.card-header{font-weight:700;font-size:.9rem;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.card-sub{color:var(--muted);font-size:.78rem;margin-bottom:8px}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:.7rem;font-weight:600}
+.bio{background:rgba(139,92,246,.15);color:#a78bfa}.tech{background:rgba(16,185,129,.15);color:#34d399}.done{background:rgba(74,222,128,.15);color:#4ade80}
+.flow{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin:6px 0;font-size:.75rem}
+.flow-step{padding:3px 8px;background:#ffffff08;border-radius:4px;border:1px solid #ffffff0a}
+.flow-arrow{color:var(--muted)}
+.arrow-down{text-align:center;color:var(--muted);font-size:1.2rem;margin:6px 0}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:24px;padding:14px;background:var(--card);border:1px solid var(--border);border-radius:8px;font-size:.78rem}
+.legend-item{display:flex;align-items:center;gap:6px}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+table{width:100%;border-collapse:collapse;font-size:.82rem;margin:10px 0}
+td,th{padding:6px 10px;border-bottom:1px solid #ffffff08;text-align:left;vertical-align:top}
+th{color:var(--muted);font-weight:500;font-size:.72rem}
+.changed{background:rgba(239,68,68,.06);border-left:3px solid var(--emotion)}
+.removed{background:rgba(239,68,68,.04);text-decoration:line-through;color:var(--muted)}
+.added{background:rgba(74,222,128,.06);border-left:3px solid var(--mcp)}
+.footer{margin-top:24px;text-align:center;color:var(--muted);font-size:.75rem}
+</style></head>
+<body><div class="container">
+
+<h1>🧠 Sisyphus 记忆架构 v3.0</h1>
+<p class="subtitle">Memory Tree + MCP Server · 2026-05-23 · 实际实现版</p>
+
+<div class="row">
+  <div class="col"><div class="card">
+    <div class="card-header"><span class="badge bio">编码</span> 🧠 新皮层 Neocortex</div>
+    <div class="card-sub">LLM 编码 → RAW + REFINED 双层存储</div>
+    <div class="flow"><span class="flow-step">对话输入</span><span class="flow-arrow">→</span><span class="flow-step">LLM 理解</span><span class="flow-arrow">→</span><span class="flow-step">MemoryStore.create()</span></div>
+    <div class="card-sub" style="margin-top:6px"><span class="badge done">✅</span> Markdown append-only · importance 标记 · frontmatter</div>
+  </div></div>
+  <div class="col"><div class="card">
+    <div class="card-header"><span class="badge bio">路由</span> 🗂️ 海马旁回 PHR</div>
+    <div class="card-sub">MOC 关键词重叠 → 确定记忆类型</div>
+    <div class="flow"><span class="flow-step">_moc_match_types()</span><span class="flow-arrow">→</span><span class="flow-step">_classify_types()</span></div>
+    <div class="card-sub" style="margin-top:6px"><span class="badge done">✅</span> jieba 中文分词 · INDEX.md · wikilink</div>
+  </div></div>
+</div>
+
+<div class="arrow-down">↓</div>
+
+<div class="row">
+  <div class="col"><div class="card">
+    <div class="card-header"><span class="badge bio">空间</span> 🌳 内嗅皮层 EC</div>
+    <div class="card-sub">Memory Tree 层级摘要树</div>
+    <div style="font-family:monospace;font-size:.7rem;line-height:1.6;background:#ffffff06;border-radius:6px;padding:8px;margin:6px 0">
+📂 L0 全局摘要<br>
+ ├── Type: Storage (L1)<br>
+ │ ├── Storage_0 "四层架构" (L2)<br>
+ │ └── Storage_2 "BM25参数" (L2)<br>
+ ├── Type: Subagent (L1)<br>
+ └── ...
+    </div>
+    <div class="card-sub"><span class="badge done">✅</span> TreeStore · TreeBuilder · 无 LLM 时 title 拼接降级</div>
+  </div></div>
+  <div class="col"><div class="card removed">
+    <div class="card-header"><span class="badge" style="background:rgba(239,68,68,.15);color:#f87171">已裁</span> 🔀 齿状回 DG</div>
+    <div class="card-sub">Qwen3-Embedding-0.6B → 已移除（实测负收益）</div>
+    <div class="card-sub" style="color:var(--r)">75cos+25bm25 从 76% 降到 43% · CPU 推理慢 · 0.6B 中文语义弱</div>
+  </div></div>
+</div>
+
+<div class="arrow-down">↓</div>
+
+<div class="row">
+  <div class="col"><div class="card">
+    <div class="card-header"><span class="badge tech">检索</span> 🔗 CA3 模式完成</div>
+    <div class="card-sub">BM25 粗召（jieba + EN + 单字 fallback）</div>
+    <div class="flow"><span class="flow-step">Query</span><span class="flow-arrow">→</span><span class="flow-step">jieba 分词</span><span class="flow-arrow">→</span><span class="flow-step">BM25 打分</span><span class="flow-arrow">→</span><span class="flow-step">top-k</span></div>
+    <div class="card-sub" style="margin-top:6px"><span class="badge done">✅</span> 76% @1 · 0.001s/query · 纯词面匹配</div>
+  </div></div>
+  <div class="col"><div class="card">
+    <div class="card-header"><span class="badge tech">精排</span> ✅ CA1 输出</div>
+    <div class="card-sub">BCE-Reranker (279M, CPU)</div>
+    <div class="flow"><span class="flow-step">top-50 候选</span><span class="flow-arrow">→</span><span class="flow-step">BCE 交叉打分</span><span class="flow-arrow">→</span><span class="flow-step">精排 top-5</span></div>
+    <div class="card-sub" style="margin-top:6px"><span class="badge done">✅</span> 同 topic ≥ 8 自动激活 · +13% @1 · 取代需 GPU 的 Qwen3</div>
+  </div></div>
+</div>
+
+<div class="arrow-down">↓</div>
+
+<div class="row">
+  <div class="col"><div class="card removed">
+    <div class="card-header"><span class="badge" style="background:rgba(239,68,68,.15);color:#f87171">已裁</span> 🔒 Agent 沙箱</div>
+    <div class="card-sub">子进程隔离 → MCP Server 替代</div>
+    <div class="card-sub" style="color:var(--r)">所有客户端共享内存，无需进程级沙箱</div>
+  </div></div>
+  <div class="col"><div class="card added">
+    <div class="card-header"><span class="badge" style="background:rgba(132,204,22,.15);color:#a3e635">新增</span> 🌐 MCP Server</div>
+    <div class="card-sub">JSON-RPC stdio 协议，单进程服务</div>
+    <div class="card-sub">任何 MCP 客户端（opencode/Claude/Cursor）均可接入</div>
+  </div></div>
+</div>
+
+<div class="arrow-down">↓</div>
+
+<h2>🔄 两条检索路径</h2>
+<div class="row">
+  <div class="col"><div class="card">
+    <div class="card-header">🌲 Path A — 树浏览</div>
+    <div class="card-sub">宽泛查询："有什么存储相关的"</div>
+    <div class="flow"><span class="flow-step">BM25 扫 L1 摘要</span><span class="flow-arrow">→</span><span class="flow-step">匹配子树</span><span class="flow-arrow">→</span><span class="flow-step">子树内精排</span></div>
+    <div class="card-sub" style="margin-top:6px"><span class="badge done">✅</span> TreeRetriever</div>
+  </div></div>
+  <div class="col"><div class="card">
+    <div class="card-header">🔍 Path B — 精确检索</div>
+    <div class="card-sub">精确查询："k1 参数默认值"</div>
+    <div class="flow"><span class="flow-step">MOC 分类</span><span class="flow-arrow">→</span><span class="flow-step">BM25 全量</span><span class="flow-arrow">→</span><span class="flow-step">BCE 精排</span></div>
+    <div class="card-sub" style="margin-top:6px"><span class="badge done">✅</span> _choose_path() 自动路由</div>
+  </div></div>
+</div>
+
+<h2>🛠️ MCP 工具</h2>
+<div class="card">
+<table>
+<tr><th>工具</th><th>功能</th><th>状态</th></tr>
+<tr><td>remember</td><td>创建新记忆（title + type + content + tags + importance）</td><td><span class="badge done">✅</span></td></tr>
+<tr><td>recall</td><td>检索记忆（ContextRetriever 双路径管道）</td><td><span class="badge done">✅</span></td></tr>
+<tr><td>forget</td><td>删除指定记忆</td><td><span class="badge done">✅</span></td></tr>
+<tr><td>list</td><td>列出所有记忆（支持 type 过滤）</td><td><span class="badge done">✅</span></td></tr>
+<tr><td>import</td><td>一键导入历史记忆（.md / .jsonl 批量导入）</td><td><span class="badge" style="background:rgba(250,204,21,.15);color:#facc15">P5</span></td></tr>
+</table>
+</div>
+
+<div class="legend">
+<div class="legend-item"><div class="legend-dot" style="background:var(--neocortex)"></div> 编码</div>
+<div class="legend-item"><div class="legend-dot" style="background:var(--phr)"></div> 路由</div>
+<div class="legend-item"><div class="legend-dot" style="background:var(--ec)"></div> 空间</div>
+<div class="legend-item"><div class="legend-dot" style="background:var(--ca3)"></div> 检索</div>
+<div class="legend-item"><div class="legend-dot" style="background:var(--ca1)"></div> 精排</div>
+<div class="legend-item"><div class="legend-dot" style="background:var(--sleep)"></div> 睡眠</div>
+<div class="legend-item"><div class="legend-dot" style="background:var(--emotion)"></div> 已移除</div>
+<div class="legend-item"><div class="legend-dot" style="background:var(--mcp)"></div> MCP</div>
+</div>
+
+<div class="footer">Sisyphus v3.0 · 288 tests · 15 commits · 海马体映射 + MCP Server</div>
+</div></body></html>

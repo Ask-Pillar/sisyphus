@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>P5 计划 — MCP Server + 一键导入</title>
+<style>
+:root{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;--g:#4ade80;--y:#facc15;--b:#60a5fa;--p:#a78bfa;--r:#f87171}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);padding:24px;line-height:1.6}
+.container{max-width:700px;margin:0 auto}
+h1{text-align:center;font-size:1.3rem;margin-bottom:20px}
+h2{font-size:1rem;margin:24px 0 12px;border-left:3px solid var(--b);padding-left:10px}
+.card{background:var(--card);border-radius:12px;padding:20px;margin-bottom:16px;border:1px solid #ffffff0a}
+table{width:100%;border-collapse:collapse;font-size:.85rem;margin:10px 0}
+td,th{padding:8px 12px;border-bottom:1px solid #ffffff08;text-align:left;vertical-align:top}
+th{color:var(--muted);font-size:.75rem}
+.tag{display:inline-block;padding:2px 8px;border-radius:6px;font-size:.72rem;font-weight:600}
+.tag-done{background:#4ade8020;color:#4ade80}.tag-p5{background:#facc1520;color:#facc15}.tag-cut{background:#f8717120;color:#f87171}
+.note{background:#ffffff06;border-radius:8px;padding:12px 16px;margin:10px 0;font-size:.82rem}
+.pipeline{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0;font-size:.78rem}
+.pipe-step{padding:4px 10px;background:#ffffff08;border-radius:4px}.pipe-arrow{color:var(--muted)}
+</style></head><body><div class="container">
+
+<h1>📋 P5 计划 — MCP Server 完善 + 一键导入</h1>
+<p style="text-align:center;color:var(--muted);font-size:.85rem;margin-top:-16px">2026-05-23 · 基于 P4 实测</p>
+
+<div class="pipeline" style="justify-content:center">
+<span class="pipe-step" style="background:#4ade8020">P0 ✅</span><span class="pipe-arrow">→</span>
+<span class="pipe-step" style="background:#4ade8020">P1 ✅</span><span class="pipe-arrow">→</span>
+<span class="pipe-step" style="background:#4ade8020">P2 ✅</span><span class="pipe-arrow">→</span>
+<span class="pipe-step" style="background:#4ade8020">P3 ✅</span><span class="pipe-arrow">→</span>
+<span class="pipe-step" style="background:#4ade8020">P4 ✅</span><span class="pipe-arrow">→</span>
+<span class="pipe-step" style="background:var(--y)">P5 📋</span>
+</div>
+
+<div class="card note" style="border-left:3px solid var(--b);margin-top:24px">
+<b>关键决策</b>：不需要多客户端并发——MCP stdio 协议本身就是单客户端。不需要子Agent沙箱——MCP 协议已替代隔离层。所有客户端通过 MCP 工具共享同一份记忆存储。
+</div>
+
+<h2>1. 升级 MCP Server</h2>
+<div class="card"><table>
+<tr><th>改动</th><th>说明</th><th>状态</th></tr>
+<tr><td>BGE → ContextRetriever</td><td>使用 P3/P4 完成的 jieba+Tree+BM25+BCE 双路径管道</td><td><span class="tag tag-p5">P5</span></td></tr>
+<tr><td>移除 SubagentLauncher</td><td>MCP 协议自身解决跨 agent 问题</td><td><span class="tag tag-p5">P5</span></td></tr>
+<tr><td>添加 TreeRetriever 集成</td><td>Path A 树浏览在 recall 中可用</td><td><span class="tag tag-p5">P5</span></td></tr>
+</table></div>
+
+<h2>2. 一键导入（import）</h2>
+<div class="card"><table>
+<tr><th>功能</th><th>说明</th></tr>
+<tr><td>输入格式</td><td>.md 文件 / .jsonl 文件 / 目录扫描</td></tr>
+<tr><td>导入逻辑</td><td>解析 frontmatter → 提取 title/type/content/tags → MemoryStore.create()</td></tr>
+<tr><td>去重保护</td><td>title 已存在时跳过，不覆盖已有记忆</td></tr>
+<tr><td>进度反馈</td><td>返回 {imported: N, skipped: M, errors: [...]}</td></tr>
+</table></div>
+
+<h2>3. 测试</h2>
+<div class="card"><table>
+<tr><th>测试</th><th>内容</th></tr>
+<tr><td>test_mcp_import.py</td><td>markdown 批量导入</td></tr>
+<tr><td>test_mcp_dup.py</td><td>重复 title 去重跳过</td></tr>
+<tr><td>test_mcp_recall.py</td><td>新 ContextRetriever 的 recall 验证</td></tr>
+</table></div>
+
+<h2>4. Gate</h2>
+<div class="card"><table>
+<tr><th>条件</th><th>目标</th></tr>
+<tr><td>MCP recall @1</td><td>≥ 80%</td></tr>
+<tr><td>导入 100 条不报错</td><td>通过</td></tr>
+<tr><td>去重逻辑</td><td>相同 title 正确跳过</td></tr>
+</table></div>
+
+<div class="card note" style="border-left:3px solid var(--g);margin-top:16px">
+<b>不涉及</b>：retrieval.py、tree.py、test_retrieval.py 等检索核心代码——它们不依赖 MCP 层，不需要改动。P5 是纯上层集成，不改底层。
+</div>
+
+<div style="text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px">
+Sisyphus P5 Planning · 2026-05-23 · <a href="P5-PLAN.md" style="color:var(--b)">详细版</a>
+</div>
+</div></body></html>
