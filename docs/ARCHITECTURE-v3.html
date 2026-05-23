@@ -1,151 +1,255 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head><meta charset="UTF-8"><title>Sisyphus 记忆架构 v3.0</title>
+<head><meta charset="UTF-8"><title>Sisyphus 海马体记忆架构 v3.0</title>
 <style>
-:root{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;--border:#334155;--neocortex:#6366f1;--phr:#8b5cf6;--ec:#f97316;--ca3:#10b981;--ca1:#06b6d4;--sleep:#ec4899;--emotion:#ef4444;--mcp:#84cc16}
+:root{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;--border:#334155;--nc:#6366f1;--phr:#8b5cf6;--ec:#f97316;--dg:#f87171;--ca3:#10b981;--ca1:#06b6d4;--sleep:#ec4899;--amyg:#ef4444;--mcp:#84cc16}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.6;padding:20px}
-.container{max-width:1000px;margin:0 auto}
-h1{font-size:1.5rem;text-align:center;margin-bottom:4px}
-.subtitle{text-align:center;color:var(--muted);font-size:.85rem;margin-bottom:24px}
-h2{font-size:1.1rem;margin:28px 0 14px;border-left:3px solid var(--neocortex);padding-left:12px}
-.row{display:flex;gap:14px;margin-bottom:14px;flex-wrap:wrap}
-.col{flex:1;min-width:280px}
-.card{background:var(--card);border-radius:12px;padding:18px;border:1px solid var(--border);position:relative}
-.card-header{font-weight:700;font-size:.9rem;margin-bottom:6px;display:flex;align-items:center;gap:8px}
-.card-sub{color:var(--muted);font-size:.78rem;margin-bottom:8px}
+.container{max-width:1100px;margin:0 auto}
+h1{font-size:1.6rem;text-align:center;margin-bottom:4px}
+.subtitle{text-align:center;color:var(--muted);font-size:.85rem;margin-bottom:20px}
+h2{font-size:1.1rem;margin:32px 0 16px;border-left:3px solid var(--nc);padding-left:12px}
+.row{display:flex;gap:12px;align-items:stretch;flex-wrap:wrap}
+.col{flex:1;min-width:300px}
+.box{border:2px solid var(--border);border-radius:12px;padding:16px;background:var(--card);position:relative}
+.box-header{font-weight:700;font-size:.9rem;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.box-sub{color:var(--muted);font-size:.78rem;margin-bottom:6px}
 .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:.7rem;font-weight:600}
-.bio{background:rgba(139,92,246,.15);color:#a78bfa}.tech{background:rgba(16,185,129,.15);color:#34d399}.done{background:rgba(74,222,128,.15);color:#4ade80}
-.flow{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin:6px 0;font-size:.75rem}
+.nc{border-left:4px solid var(--nc)}.phr{border-left:4px solid var(--phr)}.ec{border-left:4px solid var(--ec)}.ca3{border-left:4px solid var(--ca3)}.ca1{border-left:4px solid var(--ca1)}.sleep{border-left:4px solid var(--sleep)}.amyg{border-left:4px solid var(--amyg)}.mcp{border-left:4px solid var(--mcp)}
+.box-removed{opacity:.6;background:rgba(248,113,113,.04);border-left:4px solid var(--dg)}
+.flow{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin:4px 0;font-size:.75rem}
 .flow-step{padding:3px 8px;background:#ffffff08;border-radius:4px;border:1px solid #ffffff0a}
 .flow-arrow{color:var(--muted)}
-.arrow-down{text-align:center;color:var(--muted);font-size:1.2rem;margin:6px 0}
-.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:24px;padding:14px;background:var(--card);border:1px solid var(--border);border-radius:8px;font-size:.78rem}
-.legend-item{display:flex;align-items:center;gap:6px}
+.arrow-down{text-align:center;color:var(--muted);font-size:1.2rem;margin:4px 0}
+.arrow-right{color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:1.2rem}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:24px;padding:14px;background:var(--card);border:1px solid var(--border);border-radius:8px}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:.78rem}
 .legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.pipeline{display:flex;align-items:center;gap:0;margin:8px 0;flex-wrap:wrap}
+.pipe-step{padding:4px 10px;font-size:.72rem;background:var(--bg);border:1px solid var(--border);border-radius:4px}
+.pipe-arrow{color:var(--muted);margin:0 2px}
 table{width:100%;border-collapse:collapse;font-size:.82rem;margin:10px 0}
 td,th{padding:6px 10px;border-bottom:1px solid #ffffff08;text-align:left;vertical-align:top}
 th{color:var(--muted);font-weight:500;font-size:.72rem}
-.changed{background:rgba(239,68,68,.06);border-left:3px solid var(--emotion)}
-.removed{background:rgba(239,68,68,.04);text-decoration:line-through;color:var(--muted)}
-.added{background:rgba(74,222,128,.06);border-left:3px solid var(--mcp)}
+.tag{display:inline-block;padding:1px 7px;border-radius:4px;font-size:.68rem;font-weight:600}
+.tg{background:#4ade8020;color:#4ade80}.ty{background:#facc1520;color:#facc15}.tp{background:#a78bfa20;color:#a78bfa}
+.phases{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin:16px 0}
+.phase{text-align:center;padding:12px 8px;background:var(--card);border-radius:8px;border:1px solid var(--border)}
+.phase-done{border-color:rgba(74,222,128,.3)}.phase-next{border-color:rgba(250,204,21,.3)}.phase-future{border-color:rgba(148,163,184,.15)}
+.phase-num{font-size:1.2rem;font-weight:700}.phase-name{font-size:.7rem;color:var(--muted);margin-top:2px}
 .footer{margin-top:24px;text-align:center;color:var(--muted);font-size:.75rem}
 </style></head>
 <body><div class="container">
 
-<h1>🧠 Sisyphus 记忆架构 v3.0</h1>
-<p class="subtitle">Memory Tree + MCP Server · 2026-05-23 · 实际实现版</p>
+<h1>🧠 Sisyphus 海马体记忆架构 v3.0</h1>
+<p class="subtitle">Memory Tree + MCP Server · 实际实现版 · 288 tests · 2026-05-23</p>
+
+<div class="phases">
+<div class="phase phase-done"><div class="phase-num tg">P0</div><div class="phase-name">原子写+锁</div></div>
+<div class="phase phase-done"><div class="phase-num tg">P1</div><div class="phase-name">TreeStore</div></div>
+<div class="phase phase-done"><div class="phase-num tg">P2</div><div class="phase-name">TreeBuilder</div></div>
+<div class="phase phase-done"><div class="phase-num tg">P3</div><div class="phase-name">双路径检索</div></div>
+<div class="phase phase-done"><div class="phase-num tg">P4</div><div class="phase-name">Sleep+BCE</div></div>
+<div class="phase phase-next"><div class="phase-num ty">P5</div><div class="phase-name">MCP+导入</div></div>
+<div class="phase phase-future"><div class="phase-num tp">P6</div><div class="phase-name">自我学习</div></div>
+</div>
+
+<h2>🏗️ 架构全景 — 海马体生物映射</h2>
 
 <div class="row">
-  <div class="col"><div class="card">
-    <div class="card-header"><span class="badge bio">编码</span> 🧠 新皮层 Neocortex</div>
-    <div class="card-sub">LLM 编码 → RAW + REFINED 双层存储</div>
-    <div class="flow"><span class="flow-step">对话输入</span><span class="flow-arrow">→</span><span class="flow-step">LLM 理解</span><span class="flow-arrow">→</span><span class="flow-step">MemoryStore.create()</span></div>
-    <div class="card-sub" style="margin-top:6px"><span class="badge done">✅</span> Markdown append-only · importance 标记 · frontmatter</div>
+  <div class="col"><div class="box nc">
+    <div class="box-header"><span class="badge" style="background:rgba(99,102,241,.15);color:#818cf8">编码</span> 🧠 新皮层 Neocortex</div>
+    <div class="box-sub">感知输入 → LLM 理解 → 结构化为记忆</div>
+    <div class="flow"><span class="flow-step">用户对话</span><span class="flow-arrow">→</span><span class="flow-step">LLM 提取实体/类型/标签</span><span class="flow-arrow">→</span><span class="flow-step">MemoryStore.create()</span></div>
+    <div style="font-size:.72rem;margin-top:6px;color:var(--muted)">生物角色: 处理感知刺激 → 提取高层特征 → 路由到海马体</div>
+    <div style="font-size:.7rem;margin-top:4px">RAW 层: Markdown append-only · REFINED 层: LLM 精炼记忆 · importance (1-10)</div>
   </div></div>
-  <div class="col"><div class="card">
-    <div class="card-header"><span class="badge bio">路由</span> 🗂️ 海马旁回 PHR</div>
-    <div class="card-sub">MOC 关键词重叠 → 确定记忆类型</div>
+  <div class="arrow-right">→</div>
+  <div class="col"><div class="box phr">
+    <div class="box-header"><span class="badge" style="background:rgba(139,92,246,.15);color:#a78bfa">路由</span> 🗂️ 海马旁回 PHR</div>
+    <div class="box-sub">MOC 关键词重叠 → 确定相关记忆类型</div>
     <div class="flow"><span class="flow-step">_moc_match_types()</span><span class="flow-arrow">→</span><span class="flow-step">_classify_types()</span></div>
-    <div class="card-sub" style="margin-top:6px"><span class="badge done">✅</span> jieba 中文分词 · INDEX.md · wikilink</div>
+    <div style="font-size:.72rem;margin-top:6px;color:var(--muted)">生物角色: 接收新皮层特征 → 路由到海马体各子区</div>
+    <div style="font-size:.7rem;margin-top:4px">INDEX.md wikilink 索引 · jieba 中文分词 · 限定搜索范围</div>
   </div></div>
 </div>
 
 <div class="arrow-down">↓</div>
 
 <div class="row">
-  <div class="col"><div class="card">
-    <div class="card-header"><span class="badge bio">空间</span> 🌳 内嗅皮层 EC</div>
-    <div class="card-sub">Memory Tree 层级摘要树</div>
-    <div style="font-family:monospace;font-size:.7rem;line-height:1.6;background:#ffffff06;border-radius:6px;padding:8px;margin:6px 0">
+  <div class="col"><div class="box ec">
+    <div class="box-header"><span class="badge" style="background:rgba(249,115,22,.15);color:#fb923c">空间</span> 🌳 内嗅皮层 EC — Memory Tree</div>
+    <div class="box-sub">认知地图 — 层级摘要树提供空间/概念/层级导航</div>
+    <div style="font-family:monospace;font-size:.7rem;line-height:1.7;background:#ffffff06;border-radius:6px;padding:8px;margin:4px 0">
 📂 L0 全局摘要<br>
- ├── Type: Storage (L1)<br>
- │ ├── Storage_0 "四层架构" (L2)<br>
- │ └── Storage_2 "BM25参数" (L2)<br>
+ ├── Type: Storage (L1) "Storage_0; Storage_1; Storage_2"<br>
+ │   ├── Storage_0 "存储架构: 四层..." (L2 leaf)<br>
+ │   ├── Storage_1 "RAW层: append-only..." (L2)<br>
+ │   └── Storage_2 "BM25参数: k1=1.2..." (L2)<br>
  ├── Type: Subagent (L1)<br>
- └── ...
+ │   ├── Subagent_0 "子进程通信..." (L2)<br>
+ │   └── Subagent_1 "离线模式..." (L2)<br>
+ └── ...<br>
     </div>
-    <div class="card-sub"><span class="badge done">✅</span> TreeStore · TreeBuilder · 无 LLM 时 title 拼接降级</div>
+    <div style="font-size:.72rem;color:var(--muted)">TreeStore (文件树+_meta.json) · TreeBuilder (type 粗聚类+title 拼接摘要) · Sleep 阶段增量重建</div>
+    <div style="font-size:.7rem;color:var(--muted)">无 LLM 环境: 摘要降级为 title 拼接，子树 max-score 匹配逻辑不变</div>
   </div></div>
-  <div class="col"><div class="card removed">
-    <div class="card-header"><span class="badge" style="background:rgba(239,68,68,.15);color:#f87171">已裁</span> 🔀 齿状回 DG</div>
-    <div class="card-sub">Qwen3-Embedding-0.6B → 已移除（实测负收益）</div>
-    <div class="card-sub" style="color:var(--r)">75cos+25bm25 从 76% 降到 43% · CPU 推理慢 · 0.6B 中文语义弱</div>
+  <div class="col">
+    <div class="box box-removed">
+      <div class="box-header"><span class="badge" style="background:rgba(248,113,113,.15);color:#f87171">已裁</span> 🔀 齿状回 DG</div>
+      <div class="box-sub">Qwen3-Embedding-0.6B → <b>已移除（实测负收益）</b></div>
+      <div style="font-size:.72rem;color:var(--muted)">0.6B 中文语义匹配太弱 · cosine 接近随机 · 0.75cos+0.25bm25 从 76% 掉到 43%</div>
+    </div>
+    <div class="box box-removed" style="margin-top:12px">
+      <div class="box-header"><span class="badge" style="background:rgba(248,113,113,.15);color:#f87171">已裁</span> 🔒 Agent 沙箱</div>
+      <div class="box-sub">子进程隔离 → <b>MCP Server 替代</b></div>
+      <div style="font-size:.72rem;color:var(--muted)">所有 AI 客户端通过 MCP 工具共享同一份 ~/.omo/memory/ 存储</div>
+    </div>
+  </div>
+</div>
+
+<div class="arrow-down">↓</div>
+
+<div class="row">
+  <div class="col"><div class="box ca3">
+    <div class="box-header"><span class="badge" style="background:rgba(16,185,129,.15);color:#34d399">检索</span> 🔗 CA3 模式完成</div>
+    <div class="box-sub">BM25 粗召 — jieba + EN 正则 + CJK 单字 fallback</div>
+    <div class="flow"><span class="flow-step">Query</span><span class="flow-arrow">→</span><span class="flow-step">jieba 中文分词</span><span class="flow-arrow">→</span><span class="flow-step">BM25 (k1=1.2, b=0.75)</span><span class="flow-arrow">→</span><span class="flow-step">top-50 候选</span></div>
+    <div style="font-size:.72rem;margin-top:6px;color:var(--muted)">"有几层"→单字 fallback→命中"四层"的"层" · 500 docs @1=80% · 0.001s</div>
+    <div style="font-size:.72rem;color:var(--muted)">生物: 部分线索→唤起完整记忆 (pattern completion)</div>
+  </div></div>
+  <div class="arrow-right">→</div>
+  <div class="col"><div class="box ca1">
+    <div class="box-header"><span class="badge" style="background:rgba(6,182,212,.15);color:#22d3ee">精排</span> ✅ CA1 输出</div>
+    <div class="box-sub">BCE-Reranker-base_v1 (网易有道, 279M, CPU)</div>
+    <div class="flow"><span class="flow-step">top-50</span><span class="flow-arrow">→</span><span class="flow-step">BCE 交叉打分</span><span class="flow-arrow">→</span><span class="flow-step">精排 top-5</span></div>
+    <div style="font-size:.72rem;margin-top:6px;color:var(--muted)">同 topic ≥ 8 docs 自动激活 · +13% @1 · 取代需 GPU 的 Qwen3</div>
+    <div style="font-size:.72rem;color:var(--muted)">生物: 整合 CA3 输出+内嗅皮层输入 → 输出到新皮层</div>
   </div></div>
 </div>
 
 <div class="arrow-down">↓</div>
 
 <div class="row">
-  <div class="col"><div class="card">
-    <div class="card-header"><span class="badge tech">检索</span> 🔗 CA3 模式完成</div>
-    <div class="card-sub">BM25 粗召（jieba + EN + 单字 fallback）</div>
-    <div class="flow"><span class="flow-step">Query</span><span class="flow-arrow">→</span><span class="flow-step">jieba 分词</span><span class="flow-arrow">→</span><span class="flow-step">BM25 打分</span><span class="flow-arrow">→</span><span class="flow-step">top-k</span></div>
-    <div class="card-sub" style="margin-top:6px"><span class="badge done">✅</span> 76% @1 · 0.001s/query · 纯词面匹配</div>
-  </div></div>
-  <div class="col"><div class="card">
-    <div class="card-header"><span class="badge tech">精排</span> ✅ CA1 输出</div>
-    <div class="card-sub">BCE-Reranker (279M, CPU)</div>
-    <div class="flow"><span class="flow-step">top-50 候选</span><span class="flow-arrow">→</span><span class="flow-step">BCE 交叉打分</span><span class="flow-arrow">→</span><span class="flow-step">精排 top-5</span></div>
-    <div class="card-sub" style="margin-top:6px"><span class="badge done">✅</span> 同 topic ≥ 8 自动激活 · +13% @1 · 取代需 GPU 的 Qwen3</div>
-  </div></div>
+  <div class="col">
+    <div class="box amyg">
+      <div class="box-header"><span class="badge" style="background:rgba(239,68,68,.15);color:#f87171">权重</span> ❤️ 杏仁核</div>
+      <div class="box-sub">decay_score = importance × 0.5^(days/30)</div>
+      <div style="font-size:.72rem;color:var(--muted)">recall_count 累计 · 越用越强 · 30 天半衰期 · 情感标记</div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="box sleep">
+      <div class="box-header"><span class="badge" style="background:rgba(236,72,153,.15);color:#f472b6">巩固</span> 🌙 睡眠巩固 Sleep</div>
+      <div class="box-sub">离线记忆巩固 + Memory Tree 重建</div>
+      <div class="pipeline">
+        <span class="pipe-step">LoopDetect</span><span class="pipe-arrow">→</span>
+        <span class="pipe-step">Compress</span><span class="pipe-arrow">→</span>
+        <span class="pipe-step">Dream</span><span class="pipe-arrow">→</span>
+        <span class="pipe-step">TreeBuild</span><span class="pipe-arrow">→</span>
+        <span class="pipe-step">MOC</span><span class="pipe-arrow">→</span>
+        <span class="pipe-step">LinkClean</span>
+      </div>
+      <div style="font-size:.72rem;color:var(--muted)">RAW ≥ 20 自动触发 · 无 LLM 跳过 Dream+Compress · 降级不空转</div>
+    </div>
+  </div>
 </div>
 
-<div class="arrow-down">↓</div>
+<h2>🔄 完整检索流水线 — 双路径 + 四级降级</h2>
 
 <div class="row">
-  <div class="col"><div class="card removed">
-    <div class="card-header"><span class="badge" style="background:rgba(239,68,68,.15);color:#f87171">已裁</span> 🔒 Agent 沙箱</div>
-    <div class="card-sub">子进程隔离 → MCP Server 替代</div>
-    <div class="card-sub" style="color:var(--r)">所有客户端共享内存，无需进程级沙箱</div>
+  <div class="col"><div class="box" style="border-left:4px solid var(--ec)">
+    <div class="box-header">🌲 Path A — 树浏览（宽泛查询）</div>
+    <div class="box-sub">"有什么存储相关的？" / "Python有哪些用法？"</div>
+    <div class="pipeline">
+      <span class="pipe-step">Query</span><span class="pipe-arrow">→</span>
+      <span class="pipe-step" style="border-color:var(--ec)">EC: 子树叶 max-score 匹配 L1</span><span class="pipe-arrow">→</span>
+      <span class="pipe-step">锁定子树</span><span class="pipe-arrow">→</span>
+      <span class="pipe-step">子树内 BM25 精排</span><span class="pipe-arrow">→</span>
+      <span class="pipe-step">杏仁核衰减</span><span class="pipe-arrow">→</span>
+      <span class="pipe-step">注入 Agent 上下文</span>
+    </div>
+    <div style="font-size:.72rem;color:var(--muted)">适用: 短 query (< 3 token) · 模糊词 (有什么/哪些/怎么样) · 宽泛问题</div>
   </div></div>
-  <div class="col"><div class="card added">
-    <div class="card-header"><span class="badge" style="background:rgba(132,204,22,.15);color:#a3e635">新增</span> 🌐 MCP Server</div>
-    <div class="card-sub">JSON-RPC stdio 协议，单进程服务</div>
-    <div class="card-sub">任何 MCP 客户端（opencode/Claude/Cursor）均可接入</div>
+  <div class="col"><div class="box" style="border-left:4px solid var(--ca3)">
+    <div class="box-header">🔍 Path B — 精确检索（具体查询）</div>
+    <div class="box-sub">"k1 参数默认值是多少？" / "Sisyphus有多少测试？"</div>
+    <div class="pipeline">
+      <span class="pipe-step">Query</span><span class="pipe-arrow">→</span>
+      <span class="pipe-step" style="border-color:var(--phr)">PHR: MOC 类型匹配</span><span class="pipe-arrow">→</span>
+      <span class="pipe-step" style="border-color:var(--ec)">EC: 树限定搜索域</span><span class="pipe-arrow">→</span>
+      <span class="pipe-step" style="border-color:var(--ca3)">CA3: BM25 全量粗召</span><span class="pipe-arrow">→</span>
+      <span class="pipe-step" style="border-color:var(--ca1)">CA1: BCE 精排</span><span class="pipe-arrow">→</span>
+      <span class="pipe-step">杏仁核衰减</span><span class="pipe-arrow">→</span>
+      <span class="pipe-step">注入 Agent 上下文</span>
+    </div>
+    <div style="font-size:.72rem;color:var(--muted)">适用: 长 query (≥ 3 token) · 无模糊词 · 精确事实性问题</div>
   </div></div>
 </div>
 
-<div class="arrow-down">↓</div>
+<div class="box" style="text-align:center;border-left:4px solid var(--amyg);margin-top:12px">
+  <div class="box-header">🔄 四级降级链</div>
+  <div class="pipeline" style="justify-content:center">
+    <span class="pipe-step">L0: PATH A 树浏览</span><span class="pipe-arrow">—失败→</span>
+    <span class="pipe-step">L1: PATH B 精确检索</span><span class="pipe-arrow">—失败→</span>
+    <span class="pipe-step">L2: Raw BM25 全量</span><span class="pipe-arrow">—失败→</span>
+    <span class="pipe-step">L3: 空结果</span>
+  </div>
+  <div style="font-size:.72rem;color:var(--muted)">前一步失败自动降级到下一步，不丢查询。L3 失败时返回空列表。</div>
+</div>
 
-<h2>🔄 两条检索路径</h2>
+<h2>🌐 MCP Server — 跨 Agent 共享</h2>
 <div class="row">
-  <div class="col"><div class="card">
-    <div class="card-header">🌲 Path A — 树浏览</div>
-    <div class="card-sub">宽泛查询："有什么存储相关的"</div>
-    <div class="flow"><span class="flow-step">BM25 扫 L1 摘要</span><span class="flow-arrow">→</span><span class="flow-step">匹配子树</span><span class="flow-arrow">→</span><span class="flow-step">子树内精排</span></div>
-    <div class="card-sub" style="margin-top:6px"><span class="badge done">✅</span> TreeRetriever</div>
+  <div class="col"><div class="box mcp">
+    <div class="box-header"><span class="badge" style="background:rgba(132,204,22,.15);color:#a3e635">协议</span> 🔧 MCP stdio</div>
+    <div class="box-sub">JSON-RPC via stdin/stdout · 单进程常驻</div>
+    <div class="flow">
+      <span class="flow-step">opencode</span>
+      <span class="flow-step">Claude Code</span>
+      <span class="flow-step">Cursor</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-step" style="background:rgba(132,204,22,.15)">~/.omo/memory/</span>
+    </div>
   </div></div>
-  <div class="col"><div class="card">
-    <div class="card-header">🔍 Path B — 精确检索</div>
-    <div class="card-sub">精确查询："k1 参数默认值"</div>
-    <div class="flow"><span class="flow-step">MOC 分类</span><span class="flow-arrow">→</span><span class="flow-step">BM25 全量</span><span class="flow-arrow">→</span><span class="flow-step">BCE 精排</span></div>
-    <div class="card-sub" style="margin-top:6px"><span class="badge done">✅</span> _choose_path() 自动路由</div>
+  <div class="col"><div class="box mcp">
+    <div class="box-header"><span class="badge" style="background:rgba(132,204,22,.15);color:#a3e635">工具</span> 🛠️ MCP Tools</div>
+    <table style="font-size:.72rem">
+    <tr><td>remember</td><td>创建新记忆</td><td><span class="tag tg">✅</span></td></tr>
+    <tr><td>recall</td><td>双路径检索 (ContextRetriever)</td><td><span class="tag tg">✅</span></td></tr>
+    <tr><td>forget</td><td>删除指定记忆</td><td><span class="tag tg">✅</span></td></tr>
+    <tr><td>list</td><td>列出记忆 (支持 type 过滤)</td><td><span class="tag tg">✅</span></td></tr>
+    <tr><td>import</td><td>一键导入 (.md/.jsonl)</td><td><span class="tag ty">P5</span></td></tr>
+    </table>
   </div></div>
 </div>
 
-<h2>🛠️ MCP 工具</h2>
-<div class="card">
+<h2>📊 P5-P6 规划</h2>
 <table>
-<tr><th>工具</th><th>功能</th><th>状态</th></tr>
-<tr><td>remember</td><td>创建新记忆（title + type + content + tags + importance）</td><td><span class="badge done">✅</span></td></tr>
-<tr><td>recall</td><td>检索记忆（ContextRetriever 双路径管道）</td><td><span class="badge done">✅</span></td></tr>
-<tr><td>forget</td><td>删除指定记忆</td><td><span class="badge done">✅</span></td></tr>
-<tr><td>list</td><td>列出所有记忆（支持 type 过滤）</td><td><span class="badge done">✅</span></td></tr>
-<tr><td>import</td><td>一键导入历史记忆（.md / .jsonl 批量导入）</td><td><span class="badge" style="background:rgba(250,204,21,.15);color:#facc15">P5</span></td></tr>
+<tr><th>Phase</th><th>名称</th><th>交付物</th><th>Gate</th><th>状态</th></tr>
+<tr><td>P5</td><td>MCP Server 完善<br>+ 一键导入</td><td>
+  ContextRetriever 替换旧 BGEReranker<br>
+  移除 SubagentLauncher<br>
+  import 工具: .md / .jsonl 批量导入 + title 去重<br>
+  ~4 个测试
+</td><td>recall @1 ≥ 80%<br>导入 100 条不报错<br>去重正确跳过</td><td><span class="tag ty">待开始</span></td></tr>
+<tr><td>P6</td><td>自我学习循环</td><td>
+  高频模式识别 (recall_count + decay 阈值)<br>
+  Skill 自动生成 (同类型 ≥ 5 条 → 总结/最佳实践)<br>
+  Skill 注入系统 prompt (参考 Hermes learning loop)
+</td><td>新生 skill 准确率<br>跨 session 复用验证</td><td><span class="tag tp">规划中</span></td></tr>
 </table>
-</div>
 
 <div class="legend">
-<div class="legend-item"><div class="legend-dot" style="background:var(--neocortex)"></div> 编码</div>
-<div class="legend-item"><div class="legend-dot" style="background:var(--phr)"></div> 路由</div>
-<div class="legend-item"><div class="legend-dot" style="background:var(--ec)"></div> 空间</div>
-<div class="legend-item"><div class="legend-dot" style="background:var(--ca3)"></div> 检索</div>
-<div class="legend-item"><div class="legend-dot" style="background:var(--ca1)"></div> 精排</div>
-<div class="legend-item"><div class="legend-dot" style="background:var(--sleep)"></div> 睡眠</div>
-<div class="legend-item"><div class="legend-dot" style="background:var(--emotion)"></div> 已移除</div>
-<div class="legend-item"><div class="legend-dot" style="background:var(--mcp)"></div> MCP</div>
+<div class="legend-item"><div class="legend-dot" style="background:var(--nc)"></div> 新皮层 编码</div>
+<div class="legend-item"><div class="legend-dot" style="background:var(--phr)"></div> 旁回 路由</div>
+<div class="legend-item"><div class="legend-dot" style="background:var(--ec)"></div> EC 空间</div>
+<div class="legend-item"><div class="legend-dot" style="background:var(--dg)"></div> DG 已裁</div>
+<div class="legend-item"><div class="legend-dot" style="background:var(--ca3)"></div> CA3 检索</div>
+<div class="legend-item"><div class="legend-dot" style="background:var(--ca1)"></div> CA1 精排</div>
+<div class="legend-item"><div class="legend-dot" style="background:var(--sleep)"></div> 睡眠 巩固</div>
+<div class="legend-item"><div class="legend-dot" style="background:var(--amyg)"></div> 杏仁核 权重</div>
+<div class="legend-item"><div class="legend-dot" style="background:var(--mcp)"></div> MCP 共享</div>
 </div>
 
-<div class="footer">Sisyphus v3.0 · 288 tests · 15 commits · 海马体映射 + MCP Server</div>
+<div class="footer">Sisyphus v3.0 · 288 tests · 15 commits · 海马体生物映射 + MCP Server 工程架构</div>
 </div></body></html>
