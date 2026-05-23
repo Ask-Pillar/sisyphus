@@ -80,30 +80,6 @@ def _handle_stats(args: Dict[str, Any]) -> Dict[str, Any]:
     _setup()
     all_mems = _store.list()
     refined_mems = _refined.list_refined()
-    types = {}
-    for m in all_mems:
-        types[m.type] = types.get(m.type, 0) + 1
-    return {
-        "total_raw": len(all_mems),
-        "total_refined": len(refined_mems),
-        "by_type": types,
-    }
-            for m, s in results
-        ],
-    }
-
-
-def _handle_context(args: Dict[str, Any]) -> Dict[str, Any]:
-    _setup()
-    results = _retriever.retrieve("", top_k=8)
-    items = [{"title": m.title, "type": m.type} for m, s in results]
-    return {"context": items, "count": len(items)}
-
-
-def _handle_stats(args: Dict[str, Any]) -> Dict[str, Any]:
-    _setup()
-    all_mems = _store.list()
-    refined_mems = _refined.list_refined()
     by_type = {}
     for m in all_mems + refined_mems:
         by_type[m.type] = by_type.get(m.type, 0) + 1
