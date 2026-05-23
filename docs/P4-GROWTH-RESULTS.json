@@ -1,0 +1,36 @@
+[
+  {
+    "stage": "Stage 1: seed",
+    "docs": 9,
+    "cr_at1_pct": 80,
+    "bm25_at1_pct": 80,
+    "time_s": 1.13
+  },
+  {
+    "stage": "Stage 2: growth",
+    "docs": 24,
+    "cr_at1_pct": 80,
+    "bm25_at1_pct": 80,
+    "time_s": 10.79
+  },
+  {
+    "stage": "Stage 3: mature",
+    "docs": 60,
+    "cr_at1_pct": 80,
+    "bm25_at1_pct": 80,
+    "time_s": 12.17
+  },
+  {
+    "stage": "Stage 4: saturation",
+    "docs": 150,
+    "cr_at1_pct": 80,
+    "bm25_at1_pct": 80,
+    "time_s": 17.16
+  },
+  {
+    "stage": "BCE activation",
+    "docs": 11,
+    "cr_at1_pct": 0,
+    "bm25_at1_pct": 66
+  }
+]
