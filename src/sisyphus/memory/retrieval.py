@@ -211,21 +211,26 @@ class TFIDFEmbedder:
                 idf = math.log((N - df[t] + 0.5) / (df[t] + 0.5) + 1.0)
                 vec[self.vocab_idx[t]] = (count / max_tf) * idf
             self.vectors.append(vec)
+        self._df = df
+        self._doc_count = N
 
     def query_vector(self, query: str) -> dict:
         tokens = _tokenize(query)
         if not tokens:
             return {}
         vec = {}
-        max_tf = max(tokens.count(t) for t in set(tokens))
+        unique_tokens = set(tokens) & set(self.vocab_idx)
+        if not unique_tokens:
+            return {}
+        max_tf = max(tokens.count(t) for t in unique_tokens)
         import math
-        for t in set(tokens):
-            if t in self.vocab_idx:
-                tf = tokens.count(t) / max_tf
-                n = sum(1 for v in self.vectors if self.vocab_idx[t] in v)
-                idf = math.log((len(self.vectors) - n + 0.5) / (n + 0.5) + 1.0) if n > 0 else 0.0
-                if tf * idf > 0:
-                    vec[self.vocab_idx[t]] = tf * idf
+        N = self._doc_count
+        for t in unique_tokens:
+            n = self._df.get(t, 0)
+            tf = tokens.count(t) / max_tf
+            idf = math.log((N - n + 0.5) / (n + 0.5) + 1.0) if n > 0 else 0.0
+            if tf * idf > 0:
+                vec[self.vocab_idx[t]] = tf * idf
         return vec
 
     @staticmethod
@@ -657,11 +662,22 @@ class ContextRetriever:
 
         if path == "A" and self._tree is not None:
             try:
-                return self._retrieve_tree(query, top_k)
+                result = self._retrieve_tree(query, top_k)
+                if result:
+                    return result
             except Exception:
                 pass
 
-        return self._retrieve_default(query, top_k)
+        result = self._retrieve_default(query, top_k)
+        if not result and query.strip():
+            all_mems = self.store.list()
+            if all_mems:
+                bm = BM25Ranker(all_mems, k1=1.2, b=0.75)
+                bm_results = bm.search(query, top_k=top_k)
+                now = datetime.now(timezone.utc)
+                return [(m, s * (1.0 + decay_score(m, now))) for m, s in bm_results]
+
+        return result
 
     def _retrieve_tree(self, query: str, top_k: int) -> List[Tuple[Memory, float]]:
         from sisyphus.memory.tree_retriever import TreeRetriever

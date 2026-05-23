@@ -47,6 +47,7 @@ class TreeStore:
         self._l0_path = self._tree_root / "l0.json"
         self._l1_dir = self._tree_root / "l1"
         self._l2_dir = self._tree_root / "l2"
+        self._node_cache = {}
         self._init_dirs()
 
     # ── public API ──────────────────────────────────────────────
@@ -63,14 +64,20 @@ class TreeStore:
             updated_at=_now(),
         )
         self._write_node(node)
+        self._node_cache[node.id] = node
         self._update_meta_add(node)
         return node
 
     def get_node(self, node_id: str) -> Optional[TreeNode]:
+        if node_id in self._node_cache:
+            return self._node_cache[node_id]
         path = self._node_path(node_id)
         if not path.exists():
             return None
-        return self._read_node(path)
+        node = self._read_node(path)
+        if node:
+            self._node_cache[node_id] = node
+        return node
 
     def get_subtree(self, l1_id: str) -> List[TreeNode]:
         """Return the L1 node and all its leaf children."""
