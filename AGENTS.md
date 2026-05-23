@@ -36,6 +36,22 @@ sisyphus/
 2. **Small steps**: One capability per iteration.
 3. **Simple over smart**: Files over databases, LLM over vector stores.
 4. **Public repo**: Code in GitHub, data in `.omo/` (gitignored).
+5. **Small commits**: Each logical step gets its own commit. No bulk commits spanning unrelated changes.
+6. **Test data preserved**: Growth test results, benchmark runs, and gate reports go into `docs/` as dated reports (MD + HTML).
+7. **Per-step verification**: After every feature commit, re-run `pytest` (≥ passed count must not drop) and gate test. Results recorded in commit message or follow-up commit.
+
+## Commit Convention
+
+```
+<type>: <description>
+
+<optional details, test results, benchmark numbers>
+```
+
+Types: `feat`, `fix`, `refactor`, `test`, `docs`, `verify`
+
+Each commit must leave the tree in a working state (all tests green).
+Gate results (e.g. `P3: 83% @1 PASS`) must be documented in a follow-up `verify` commit if not included in the feature commit.
 
 ## Memory Architecture (v0.1)
 
