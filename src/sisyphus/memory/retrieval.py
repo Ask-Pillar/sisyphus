@@ -638,7 +638,7 @@ class ContextRetriever:
             return "A"
         try:
             import jieba
-            words = list(jieba.cut(query))
+            words = [w for w in jieba.cut(query) if w.strip()]
         except ImportError:
             words = query.split()
         if len(words) < 3:
