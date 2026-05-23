@@ -176,6 +176,14 @@ class SubagentLauncher:
             with os.fdopen(fd, "w") as f:
                 json.dump(task, f)
 
+            # Ensure subprocess can find the sisyphus package
+            env = os.environ.copy()
+            _src_dir = str(Path(__file__).resolve().parent.parent.parent)
+            env.setdefault("PYTHONPATH", _src_dir)
+            existing = env.get("PYTHONPATH", "")
+            if _src_dir not in existing.split(":"):
+                env["PYTHONPATH"] = f"{_src_dir}:{existing}" if existing else _src_dir
+
             # Spawn subprocess
             cmd = [sys.executable, "-m", "sisyphus.memory.subagent", task_path]
             if self.fixture_path:
@@ -185,7 +193,7 @@ class SubagentLauncher:
                 capture_output=True,
                 text=True,
                 timeout=120,
-                env=os.environ.copy(),
+                env=env,
             )
 
             if proc.returncode != 0:

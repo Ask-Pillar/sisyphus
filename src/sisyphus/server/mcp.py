@@ -24,6 +24,7 @@ from typing import Any, Callable, Dict
 from sisyphus.memory.store import MemoryStore
 from sisyphus.memory.refined import RefinedStore
 from sisyphus.memory.context import AgentMemory
+from sisyphus.memory.retrieval import BGEReranker
 from sisyphus.memory.subagent import SubagentLauncher
 from sisyphus.memory.pipeline import Pipeline
 
@@ -40,7 +41,8 @@ def _setup() -> AgentMemory:
     store = MemoryStore(base_path=STORE_PATH)
     refined = RefinedStore(base_path=STORE_PATH)
     subagent = SubagentLauncher(store_path=STORE_PATH)
-    _agent = AgentMemory(store, refined, subagent=subagent)
+    reranker = BGEReranker()
+    _agent = AgentMemory(store, refined, subagent=subagent, reranker=reranker)
     return _agent
 
 

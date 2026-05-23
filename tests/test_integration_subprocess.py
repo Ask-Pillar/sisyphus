@@ -61,6 +61,7 @@ class TestSubprocessFixture:
     def test_subprocess_writes_result_file(self, tmp_path):
         """Verify the subprocess actually creates the result file on disk."""
         import tempfile, os, subprocess, sys
+        from pathlib import Path
 
         store = MemoryStore(base_path=tmp_path / "mem")
         mem = store.create(title="Test", type="lesson", content="x")
@@ -78,10 +79,13 @@ class TestSubprocessFixture:
         with os.fdopen(fd, "w") as f:
             json.dump(task, f)
 
-        # Spawn subprocess with fixture
+        # Spawn subprocess with fixture and PYTHONPATH
+        _src_dir = str(Path(__file__).resolve().parent.parent / "src")
+        env = os.environ.copy()
+        env["PYTHONPATH"] = f"{_src_dir}:{env.get('PYTHONPATH', '')}"
         proc = subprocess.run(
             [sys.executable, "-m", "sisyphus.memory.subagent", task_path, "--fixture", str(FIXTURE)],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True, text=True, timeout=30, env=env,
         )
         assert proc.returncode == 0, f"stderr: {proc.stderr}"
 
@@ -104,6 +108,10 @@ class TestSubprocessFixture:
         mem = store.create(title="X", type="lesson", content="y")
         # Send a task type that the fixture doesn't have
         import tempfile, os, subprocess, sys
+        from pathlib import Path
+        _src_dir = str(Path(__file__).resolve().parent.parent / "src")
+        env = os.environ.copy()
+        env["PYTHONPATH"] = f"{_src_dir}:{env.get('PYTHONPATH', '')}"
         task = {
             "task_type": "nonexistent",
             "store_path": str(tmp_path / "mem"),
@@ -114,7 +122,7 @@ class TestSubprocessFixture:
             json.dump(task, f)
         proc = subprocess.run(
             [sys.executable, "-m", "sisyphus.memory.subagent", task_path, "--fixture", str(FIXTURE)],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True, text=True, timeout=30, env=env,
         )
         result_path = task_path + ".result"
         with open(result_path) as f:
@@ -127,6 +135,10 @@ class TestSubprocessFixture:
     def test_corrupt_fixture_handled(self, tmp_path):
         """Fixture file with invalid JSON → graceful error."""
         import tempfile, os, subprocess, sys
+        from pathlib import Path
+        _src_dir = str(Path(__file__).resolve().parent.parent / "src")
+        env = os.environ.copy()
+        env["PYTHONPATH"] = f"{_src_dir}:{env.get('PYTHONPATH', '')}"
 
         # Create corrupt fixture
         bad_fixture = tmp_path / "bad_fixture.json"
@@ -144,7 +156,7 @@ class TestSubprocessFixture:
 
         proc = subprocess.run(
             [sys.executable, "-m", "sisyphus.memory.subagent", task_path, "--fixture", str(bad_fixture)],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True, text=True, timeout=30, env=env,
         )
         result_path = task_path + ".result"
         with open(result_path) as f:

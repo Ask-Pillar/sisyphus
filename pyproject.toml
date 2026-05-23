@@ -13,6 +13,11 @@ dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
 ]
+reranker = [
+    "transformers>=4.44.0",
+    "sentencepiece>=0.1.99",
+    "torch>=2.0.0",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

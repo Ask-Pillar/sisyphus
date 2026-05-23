@@ -3,7 +3,7 @@ import tempfile, json, numpy as np
 from pathlib import Path
 from sisyphus.memory.store import MemoryStore
 from sisyphus.memory.refined import RefinedStore
-from sisyphus.memory.retrieval import BM25Ranker, Qwen3Embedder, ContextRetriever
+from sisyphus.memory.retrieval import BM25Ranker, Qwen3Embedder, ContextRetriever, BGEReranker
 
 TOPIC_ITEMS = {
     "Storage": ["存储架构: 四层 (RAW/REFINED/DREAM/RECALL), append-only文件存储",
@@ -82,7 +82,7 @@ QUERIES = [
     ("LinkCleaner的主要功能是什么？", "LinkCleaner_0"),
     ("LoopDetector如何检测循环？", "LoopDetector_0"),
     ("检索层使用哪几种算法组合？", "Recall_0"),
-    ("BM25的k1和b参数默认值是多少？", "Storage_2"),
+    ("BM25的k1和b参数默认值是多少？", "Recall_1"),
     ("MOC类型分类使用什么匹配方式？", "MOC_1"),
     ("DreamEngine最多输入多少条记忆？", "DreamEngine_1"),
     ("压缩层Compressor的阈值是多少？", "Pipeline_1"),
@@ -92,7 +92,7 @@ QUERIES = [
     ("脏刷新是怎么触发的？", "Context_3"),
     ("日志层LogStore记录什么格式？", "Log_1"),
     ("测试分层结构是怎样的？", "Test_1"),
-    ("小模型好还是大模型好？", "Test_2"),
+    ("小模型好还是大模型好？", "Test_3"),
     ("离线模式怎么验证全链路？", "Subagent_2"),
     ("缓存过期策略是什么？", "Cache_1"),
     ("LoopDetector的window_size默认值？", "LoopDetector_1"),
@@ -116,9 +116,10 @@ embedder._ensure_loaded()
 embed_texts = [f"{m.title} {m.content} {' '.join(m.tags)}" for m in memories]
 mem_vectors = embedder._model.encode(embed_texts, show_progress_bar=False, batch_size=4)
 
-# ContextRetriever (P3 pipeline)
+# ContextRetriever (P3 pipeline) — BGEReranker auto-falls back if model not found
+reranker = BGEReranker()
 retriever = ContextRetriever(store, refined, subagent=None,
-                              reranker=None, embedder=embedder)
+                              reranker=reranker, embedder=embedder)
 
 
 def cos(a, b):

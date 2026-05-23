@@ -149,13 +149,25 @@ def _keyword_score(memory: Memory, query: str) -> float:
 
 
 def _tokenize(text: str) -> List[str]:
-    """Tokenize: CJK → overlapping bigrams, EN → word split."""
-    tokens = []
-    has_cjk = any('\u4e00' <= c <= '\u9fff' for c in text)
-    if has_cjk:
-        tokens = [text[i:i+2] for i in range(len(text)-1) if text[i:i+2].strip()]
-    en_words = [w for w in text.lower().split() if len(w) > 1]
-    return tokens + en_words
+    import re
+
+    lower = text.lower()
+    en_tokens = re.findall(r'[a-z0-9][a-z0-9._=+\-]*', lower)
+    en_set = set(en_tokens)
+
+    cjk_text = lower
+    for t in sorted(en_set, key=len, reverse=True):
+        cjk_text = cjk_text.replace(t, ' ')
+
+    try:
+        import jieba
+        cjk_tokens = [w.strip() for w in jieba.cut(cjk_text) if len(w.strip()) > 1]
+        cjk_c1 = [c for c in cjk_text if '\u4e00' <= c <= '\u9fff']
+    except ImportError:
+        cjk_tokens = [cjk_text[i:i+2] for i in range(len(cjk_text)-1) if cjk_text[i:i+2].strip()]
+        cjk_c1 = []
+
+    return [t for t in en_tokens + cjk_tokens + cjk_c1 if len(t) > 1]
 
 
 class TFIDFEmbedder:
@@ -238,6 +250,9 @@ _Q3_EMBED_PATH = os.path.expanduser(
 )
 _Q3_RERANK_PATH = os.path.expanduser(
     "~/.cache/sisyphus/models/models--Qwen--Qwen3-Reranker-0.6B"
+)
+_BGE_RERANK_PATH = os.path.expanduser(
+    "~/.cache/sisyphus/models/models--BAAI--bge-reranker-v2-m3"
 )
 
 
@@ -383,6 +398,94 @@ class Qwen3Reranker:
         self._tokenizer = None
 
 
+class BGEReranker:
+    """BAAI/bge-reranker-v2-m3 cross-encoder reranker.
+
+    Uses transformers directly (no FlagEmbedding dependency) with auto GPU/MPS
+    detection. Falls back gracefully if model unavailable.
+    """
+
+    def __init__(self, model_path: str = _BGE_RERANK_PATH):
+        self._model_path = model_path
+        self._model = None
+        self._tokenizer = None
+        self._device = None
+        self._warned = False
+
+    def _ensure_loaded(self) -> bool:
+        if self._model is not None:
+            return True
+        if not os.path.isdir(self._model_path):
+            if not self._warned:
+                logger.warning("BGEReranker model not found at %s", self._model_path)
+                self._warned = True
+            return False
+        try:
+            import torch
+            from transformers import (
+                AutoModelForSequenceClassification,
+                AutoTokenizer,
+            )
+            if torch.backends.mps.is_available():
+                self._device = "mps"
+            elif torch.cuda.is_available():
+                self._device = "cuda"
+            else:
+                self._device = "cpu"
+            self._tokenizer = AutoTokenizer.from_pretrained(self._model_path)
+            self._model = AutoModelForSequenceClassification.from_pretrained(
+                self._model_path
+            )
+            self._model = self._model.to(self._device)
+            self._model.eval()
+            logger.info(
+                "BGEReranker loaded from %s (device=%s)",
+                self._model_path, self._device,
+            )
+            return True
+        except Exception as exc:
+            logger.warning("Failed to load BGEReranker: %s", exc)
+            return False
+
+    def rerank(
+        self,
+        query: str,
+        documents: List[str],
+        top_k: Optional[int] = None,
+        instruction: Optional[str] = None,
+    ) -> List[Tuple[int, float]]:
+        """Cross-encoder rerank. Falls back to identity if model unavailable."""
+        if not self._ensure_loaded():
+            return list(enumerate([0.0] * len(documents)))
+        try:
+            import torch
+            pairs = [[query, doc] for doc in documents]
+            inputs = self._tokenizer(
+                pairs,
+                padding=True,
+                truncation=True,
+                return_tensors="pt",
+                max_length=512,
+            )
+            inputs = {k: v.to(self._device) for k, v in inputs.items()}
+            with torch.no_grad():
+                outputs = self._model(**inputs)
+                scores = outputs.logits.squeeze(-1).cpu().tolist()
+            if isinstance(scores, float):
+                scores = [scores]
+            indexed = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)
+            if top_k is not None:
+                indexed = indexed[:top_k]
+            return indexed
+        except Exception as exc:
+            logger.warning("BGEReranker.rerank failed: %s", exc)
+            return list(enumerate([0.0] * len(documents)))
+
+    def close(self):
+        self._model = None
+        self._tokenizer = None
+
+
 class BM25Ranker:
     """Pure Python BM25 text ranker — no external dependencies."""
 
@@ -517,8 +620,8 @@ class ContextRetriever:
     """
 
     def __init__(self, store: MemoryStore, refined: RefinedStore, subagent,
-                 reranker: Optional[Qwen3Reranker] = None,
-                 embedder: Optional[Qwen3Embedder] = None,
+                 reranker: Optional[object] = None,
+                 embedder: Optional[object] = None,
                  cache_path: Optional[str] = None):
         self.store = store
         self.refined = refined
@@ -579,7 +682,7 @@ class ContextRetriever:
         if len(candidates) < top_k and query.strip():
             all_mems = list({m.id: m for m in all_raw + all_refined}.values())
             bm25_all = BM25Ranker(all_mems)
-            supplement = [m for m, _ in bm25_all.search(query, top_k=top_k * 2)]
+            supplement = [m for m, _ in bm25_all.search(query, top_k=max(top_k * 4, 50))]
             existing_ids = {m.id for m in candidates}
             for m in supplement:
                 if m.id not in existing_ids:
@@ -589,7 +692,7 @@ class ContextRetriever:
         if not candidates:
             return []
 
-        PRE_FILTER_N = top_k * 3
+        PRE_FILTER_N = max(top_k * 6, 50)
         bm25 = BM25Ranker(candidates)
         bm25_pre = bm25.search(query, top_k=PRE_FILTER_N)
         pre_candidates = [m for m, _ in bm25_pre] if bm25_pre else candidates
@@ -612,12 +715,23 @@ class ContextRetriever:
                     import numpy as np
                     q_np = np.array(q_vec)
                     q_norm = np.linalg.norm(q_np) + 1e-10
+                    # Compute BM25 scores for all pre_candidates, normalized to [0,1]
+                    bm25 = BM25Ranker(pre_candidates)
+                    bm25_out = bm25.search(query, top_k=len(pre_candidates))
+                    bm25_raw = np.array([s for _, s in bm25_out] if bm25_out else [0.0])
+                    bm_min, bm_max = bm25_raw.min(), bm25_raw.max()
+                    bm_range = bm_max - bm_min if bm_max > bm_min else 1.0
+                    bm25_by_id = {}
+                    for m, s in (bm25_out or []):
+                        bm25_by_id[id(m)] = (s - bm_min) / bm_range
                     for i, m in enumerate(pre_candidates):
                         d_np = np.array(d_vecs[i])
                         cos_sim = float(np.dot(q_np, d_np) / (
                             q_norm * (np.linalg.norm(d_np) + 1e-10)
                         ))
-                        score = cos_sim * (1.0 + 0.05 * decay_score(m, now))
+                        bm_norm = bm25_by_id.get(id(m), 0.0)
+                        relevance = 0.75 * cos_sim + 0.25 * bm_norm
+                        score = relevance * (1.0 + 0.05 * decay_score(m, now))
                         scored.append((m, score))
                 else:
                     raise RuntimeError("Embedder returned None")
@@ -642,13 +756,26 @@ class ContextRetriever:
 
         scored.sort(key=lambda x: -x[1])
 
-        if self.reranker is not None and query.strip() and path == "B":
-            logger.info("reranker=on path=B")
+        if self.reranker is not None and query.strip():
+            logger.info("reranker=on")
             try:
-                top_n = scored[:top_k * 2]
+                top_n = scored[:max(top_k * 6, 50)]
                 docs = [m.content or m.title or "" for m, _ in top_n]
-                reranked = self.reranker.rerank(query, docs, top_k=top_k)
-                top = [top_n[i] for i, _ in reranked]
+                reranked = self.reranker.rerank(query, docs, top_k=None)
+                bge_by_idx = {i: s for i, s in reranked}
+                # Blend BGE score with original score (60/40)
+                # Normalize both to [0,1] within this batch, then blend
+                import numpy as np
+                n = len(top_n)
+                orig_vals = np.array([s for _, s in top_n], dtype=np.float64)
+                bge_vals = np.array([bge_by_idx.get(i, 0.0) for i in range(n)], dtype=np.float64)
+                o_min, o_max = orig_vals.min(), orig_vals.max()
+                b_min, b_max = bge_vals.min(), bge_vals.max()
+                o_norm = (orig_vals - o_min) / (o_max - o_min + 1e-10)
+                b_norm = (bge_vals - b_min) / (b_max - b_min + 1e-10)
+                blended = 0.6 * b_norm + 0.4 * o_norm
+                order = np.argsort(-blended)
+                top = [top_n[int(i)] for i in order[:top_k]]
             except Exception as exc:
                 logger.warning("Reranker failed, falling back to BM25: %s", exc)
                 top = scored[:top_k]
