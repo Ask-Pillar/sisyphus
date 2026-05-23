@@ -622,44 +622,68 @@ class ContextRetriever:
     def __init__(self, store: MemoryStore, refined: RefinedStore, subagent,
                  reranker: Optional[object] = None,
                  embedder: Optional[object] = None,
-                 cache_path: Optional[str] = None):
+                 cache_path: Optional[str] = None,
+                 tree: Optional[object] = None):
         self.store = store
         self.refined = refined
         self.subagent = subagent
         self.reranker = reranker
         self.embedder = embedder
         self._cache = EmbeddingCache(cache_path) if cache_path else None
+        self._tree = tree
 
     @staticmethod
     def _choose_path(query: str) -> str:
-        """Classify query as Path A (short/fuzzy) or Path B (precise).
-
-        Path A: BM25 + Embedding (faster, good for vague queries)
-        Path B: BM25 + Embedding + Reranker (slower, better for specific queries)
-        """
         if not query.strip():
             return "A"
-        words = query.split()
+        try:
+            import jieba
+            words = list(jieba.cut(query))
+        except ImportError:
+            words = query.split()
         if len(words) < 3:
             return "A"
         fuzzy = {"关于", "什么", "怎么", "如何", "为什么", "介绍",
-                 "说明", "哪些", "哪个", "有没有", "是不是", "能否"}
-        if any(w in fuzzy for w in words):
+                 "说明", "哪些", "哪个", "有没有", "是不是", "能否",
+                 "有什么", "是什么", "有哪些", "怎么样"}
+        has_fuzzy = any(w in fuzzy for w in words)
+        has_cjk_fuzzy = any("\u4e00" <= c <= "\u9fff" for c in query) and len(words) <= 6
+        if has_fuzzy or has_cjk_fuzzy:
             return "A"
         return "B"
 
     def retrieve(self, query: str = "", top_k: int = 8) -> List[Tuple[Memory, float]]:
-        """Three-layer retrieve with Path A/B routing.
+        path = self._choose_path(query)
 
-        Architecture:
-            L1: Type classification — MOC keyword match or full fallback
-            Stage 1: BM25 coarse filter — top_k × 3 broad recall
-            Stage 2: Embedding fine re-rank — cosine + 5% decay modifier
-            Fallback: TF-IDF when embedder unavailable
-            Path B: Optional Qwen3-Reranker for precise queries
+        if path == "A" and self._tree is not None:
+            try:
+                return self._retrieve_tree(query, top_k)
+            except Exception:
+                pass
 
-        Returns list of (Memory, score) tuples, highest score first.
-        """
+        return self._retrieve_default(query, top_k)
+
+    def _retrieve_tree(self, query: str, top_k: int) -> List[Tuple[Memory, float]]:
+        from sisyphus.memory.tree_retriever import TreeRetriever
+        tr = TreeRetriever(self._tree)
+        results = tr.browse(query, top_k=top_k)
+        now = datetime.now(timezone.utc)
+        scored = []
+        for node, bm_score in results:
+            mem = self.store.get(node.summary.split(":")[0] if ":" in node.summary else node.title)
+            if mem is None:
+                mems = self.store.list()
+                for m in mems:
+                    if m.title == node.title:
+                        mem = m
+                        break
+            if mem is not None:
+                score = bm_score * (1.0 + 0.05 * decay_score(mem, now))
+                scored.append((mem, score))
+        scored.sort(key=lambda x: -x[1])
+        return scored[:top_k]
+
+    def _retrieve_default(self, query: str = "", top_k: int = 8) -> List[Tuple[Memory, float]]:
         now = datetime.now(timezone.utc)
         path = self._choose_path(query)
         logger.info("path=%s query=%r", path, query)
