@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>P5 Gate & 生长测试</title>
+<style>
+:root{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;--g:#4ade80;--y:#facc15;--b:#60a5fa;--p:#a78bfa}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);padding:24px;line-height:1.6}
+.container{max-width:650px;margin:0 auto}
+h1{text-align:center;font-size:1.3rem;margin-bottom:4px}
+.subtitle{text-align:center;color:var(--muted);font-size:.85rem;margin-bottom:20px}
+h2{font-size:1rem;margin:24px 0 12px;border-left:3px solid var(--g);padding-left:10px}
+.card{background:var(--card);border-radius:12px;padding:20px;margin-bottom:16px;border:1px solid #ffffff0a}
+table{width:100%;border-collapse:collapse;font-size:.85rem;margin:10px 0}
+td,th{padding:8px 12px;border-bottom:1px solid #ffffff08;text-align:left}
+th{color:var(--muted);font-size:.75rem}
+.tag{display:inline-block;padding:2px 8px;border-radius:6px;font-size:.72rem;font-weight:600}
+.tg{background:#4ade8020;color:#4ade80}
+.gate{text-align:center;padding:16px}
+.gate-value{font-size:2.5rem;font-weight:800;color:var(--g)}
+.note{background:#ffffff06;border-radius:8px;padding:12px 16px;margin:10px 0;font-size:.82rem}
+</style></head><body><div class="container">
+
+<h1>P5 Gate & 生长测试</h1>
+<p class="subtitle">2026-05-23 · 292 tests · P5 交付: MCP Server 升级 + 一键导入</p>
+
+<div class="card gate">
+<div class="gate-value">83%</div>
+<div>@1 = 25/30 · 无倒退 · 与 P4 持平</div>
+</div>
+
+<h2>Gate 对比</h2>
+<div class="card"><table>
+<tr><th>指标</th><th>P5</th><th>P4</th><th>变化</th></tr>
+<tr><td>@1</td><td><span class="tag tg">83%</span></td><td>83%</td><td>—</td></tr>
+<tr><td>@3</td><td>86%</td><td>86%</td><td>—</td></tr>
+<tr><td>@5</td><td>90%</td><td>90%</td><td>—</td></tr>
+</table>
+<div class="note">MCP 升级不影响检索质量。ContextRetriever 管道与 P4 完全相同。</div></div>
+
+<h2>四阶段生长</h2>
+<div class="card"><table>
+<tr><th>阶段</th><th>文档数</th><th>检索系统</th><th>纯文本匹配</th><th>耗时</th></tr>
+<tr><td>1: 种子期</td><td>9</td><td><span class="tag tg">80%</span></td><td>80%</td><td>1.5s</td></tr>
+<tr><td>2: 成长期</td><td>24</td><td><span class="tag tg">80%</span></td><td>80%</td><td>10.6s</td></tr>
+<tr><td>3: 成熟期</td><td>60</td><td><span class="tag tg">80%</span></td><td>80%</td><td>11.7s</td></tr>
+<tr style="font-weight:700"><td>4: 饱和期</td><td>150</td><td><span class="tag tg">80%</span></td><td>80%</td><td>16.9s</td></tr>
+</table></div>
+
+<h2>P5 交付清单</h2>
+<div class="card"><table>
+<tr><th>交付</th><th>文件</th><th>测试</th></tr>
+<tr><td>MCP 升级</td><td><code>server/mcp.py</code></td><td>Gate 复用</td></tr>
+<tr><td>一键导入</td><td><code>server/importer.py</code></td><td>4 ✅</td></tr>
+<tr><td>移除 Subagent</td><td><code>server/mcp.py</code></td><td>—</td></tr>
+</table></div>
+
+<div style="text-align:center;color:var(--muted);font-size:.78rem;margin-top:16px">Sisyphus P5 · 2026-05-23 · <a href="P5-GATE-REPORT.md" style="color:var(--b)">详细版</a></div>
+</div></body></html>
