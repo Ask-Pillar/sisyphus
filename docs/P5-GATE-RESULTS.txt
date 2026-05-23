@@ -1,0 +1,9 @@
+Building prefix dict from the default dictionary ...
+Loading model from cache /var/folders/v_/5sj92v8d1qg2h2jcj9qgf15m0000gn/T/jieba.cache
+Loading model cost 0.690 seconds.
+Prefix dict has been built successfully.
+P5 Gate Test
+==================================================
+@1=25/30=83%  @3=26/30=86%  @5=27/30=90%
+Tests: 292 passed
+MCP: upgraded to ContextRetriever + import tool
