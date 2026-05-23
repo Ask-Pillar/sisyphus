@@ -23,27 +23,30 @@ from typing import Any, Callable, Dict
 
 from sisyphus.memory.store import MemoryStore
 from sisyphus.memory.refined import RefinedStore
-from sisyphus.memory.context import AgentMemory
-from sisyphus.memory.retrieval import BGEReranker
-from sisyphus.memory.subagent import SubagentLauncher
-from sisyphus.memory.pipeline import Pipeline
+from sisyphus.memory.tree import TreeStore
+from sisyphus.memory.tree_builder import TreeBuilder
+from sisyphus.memory.retrieval import ContextRetriever
+from sisyphus.memory.retrieval import BM25Ranker
+from sisyphus.pipeline.sleep import SleepPipeline
 
 STORE_PATH = Path.home() / ".omo" / "memory"
 
-# Module-level singleton, initialised once on first use
-_agent: AgentMemory = None
+_store = None
+_refined = None
+_tree = None
+_retriever = None
 
 
-def _setup() -> AgentMemory:
-    global _agent
-    if _agent is not None:
-        return _agent
-    store = MemoryStore(base_path=STORE_PATH)
-    refined = RefinedStore(base_path=STORE_PATH)
-    subagent = SubagentLauncher(store_path=STORE_PATH)
-    reranker = BGEReranker()
-    _agent = AgentMemory(store, refined, subagent=subagent, reranker=reranker)
-    return _agent
+def _setup():
+    global _store, _refined, _tree, _retriever
+    if _retriever is not None:
+        return
+    _store = MemoryStore(base_path=STORE_PATH)
+    _refined = RefinedStore(base_path=STORE_PATH)
+    _tree = TreeStore(base_path=STORE_PATH)
+    if not _tree.list_nodes(level=1):
+        TreeBuilder(_tree, _store, _refined).build()
+    _retriever = ContextRetriever(_store, _refined, subagent=None, tree=_tree)
 
 
 def _handle_write(args: Dict[str, Any]) -> Dict[str, Any]:
@@ -52,44 +55,55 @@ def _handle_write(args: Dict[str, Any]) -> Dict[str, Any]:
     content = args.get("content", "")
     tags = args.get("tags", [])
     importance = args.get("importance", 5)
-    agent = _setup()
-    mem = agent.record(title=title, type=mem_type, content=content, tags=tags, importance=importance)
+    _setup()
+    mem = _store.create(title=title, type=mem_type, content=content, tags=tags, importance=importance)
     return {"id": mem.id, "title": mem.title, "type": mem.type}
 
 
 def _handle_search(args: Dict[str, Any]) -> Dict[str, Any]:
     query = args.get("query", "")
-    top_k = args.get("top_k", 8)
-    agent = _setup()
-    ctx = agent.before_turn(query=query)
-    results = agent.retriever.retrieve(query=query, top_k=top_k)
+    top_k = args.get("top_k", 5)
+    _setup()
+    results = _retriever.retrieve(query, top_k=top_k)
+    items = [{"title": m.title, "type": m.type, "content": m.content[:200], "tags": m.tags} for m, s in results]
+    return {"results": items, "count": len(items)}
+
+
+def _handle_context(args: Dict[str, Any]) -> Dict[str, Any]:
+    _setup()
+    results = _retriever.retrieve("", top_k=8)
+    items = [{"title": m.title, "type": m.type} for m, s in results]
+    return {"context": items, "count": len(items)}
+
+
+def _handle_stats(args: Dict[str, Any]) -> Dict[str, Any]:
+    _setup()
+    all_mems = _store.list()
+    refined_mems = _refined.list_refined()
+    types = {}
+    for m in all_mems:
+        types[m.type] = types.get(m.type, 0) + 1
     return {
-        "context": ctx,
-        "results": [
-            {
-                "id": m.id, "type": m.type, "title": m.title,
-                "content": m.content[:200], "importance": m.importance,
-                "score": round(float(s), 4),
-            }
+        "total_raw": len(all_mems),
+        "total_refined": len(refined_mems),
+        "by_type": types,
+    }
             for m, s in results
         ],
     }
 
 
 def _handle_context(args: Dict[str, Any]) -> Dict[str, Any]:
-    query = args.get("query", "")
-    top_k = args.get("top_k", 8)
-    agent = _setup()
-    ctx = agent.before_turn(query=query)
-    return {"context": ctx}
+    _setup()
+    results = _retriever.retrieve("", top_k=8)
+    items = [{"title": m.title, "type": m.type} for m, s in results]
+    return {"context": items, "count": len(items)}
 
 
 def _handle_stats(args: Dict[str, Any]) -> Dict[str, Any]:
-    agent = _setup()
-    store = agent.store
-    refined = agent.refined
-    all_mems = store.list()
-    refined_mems = refined.list_refined()
+    _setup()
+    all_mems = _store.list()
+    refined_mems = _refined.list_refined()
     by_type = {}
     for m in all_mems + refined_mems:
         by_type[m.type] = by_type.get(m.type, 0) + 1
@@ -102,8 +116,8 @@ def _handle_stats(args: Dict[str, Any]) -> Dict[str, Any]:
 
 def _handle_get(args: Dict[str, Any]) -> Dict[str, Any]:
     mem_id = args["id"]
-    agent = _setup()
-    mem = agent.store.get(mem_id)
+    _setup()
+    mem = _store.get(mem_id)
     if mem is None:
         return {"error": f"Memory {mem_id} not found"}
     return {
@@ -116,9 +130,9 @@ def _handle_get(args: Dict[str, Any]) -> Dict[str, Any]:
 
 def _handle_list(args: Dict[str, Any]) -> Dict[str, Any]:
     type_filter = args.get("type", None)
-    agent = _setup()
-    mems = agent.store.list(type_filter=type_filter)
-    refined = agent.refined.list_refined()
+    _setup()
+    mems = _store.list()
+    refined = _refined.list_refined()
     seen_ids = set()
     all_mems = []
     for m in mems + [m for m in refined if type_filter is None or m.type == type_filter]:
@@ -128,10 +142,7 @@ def _handle_list(args: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "total": len(all_mems),
         "memories": [
-            {
-                "id": m.id, "type": m.type, "title": m.title,
-                "importance": m.importance, "created_at": m.created_at,
-            }
+            {"id": m.id, "type": m.type, "title": m.title, "importance": m.importance, "created_at": m.created_at}
             for m in all_mems
         ],
     }
@@ -139,15 +150,25 @@ def _handle_list(args: Dict[str, Any]) -> Dict[str, Any]:
 
 def _handle_delete(args: Dict[str, Any]) -> Dict[str, Any]:
     mem_id = args["id"]
-    agent = _setup()
-    agent.store.delete(mem_id)
+    _setup()
+    _store.delete(mem_id)
     return {"deleted": mem_id}
 
 
+def _handle_import(args: Dict[str, Any]) -> Dict[str, Any]:
+    _setup()
+    from sisyphus.server.importer import import_memories
+    source = args.get("path", "")
+    result = import_memories(_store, source)
+    return result
+
+
 def _handle_pipeline(args: Dict[str, Any]) -> Dict[str, Any]:
-    agent = _setup()
-    pipeline = Pipeline(base_path=STORE_PATH.parent, subagent=agent.subagent)
-    result = pipeline.run()
+    _setup()
+    pipeline = SleepPipeline(STORE_PATH)
+    force = args.get("force", False)
+    use_llm = args.get("use_llm", False)
+    result = pipeline.run(force=force, use_llm=use_llm)
     return result
 
 
@@ -219,8 +240,24 @@ TOOLS: Dict[str, Dict[str, Any]] = {
         },
     },
     "run_pipeline": {
-        "description": "执行记忆流水线（压缩、梦境、索引、链接、循环检测）",
-        "inputSchema": {"type": "object", "properties": {}},
+        "description": "执行离线巩固流水线（Sleep Pipeline）",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "force": {"type": "boolean", "description": "强制运行（即使 RAW < 20）"},
+                "use_llm": {"type": "boolean", "description": "启用 LLM（Dream+Compress）"},
+            },
+        },
+    },
+    "import_memories": {
+        "description": "一键导入历史记忆（.md 文件 / .jsonl 文件 / 目录扫描）",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "文件路径或目录路径"},
+            },
+            "required": ["path"],
+        },
     },
 }
 
@@ -233,6 +270,7 @@ HANDLERS: Dict[str, Callable] = {
     "list_memories": _handle_list,
     "delete_memory": _handle_delete,
     "run_pipeline": _handle_pipeline,
+    "import_memories": _handle_import,
 }
 
 
