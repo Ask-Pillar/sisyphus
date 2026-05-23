@@ -665,21 +665,19 @@ class ContextRetriever:
 
     def _retrieve_tree(self, query: str, top_k: int) -> List[Tuple[Memory, float]]:
         from sisyphus.memory.tree_retriever import TreeRetriever
-        tr = TreeRetriever(self._tree)
-        results = tr.browse(query, top_k=top_k)
+        tr = TreeRetriever(self.tree)
+        l1 = tr._match_l1(query, self.tree.list_nodes(level=1))
+        if not l1:
+            return self._retrieve_default(query, top_k)
+        children = self.tree.get_subtree(l1.id)
+        leaf_titles = {n.title for n in children if n.level == 2}
+        candidates = [m for m in self.store.list() if m.title in leaf_titles]
+        if len(candidates) < top_k:
+            return self._retrieve_default(query, top_k)
+        bm = BM25Ranker(candidates, k1=1.2, b=0.75)
+        bm_results = bm.search(query, top_k=top_k * 2)
         now = datetime.now(timezone.utc)
-        scored = []
-        for node, bm_score in results:
-            mem = self.store.get(node.summary.split(":")[0] if ":" in node.summary else node.title)
-            if mem is None:
-                mems = self.store.list()
-                for m in mems:
-                    if m.title == node.title:
-                        mem = m
-                        break
-            if mem is not None:
-                score = bm_score * (1.0 + 0.05 * decay_score(mem, now))
-                scored.append((mem, score))
+        scored = [(m, s * (1.0 + 0.05 * decay_score(m, now))) for m, s in bm_results]
         scored.sort(key=lambda x: -x[1])
         return scored[:top_k]
 
