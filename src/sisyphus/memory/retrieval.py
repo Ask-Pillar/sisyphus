@@ -794,12 +794,13 @@ class ContextRetriever:
 
         scored.sort(key=lambda x: -x[1])
 
-        if self.reranker is not None and query.strip():
+        reranker = self.reranker or self._auto_reranker(candidates)
+        if reranker is not None and query.strip() and len(scored) >= 5:
             logger.info("reranker=on")
             try:
                 top_n = scored[:max(top_k * 6, 50)]
                 docs = [m.content or m.title or "" for m, _ in top_n]
-                reranked = self.reranker.rerank(query, docs, top_k=None)
+                reranked = reranker.rerank(query, docs, top_k=None)
                 bge_by_idx = {i: s for i, s in reranked}
                 # Blend BGE score with original score (60/40)
                 # Normalize both to [0,1] within this batch, then blend
@@ -867,3 +868,17 @@ class ContextRetriever:
             return matched
         all_types = _collect_types(self.store, self.refined)
         return all_types
+
+    def _auto_reranker(self, candidates):
+        type_counts = {}
+        for m in candidates:
+            type_counts[m.type] = type_counts.get(m.type, 0) + 1
+        max_same = max(type_counts.values()) if type_counts else 0
+        if max_same < 8:
+            return None
+        try:
+            from sisyphus.memory.reranker_bce import BCERerankerSimple
+            logger.info("BCE auto-activated: max same-topic=%d", max_same)
+            return BCERerankerSimple()
+        except Exception:
+            return None
