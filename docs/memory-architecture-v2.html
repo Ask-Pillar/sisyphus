@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sisyphus 记忆系统 v2 架构分析</title>
+<style>
+  :root { --bg:#0d1117;--fg:#c9d1d9;--border:#30363d;--acc:#58a6ff;--grn:#3fb950;--red:#f85149;--ora:#d2991d;--pur:#a371f7;--mut:#8b949e;--code:#161b22;--h1:#f0f6fc; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;background:var(--bg);color:var(--fg);line-height:1.7;max-width:1000px;margin:0 auto;padding:2rem 1.5rem}
+  h1{color:var(--h1);font-size:1.5rem;border-bottom:2px solid var(--border);padding-bottom:.5rem;margin-bottom:.3rem}
+  h2{color:var(--h1);font-size:1.15rem;margin:2rem 0 .75rem;padding-bottom:.3rem;border-bottom:1px solid var(--border)}
+  h3{color:var(--h1);font-size:1rem;margin:1.2rem 0 .5rem}
+  .meta{color:var(--mut);font-size:.85rem;margin-bottom:1.5rem}
+  .pill{display:inline-block;padding:.1rem .5rem;border-radius:10px;font-size:.75rem;font-weight:700;margin-right:.3rem}
+  .new{background:#1a1a3a;color:var(--pur)}
+  code{font-family:"SF Mono","Fira Code",monospace;font-size:.82rem;background:var(--code);padding:.1rem .3rem;border-radius:3px}
+  pre{background:var(--code);border:1px solid var(--border);border-radius:6px;padding:.7rem 1rem;overflow-x:auto;margin:.5rem 0;font-size:.82rem}
+  pre code{background:none;padding:0}
+  table{width:100%;border-collapse:collapse;margin:.8rem 0}
+  th,td{border:1px solid var(--border);padding:.45rem .7rem;text-align:left;font-size:.88rem}
+  th{background:var(--code);color:var(--h1);font-weight:600}
+  .card{background:var(--code);border:1px solid var(--border);border-radius:8px;padding:1.1rem 1.3rem;margin:1rem 0}
+  .row{display:flex;gap:.5rem;flex-wrap:wrap;margin:.5rem 0}
+  .stat{background:var(--code);border:1px solid var(--border);border-radius:6px;padding:.5rem .8rem;text-align:center;min-width:70px}
+  .stat .num{font-size:1.3rem;font-weight:700;color:var(--h1)}
+  .stat .label{font-size:.75rem;color:var(--mut)}
+  .layers{display:flex;flex-direction:column;gap:.6rem;margin:.8rem 0}
+  .layer{background:var(--code);border-left:3px solid var(--border);border-radius:0 6px 6px 0;padding:.6rem 1rem;display:flex;align-items:center;gap:1rem}
+  .layer .tag{font-size:.75rem;font-weight:700;color:#fff;padding:.15rem .5rem;border-radius:4px;min-width:70px;text-align:center}
+  .lt-persist{border-left-color:var(--grn)} .lt-persist .tag{background:var(--grn)}
+  .lt-hot{border-left-color:var(--ora)} .lt-hot .tag{background:var(--ora)}
+  .lt-code{border-left-color:var(--pur)} .lt-code .tag{background:var(--pur)}
+  .lt-cold{border-left-color:var(--mut)} .lt-cold .tag{background:var(--mut)}
+  .flow{display:flex;align-items:center;gap:.3rem;font-size:.82rem;color:var(--mut);margin:.6rem 0;flex-wrap:wrap}
+  .flow .s{background:var(--code);border:1px solid var(--border);border-radius:4px;padding:.25rem .5rem}
+  .flow .a{color:var(--acc);font-weight:700}
+  .vs{display:flex;gap:1rem;flex-wrap:wrap;margin:.8rem 0}
+  .vs .col{flex:1;min-width:240px;background:var(--code);border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem}
+  .footnote{color:var(--mut);font-size:.85rem;border-top:1px solid var(--border);padding-top:1.5rem;margin-top:2rem}
+</style>
+</head>
+<body>
+
+<h1>🧠 Sisyphus v2: 长时效记忆 + 项目记忆 + 代码索引</h1>
+<p class="meta">2026-05-24 · 基于 v1 报告深化 · 新增 P1-5 / P1-6 · 核心发现：当前只有时间维度，缺耐久度维度</p>
+
+<h2>一、核心发现</h2>
+
+<div class="card">
+  <p>当前所有记忆只按<strong>创建时间</strong>区分 hot/cold，但项目级知识（架构决策、核心模式）</p>
+  <p><strong>不存在"过期"概念</strong>——半年前写的 project_context 今天仍然重要。</p>
+  <p>缺失的维度：<strong>耐久度</strong>——分永久/热/冷，而非仅分新旧。</p>
+</div>
+
+<h2>二、新增：四层耐久度分层</h2>
+
+<div class="layers">
+  <div class="layer lt-persist">
+    <div class="tag">L-PERSIST</div>
+    <div>
+      <strong>持久层 · 永不衰减</strong><br>
+      project_context / 架构决策 / 核心模式 · importance≥8 或 pinned=True<br>
+      <span style="color:var(--grn)">每 turn 无条件注入，不占检索配额</span>
+    </div>
+  </div>
+  <div class="layer lt-hot">
+    <div class="tag">L-HOT</div>
+    <div>
+      <strong>热层 · 7 天窗口</strong><br>
+      近期决策、教训 · HOT.md 独立索引 · 优先检索<br>
+      <span style="color:var(--ora)">Dream 只扫这一层</span>
+    </div>
+  </div>
+  <div class="layer lt-code">
+    <div class="tag">L-CODE</div>
+    <div>
+      <strong>代码索引 · 随代码更新</strong><br>
+      函数签名、调用链、模块依赖 · CodeGraphContext (KùzuDB 图数据库)<br>
+      <span style="color:var(--pur)">独立 MCP Server，与记忆索引并列</span>
+    </div>
+  </div>
+  <div class="layer lt-cold">
+    <div class="tag">L-COLD</div>
+    <div>
+      <strong>冷层 · 长期衰减</strong><br>
+      所有历史记忆 · fallback 检索 · decay_score(180天)<br>
+      <span style="color:var(--mut)">兜底，被挤到 hot/cold 边界下的</span>
+    </div>
+  </div>
+</div>
+
+<h2>三、before_turn() 改后流程</h2>
+
+<div class="flow">
+  <span class="s">查询</span><span class="a">→</span>
+  <span class="s" style="border-color:var(--grn)">1. PERSIST 无条件注入</span><span class="a">→</span>
+  <span class="s" style="border-color:var(--ora)">2. HOT 优先检索</span><span class="a">→</span>
+  <span class="s" style="border-color:var(--mut)">3. COLD fallback</span><span class="a">→</span>
+  <span class="s" style="border-color:var(--pur)">4. CODE 按需查询</span>
+</div>
+
+<h2>四、Memory 扩展字段</h2>
+
+<pre><code># 新增字段（绿色）
+pinned: bool = False        # PERSIST 层标记
+scope: str = "global"       # global | project | session
+project: str = ""           # 所属项目名
+code_refs: list[str] = []   # 关联代码路径</code></pre>
+
+<h2>五、代码索引：两层并行</h2>
+
+<div class="vs">
+  <div class="col">
+    <h4>📝 记忆索引 (sisyphus MCP)</h4>
+    <p>对话经验 · 决策 · 教训 · 模式</p>
+    <p>File-based .md · BM25 + LLM recall</p>
+  </div>
+  <div class="col">
+    <h4>🔧 代码索引 (codegraphcontext MCP)</h4>
+    <p>函数签名 · 调用链 · 类继承 · 模块依赖</p>
+    <p>KùzuDB 图数据库 · tree-sitter AST</p>
+  </div>
+</div>
+
+<p style="margin-top:.5rem">agent 通过统一 MCP 协议同时访问两个 server：</p>
+<pre><code>mcp__sisyphus__search_memory("retrieval 调用链")
+mcp__codegraphcontext__analyze_callers("retrieve")</code></pre>
+
+<h2>六、改前 vs 改后</h2>
+
+<table>
+  <tr><th>维度</th><th>改前</th><th>改后</th></tr>
+  <tr><td>耐久度</td><td>全部参与 180 天衰减</td><td><span style="color:var(--grn)">PERSIST 永久</span> / HOT 7天 / COLD 衰减</td></tr>
+  <tr><td>项目上下文</td><td>混在 90 条里</td><td><span style="color:var(--grn)">PERSIST 无条件注入</span></td></tr>
+  <tr><td>代码知识</td><td>零</td><td><span style="color:var(--pur)">codegraphcontext 图索引</span></td></tr>
+  <tr><td>记忆作用域</td><td>无区分</td><td><span style="color:var(--grn)">global / project / session</span></td></tr>
+  <tr><td>MCP Server</td><td>1 个</td><td><span style="color:var(--pur)">2 个</span> (sisyphus + codegraphcontext)</td></tr>
+</table>
+
+<h2>七、更新后实施路线</h2>
+
+<div class="flow">
+  <span class="s">P0-2 写冲突</span><span class="a">→</span>
+  <span class="s">P0-1 REFINED</span><span class="a">→</span>
+  <span class="s">P2-1 清理</span><span class="a">→</span>
+  <span class="s" style="border-color:var(--grn)">P1-5 PERSIST</span><span class="a">→</span>
+  <span class="s" style="border-color:var(--ora)">P1-4 HOT</span><span class="a">→</span>
+  <span class="s">P1-3 注入</span><span class="a">→</span>
+  <span class="s">P1-1 触发</span><span class="a">→</span>
+  <span class="s">P1-2 提取</span><span class="a">→</span>
+  <span class="s" style="border-color:var(--pur)">P1-6 CodeGraph</span>
+</div>
+
+<div class="footnote">
+  <p>新增项: <span style="color:var(--grn)">P1-5 L-PERSIST 持久层</span> · <span style="color:var(--pur)">P1-6 CodeGraphContext 集成</span></p>
+  <p>文档: <code>docs/memory-architecture-v2.*</code> · 前版: <code>docs/summary-report.*</code></p>
+  <p>Generated by Sisyphus — 2026-05-24</p>
+</div>
+
+</body>
+</html>
