@@ -125,16 +125,42 @@ moc.py   → INDEX.md (分组)  ──→ 被覆盖</code></pre>
   <div class="tag tag-p1">P1</div>
   <h3>Pipeline 无自动触发</h3>
 
-  <p>Dream / Compress / TreeBuild 全需手动 <code>run_pipeline</code>，无自动触发。</p>
+  <p>Dream / Compress / TreeBuild 全需手动 <code>run_pipeline</code>，无自动触发。每次 agent turn 后应自动检查是否需要反思。</p>
 
-  <p><strong>方案</strong></p>
+  <h4>1. after_turn() 钩子</h4>
+  <pre><code>def after_turn():
+    new_count = count_new_since_last_dream()
+    if new_count >= THRESHOLD and not in_cooldown():
+        trigger_dream_async()   # fork 后台子 agent</code></pre>
+
+  <h4>2. 异步子 agent 触发</h4>
+  <p>不同步等待（会卡住主 agent），用 <code>task(run_in_background=true)</code> fork：</p>
+  <div class="flow">
+    <span class="step">after_turn()</span><span class="arrow">→</span>
+    <span class="step">should_trigger?</span><span class="arrow">→</span>
+    <span class="step" style="border-color:var(--green)">fork 子 agent</span><span class="arrow">→</span>
+    <span class="step">主 agent 继续</span>
+  </div>
+  <p style="margin-top:0.5rem">子 agent 读取未加工 RAW → 调 LLM → 写 REFINED → 下次 turn 自动可见</p>
+
+  <h4>3. LLM 后端灵活切换</h4>
+  <table>
+    <tr><th>后端</th><th>配置</th><th>成本</th></tr>
+    <tr><td>opencode subagent（默认）</td><td><code>task(category="deep")</code></td><td>零额外</td></tr>
+    <tr><td>DeepSeek Flash</td><td>API 环境变量</td><td>几分/次</td></tr>
+    <tr><td>Ollama 本地</td><td><code>base_url=localhost:11434/v1</code></td><td>免费</td></tr>
+    <tr><td>one-api 代理</td><td><code>base_url=127.0.0.1:3000/v1</code></td><td>已有</td></tr>
+  </table>
+
+  <h4>4. Dream 只取未加工记忆</h4>
+  <p>当前 <code>_gather_memories()</code> 全量拉 90 条（含 69 Test），改为只取：</p>
   <ul>
-    <li>新增 <code>after_turn()</code> → <code>Pipeline.should_trigger()</code></li>
-    <li>条件：新增 RAW ≥ N（默认 5）</li>
-    <li>异步执行，不阻塞 agent 响应</li>
-    <li>冷却期：30 分钟内不重复触发</li>
+    <li>上次 Dream 之后新增的</li>
+    <li>未被 <code>refined_by</code> 过的</li>
+    <li>不是测试数据的</li>
   </ul>
-  <p><strong>验证</strong>: 连续写 5 条 → 下次 turn 自动触发 Dream</p>
+
+  <p><strong>验证</strong>: 写 5 条新记忆 → 下次 turn 自动触发 → 后台子 agent 完成 → REFINED ≥1</p>
 </div>
 
 <!-- P1-2 -->

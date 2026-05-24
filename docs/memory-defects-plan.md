@@ -82,17 +82,71 @@ Dream / Compress / TreeBuild 全部需要手动调用 `run_pipeline`，没有自
 **目标状态**
 
 - 每次 agent turn 结束后自动检查条件
-- 满足条件时自动触发相应 Pipeline 步骤
-- 异步执行，不阻塞 agent 响应
+- 满足条件时自动触发 Dream（后台执行，不阻塞）
+- 用户无感知，agent 自行决定何时反思
 
 **方案**
 
-1. 在 `AgentMemory.before_turn()` 或新增 `after_turn()` 中加入 `Pipeline.should_trigger()` 检查
-2. 条件：新增 RAW ≥ N（可配置，默认 5）
-3. 触发后 fork 异步进程执行 Pipeline，主流程立即返回
-4. 增加冷却期：上次触发后 30 分钟内不重复触发
+### 1. after_turn() 钩子
 
-**验证标准**: 连续写入 5 条新记忆 → 下次 turn 自动触发 Dream
+```python
+# 伪代码 - 每次 agent 回复完自动执行
+def after_turn():
+    new_count = count_new_since_last_dream()
+    if new_count >= THRESHOLD and not in_cooldown():
+        trigger_dream_async()   # fork 出后台子 agent
+```
+
+### 2. 异步子 agent 触发
+
+不走同步（会卡住主 agent 回复微信），而是 `task(run_in_background=true)` ：
+
+```
+主 agent after_turn()
+  ├─ should_trigger() → 5 条新 RAW？冷却期过了？
+  ├─ 是 → task(category="deep", run_in_background=true, prompt="跑 Dream")
+  │         ↑ fork 出独立子 agent
+  └─ 立即 return，主 agent 继续工作
+
+后台子 agent
+  ├─ 读取最新未加工的 RAW
+  ├─ 调 LLM 生成反思 → 写入 REFINED
+  └─ 下次 turn Sisyphus 自动检索到新 REFINED
+```
+
+### 3. LLM 后端灵活切换
+
+Dream 本身只是"收集记忆 → 调 LLM → 写结果"的编排层，不绑定具体后端。`LLMClient` 接口不变：
+
+| 后端 | 配置 | 成本 |
+|------|------|------|
+| opencode subagent（默认） | `task(category="deep")` | 零额外（走 opencode 自带模型） |
+| Claude Code | `task(subagent_type="oracle")` | 高 |
+| DeepSeek Flash | `SISYPHUS_LLM_BASE_URL=...` | 几分/次 |
+| Ollama 本地 | `SISYPHUS_LLM_BASE_URL=http://localhost:11434/v1` | 免费 |
+| one-api 代理 | `SISYPHUS_LLM_BASE_URL=http://127.0.0.1:3000/v1` | 已有 |
+| github models | `base_url=https://models.inference.ai.azure.com` | 免费额度 |
+
+优先级：opencode subagent 优先（零成本、同环境），API 作为 fallback。
+
+### 4. Dream 只处理未加工记忆
+
+当前 `_gather_memories()` 简单调 `self.store.list()`，全量 90 条（含 69 条 Test）都塞进 prompt。
+
+改为：只取**上次 Dream 之后新增、未被 refined_by 过的有效记忆**——过滤掉旧数据、测试数据和已加工过的。
+
+```python
+def _gather_memories(self) -> List[Memory]:
+    all_mems = self.store.list()
+    return [
+        m for m in all_mems
+        if m.created_at > self._last_dream_time     # 新增的
+        and not m.refined_by                         # 没被加工过
+        and "test" not in m.tags                     # 不是测试数据
+    ]
+```
+
+**验证标准**: 连续写入 5 条新记忆 → 下次 turn 自动触发 Dream → 后台子 agent 完成 → REFINED 层新增 ≥1 条
 
 ---
 
