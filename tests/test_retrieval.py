@@ -27,8 +27,8 @@ class TestDecayScore:
 
     def test_half_life_reduces_score(self):
         mem = Memory(id="t1", type="lesson", title="T", content="", importance=8)
-        now = datetime(2026, 7, 1, tzinfo=timezone.utc)
-        mem.created_at = "2026-06-01T00:00:00+00:00"
+        now = datetime(2026, 12, 1, tzinfo=timezone.utc)
+        mem.created_at = "2026-06-04T00:00:00+00:00"  # 180 days → half-life
         score = decay_score(mem, now)
         assert abs(score - 4.0) < 0.01
 
