@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>记忆系统全市场对比 v2 — 含可视化规划</title>
+<style>
+  :root{--bg:#0d1117;--fg:#c9d1d9;--border:#30363d;--acc:#58a6ff;--grn:#3fb950;--red:#f85149;--ora:#d2991d;--pur:#a371f7;--mut:#8b949e;--code:#161b22;--h1:#f0f6fc}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;background:var(--bg);color:var(--fg);line-height:1.7;max-width:1000px;margin:0 auto;padding:2rem 1.5rem}
+  h1{color:var(--h1);font-size:1.5rem;border-bottom:2px solid var(--border);padding-bottom:.5rem;margin-bottom:.3rem}
+  h2{color:var(--h1);font-size:1.15rem;margin:2rem 0 .75rem;padding-bottom:.3rem;border-bottom:1px solid var(--border)}
+  h3{color:var(--h1);font-size:1rem;margin:1.2rem 0 .5rem}
+  .meta{color:var(--mut);font-size:.85rem;margin-bottom:1.5rem}
+  .pill{display:inline-block;padding:.1rem .5rem;border-radius:10px;font-size:.75rem;font-weight:700;margin-right:.3rem}
+  .win{background:#122d1a;color:var(--grn)} .lose{background:#2d1212;color:var(--red)} .new{background:#1a1a3a;color:var(--pur)} .plan{background:#2d1f12;color:var(--ora)}
+  code{font-family:"SF Mono","Fira Code",monospace;font-size:.82rem;background:var(--code);padding:.1rem .3rem;border-radius:3px}
+  pre{background:var(--code);border:1px solid var(--border);border-radius:6px;padding:.7rem 1rem;overflow-x:auto;margin:.5rem 0;font-size:.82rem}
+  pre code{background:none;padding:0}
+  table{width:100%;border-collapse:collapse;margin:.8rem 0}
+  th,td{border:1px solid var(--border);padding:.45rem .7rem;text-align:left;font-size:.82rem}
+  th{background:var(--code);color:var(--h1);font-weight:600}
+  .card{background:var(--code);border:1px solid var(--border);border-radius:8px;padding:1.1rem 1.3rem;margin:1rem 0}
+  .row{display:flex;gap:.5rem;flex-wrap:wrap;margin:.5rem 0}
+  .stat{background:var(--code);border:1px solid var(--border);border-radius:6px;padding:.5rem .8rem;text-align:center;min-width:70px}
+  .stat .num{font-size:1.3rem;font-weight:700;color:var(--h1)} .stat .label{font-size:.75rem;color:var(--mut)}
+  .moat{background:linear-gradient(135deg,#122d1a 0%,#1a1a3a 100%);border:1px solid var(--grn);border-radius:10px;padding:1.3rem;margin:1rem 0}
+  .moat h3{color:var(--grn);margin-top:0}
+  .viz{background:linear-gradient(135deg,#1a1a3a 0%,#2d1f12 100%);border:1px solid var(--pur);border-radius:10px;padding:1.3rem;margin:1rem 0}
+  .viz h3{color:var(--pur);margin-top:0}
+  .footnote{color:var(--mut);font-size:.85rem;border-top:1px solid var(--border);padding-top:1.5rem;margin-top:2rem}
+</style>
+</head>
+<body>
+
+<h1>🧠 记忆系统全市场对比 v2 · 含可视化规划</h1>
+<p class="meta">2026-05-24 · Mem0 / Letta / Cognee / Hermes / OpenHuman / agentmemory / Claude Code · + 可视化模块</p>
+
+<h2>一、扩展矩阵（8 系统）</h2>
+
+<table>
+  <tr><th>维度</th><th>Mem0</th><th>Letta</th><th>Cognee</th><th>Hermes</th><th>OpenHuman</th><th>agentmemory</th><th>Claude Code</th><th style="color:var(--grn)">Sisyphus</th></tr>
+  <tr><td>Stars</td><td>41K</td><td>13K</td><td>17K</td><td>—</td><td>—</td><td>—</td><td>闭源</td><td>—</td></tr>
+  <tr><td>定位</td><td>Memory layer</td><td>Agent framework</td><td>Knowledge engine</td><td>Self-improving agent</td><td>Desktop companion</td><td>Coding memory</td><td>Coding agent</td><td><strong>Dev memory</strong></td></tr>
+  <tr><td>存储</td><td>向量+图</td><td>MemFS(git)</td><td>图向量</td><td>文件MD</td><td>SQLite+MD树</td><td>向量+图+BM25</td><td>文件MD</td><td><strong>文件MD</strong></td></tr>
+  <tr><td>始终加载</td><td>❌</td><td>✅ system/</td><td>❌</td><td>✅ MEMORY.md</td><td>❌</td><td>❌</td><td>✅ MEMORY.md</td><td><span class="win">PERSIST层</span></td></tr>
+  <tr><td>容量上限</td><td>无</td><td>有</td><td>无</td><td><strong>2200/1375char</strong></td><td>3K-token</td><td>无</td><td><strong>200行/25KB</strong></td><td>无</td></tr>
+  <tr><td>自编辑</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td><td>❌</td><td>✅ hooks</td><td>✅ 后台</td><td><span class="plan">📋 P1-2</span></td></tr>
+  <tr><td>后台反思</td><td>❌</td><td>✅ sleep</td><td>✅ memify</td><td>✅ nudge</td><td>❌</td><td>✅ sweep</td><td>✅ dream</td><td><span class="plan">📋 P1-1</span></td></tr>
+  <tr><td>注入安全</td><td>❌</td><td>❌</td><td>❌</td><td><strong>✅ 双扫描</strong></td><td>❌</td><td>❌</td><td>❌</td><td>❌</td></tr>
+  <tr><td>代码索引</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td><span class="win">✅ CodeGraph</span></td></tr>
+  <tr><td>可视化</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td><strong>✅ :3113</strong></td><td>❌</td><td><span class="plan">📋 P2-3</span></td></tr>
+  <tr><td>中文</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td><span class="win">✅ jieba</span></td></tr>
+  <tr><td>部署</td><td>中</td><td>高</td><td>中</td><td>低</td><td>中</td><td>低</td><td>中</td><td><span class="win"><strong>极低 零依赖</strong></span></td></tr>
+</table>
+
+<h2>二、值得借鉴的设计</h2>
+
+<div class="card">
+  <h3>🟢 Hermes — Frozen-snapshot + 硬上限</h3>
+  <p>记忆在 session 开始时捕获冻结，中途不变 → 保留 LLM prefix cache。Sisyphus PERSIST 层可直接套用。MEMORY.md 硬上限 2,200 字符防膨胀。</p>
+</div>
+
+<div class="card">
+  <h3>🟢 OpenHuman — 密封(seal)管道</h3>
+  <p>L0 缓冲攒够 → L1 密封成摘要 → 级联向上。Sisyphus Dream 完全同构：RAW ≥ N → Dream 密封成 REFINED。按实体热度动态建树 = 我们的 project 字段。</p>
+</div>
+
+<div class="card">
+  <h3>🟣 agentmemory — 可视化标杆</h3>
+  <p>端口 3113 的内置 Viewer：实时观察流 + Session explorer + 记忆浏览器 + 力导向知识图谱 + Health dashboard。Sisyphus 可视化直接对标这个。</p>
+</div>
+
+<div class="card">
+  <h3>🟢 Claude Code — 关闭式类型 + 蒸馏摘要</h3>
+  <p>4 种类型（design/learn/fix/debug）防 tag 蔓延。Session memory 不求全量回放，只要"继续工作所需的最小结构"。Compact 重建工作语义而非漂亮摘要。</p>
+</div>
+
+<h2>三、可视化模块规划 <span class="pill plan">P2-3</span></h2>
+
+<div class="viz">
+  <h3>sisyphus-viewer — 零依赖静态 HTML Dashboard</h3>
+  
+  <table>
+    <tr><th>模块</th><th>路由</th><th>技术</th><th>功能</th></tr>
+    <tr><td><strong>记忆浏览器</strong></td><td><code>/browser</code></td><td>HTML+CSS</td><td>按 type/tag/project/importance 过滤，时间线视图，BM25 实时搜索</td></tr>
+    <tr><td><strong>知识图谱</strong></td><td><code>/graph</code></td><td>Cytoscape.js</td><td>力导向布局，节点=记忆，边=refined_by/links/evidence，按类型着色</td></tr>
+    <tr><td><strong>Pipeline 监控</strong></td><td><code>/pipeline</code></td><td>Chart.js</td><td>RAW→REFINED 流转，Dream/Compress 历史，各层数量仪表盘</td></tr>
+    <tr><td><strong>健康监控</strong></td><td><code>/health</code></td><td>纯文本+图表</td><td>各层记忆数，总 token，上次 Dream 时间</td></tr>
+  </table>
+
+  <h4 style="margin-top:1rem">三种交付方式</h4>
+  <pre><code>A: HTTP server   → python3 -m sisyphus.viewer --port 3113
+B: MCP 工具       → memory_dashboard → 返回 HTML blob → send-wechat
+C: 静态导出       → python3 -m sisyphus.export.dashboard > dash.html</code></pre>
+  <p><strong>推荐 B+C</strong>：B 给微信，C 给本地。纯静态 HTML，零后端。</p>
+</div>
+
+<h2>四、Sisyphus 最终定位</h2>
+
+<div class="moat">
+  <h3>面向单人开发者的零依赖、中文原生、自带代码索引的自进化记忆系统</h3>
+  <p style="margin-top:.5rem">
+    <span class="pill win">零依赖</span>
+    <span class="pill win">中文原生</span>
+    <span class="pill new">代码记忆</span>
+    <span class="pill win">耐久度分层</span>
+    <span class="pill win">自进化</span>
+    <span class="pill plan">可视化</span>
+  </p>
+</div>
+
+<p style="margin-top:1rem">
+  跟 Mem0/Cognee 不拼向量图数据库。跟 Hermes 更接近但多代码索引、中文原生。agentmemory 的可视化是最好的参考目标。唯一真正缺的就是可视化 + 去重清扫。
+</p>
+
+<h2>五、实施路线（最终版）</h2>
+
+<div style="font-size:.85rem;color:var(--mut);line-height:2">
+  P0-2 (写冲突) → P0-1 (REFINED) → P2-1 (清理 Test) → <br>
+  P1-5 (PERSIST) → P1-4 (HOT 7天) → <br>
+  P1-3 (MCP注入) → P1-1 (自动触发) → P1-2 (自动提取) → <br>
+  P1-6 (CodeGraph) → P1-7 (去重+清扫) → <br>
+  <strong style="color:var(--pur)">P2-3 (可视化 dashboard)</strong>
+</div>
+
+<div class="footnote">
+  <p>文档: <code>docs/market-comparison-v2.*</code> · 前版: <code>docs/market-comparison.*</code></p>
+  <p>Generated by Sisyphus — 2026-05-24</p>
+</div>
+
+</body>
+</html>
