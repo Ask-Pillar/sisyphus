@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sisyphus vs 市场主流记忆系统对比</title>
+<style>
+  :root { --bg:#0d1117;--fg:#c9d1d9;--border:#30363d;--acc:#58a6ff;--grn:#3fb950;--red:#f85149;--ora:#d2991d;--pur:#a371f7;--mut:#8b949e;--code:#161b22;--h1:#f0f6fc; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;background:var(--bg);color:var(--fg);line-height:1.7;max-width:1000px;margin:0 auto;padding:2rem 1.5rem}
+  h1{color:var(--h1);font-size:1.5rem;border-bottom:2px solid var(--border);padding-bottom:.5rem;margin-bottom:.3rem}
+  h2{color:var(--h1);font-size:1.15rem;margin:2rem 0 .75rem;padding-bottom:.3rem;border-bottom:1px solid var(--border)}
+  h3{color:var(--h1);font-size:1rem;margin:1.2rem 0 .5rem}
+  .meta{color:var(--mut);font-size:.85rem;margin-bottom:1.5rem}
+  .pill{display:inline-block;padding:.1rem .5rem;border-radius:10px;font-size:.75rem;font-weight:700;margin-right:.3rem}
+  .win{background:#122d1a;color:var(--grn)} .lose{background:#2d1212;color:var(--red)} .new{background:#1a1a3a;color:var(--pur)}
+  code{font-family:"SF Mono","Fira Code",monospace;font-size:.82rem;background:var(--code);padding:.1rem .3rem;border-radius:3px}
+  pre{background:var(--code);border:1px solid var(--border);border-radius:6px;padding:.7rem 1rem;overflow-x:auto;margin:.5rem 0;font-size:.82rem}
+  pre code{background:none;padding:0}
+  table{width:100%;border-collapse:collapse;margin:.8rem 0}
+  th,td{border:1px solid var(--border);padding:.45rem .7rem;text-align:left;font-size:.86rem}
+  th{background:var(--code);color:var(--h1);font-weight:600}
+  .card{background:var(--code);border:1px solid var(--border);border-radius:8px;padding:1.1rem 1.3rem;margin:1rem 0}
+  .row{display:flex;gap:.5rem;flex-wrap:wrap;margin:.5rem 0}
+  .stat{background:var(--code);border:1px solid var(--border);border-radius:6px;padding:.5rem .8rem;text-align:center;min-width:70px}
+  .stat .num{font-size:1.3rem;font-weight:700;color:var(--h1)}
+  .stat .label{font-size:.75rem;color:var(--mut)}
+  .moat{background:linear-gradient(135deg,#122d1a 0%,#1a1a3a 100%);border:1px solid var(--grn);border-radius:10px;padding:1.3rem;margin:1rem 0}
+  .moat h3{color:var(--grn);margin-top:0}
+  .footnote{color:var(--mut);font-size:.85rem;border-top:1px solid var(--border);padding-top:1.5rem;margin-top:2rem}
+</style>
+</head>
+<body>
+
+<h1>🧠 Sisyphus vs 市场主流记忆系统</h1>
+<p class="meta">2026-05-24 · Mem0 (41K★) · Letta/MemGPT (13K★) · Cognee (17K★) · Sisyphus (规划中)</p>
+
+<h2>总览</h2>
+<table>
+  <tr><th>维度</th><th>Mem0</th><th>Letta</th><th>Cognee</th><th style="color:var(--grn)">Sisyphus</th></tr>
+  <tr><td>定位</td><td>AI memory layer</td><td>Agent runtime+memory</td><td>Knowledge engine</td><td>Self-evolving dev</td></tr>
+  <tr><td>核心</td><td>向量+可选图</td><td>上下文窗口+git</td><td>图向量混合</td><td>File MD+BM25</td></tr>
+  <tr><td>检索</td><td>语义+BM25+实体图</td><td>记忆树+对话搜索</td><td>图遍历+向量</td><td>BM25+LLM recall</td></tr>
+  <tr><td>部署</td><td>中（需向量DB）</td><td>高（Letta框架）</td><td>中（需图DB）</td><td style="color:var(--grn)"><strong>极低（零依赖）</strong></td></tr>
+  <tr><td>中文</td><td>❌ 基准</td><td>❌</td><td>❌</td><td style="color:var(--grn)"><strong>✅ jieba+CJK</strong></td></tr>
+  <tr><td>代码记忆</td><td>❌</td><td>❌</td><td>❌</td><td style="color:var(--pur)"><strong>✅ CodeGraph</strong></td></tr>
+  <tr><td>成本</td><td>API+DB</td><td>API+框架</td><td>API+DB</td><td style="color:var(--grn)"><strong>零</strong></td></tr>
+</table>
+
+<h2>Sisyphus 护城河</h2>
+
+<div class="moat">
+  <h3>定位：面向单人开发者的零依赖、中文原生、自带代码索引的自进化记忆系统</h3>
+</div>
+
+<div class="row">
+  <div class="stat" style="border-color:var(--grn)"><div class="num">🪶</div><div class="label">零依赖</div></div>
+  <div class="stat" style="border-color:var(--grn)"><div class="num">🇨🇳</div><div class="label">中文原生</div></div>
+  <div class="stat" style="border-color:var(--pur)"><div class="num">🔧</div><div class="label">代码记忆</div></div>
+  <div class="stat" style="border-color:var(--acc)"><div class="num">🔄</div><div class="label">自进化</div></div>
+  <div class="stat" style="border-color:var(--ora)"><div class="num">💰</div><div class="label">零成本</div></div>
+</div>
+
+<h3>1. 耐久度分层 — 独有设计</h3>
+<div class="card">
+  <p>Mem0/Cognee/Letta 都没有"无条件注入"层。我们的 PERSIST 层每 turn 必加载：</p>
+  <table>
+    <tr><th></th><th>Mem0</th><th>Letta</th><th>Cognee</th><th style="color:var(--grn)">Sisyphus</th></tr>
+    <tr><td>永久内存</td><td>❌ 全部按相似度</td><td>✅ system/ 目录</td><td>⚠ session/perm</td><td style="color:var(--grn)"><strong>PERSIST 无条件注入</strong></td></tr>
+    <tr><td>热内存</td><td>⚠ 向量排序</td><td>❌</td><td>⚠ 短期缓存</td><td style="color:var(--grn)"><strong>HOT 7天优先检索</strong></td></tr>
+    <tr><td>代码内存</td><td>❌</td><td>❌</td><td>❌</td><td style="color:var(--pur)"><strong>CODE 图索引</strong></td></tr>
+  </table>
+</div>
+
+<h3>2. 零依赖部署</h3>
+<pre><code>Mem0:    pip install mem0ai + 向量DB + OpenAI key
+Cognee:  pip install cognee + Neo4j
+Letta:   Docker + Letta 框架
+
+Sisyphus: python3 -m sisyphus.server.mcp
+          ↑ 零新增依赖，opencode 自带模型</code></pre>
+
+<h3>3. 代码 + 经验 一体化</h3>
+<p>三大家都只管对话和文档。Sisyphus 用 CodeGraphContext MCP 并列运行，agent 同时能查"上次调试 mcp.py 的教训"和"retrieve() 被哪些函数调用"——这是独一份。</p>
+
+<h3>4. 自进化闭环</h3>
+<table>
+  <tr><th></th><th>Mem0</th><th>Letta</th><th>Cognee</th><th>Sisyphus</th></tr>
+  <tr><td>自动提取</td><td>✅ LLM 提取事实</td><td>✅ memory tools</td><td>✅ cognify</td><td>📋 P1-2 规划中</td></tr>
+  <tr><td>后台反思</td><td>❌</td><td>✅ sleep-time</td><td>✅ memify</td><td>📋 P1-1 Dream 规划中</td></tr>
+  <tr><td>记忆压缩</td><td>❌ ADD-only</td><td>⚠ 手动摘要</td><td>✅ memify 剪枝</td><td>📋 Compress 规划中</td></tr>
+</table>
+
+<h2>应该补的</h2>
+<table>
+  <tr><th>优先级</th><th>能力</th><th>对标</th></tr>
+  <tr><td>P1</td><td>记忆去重（ADD-only 不覆盖）</td><td>Mem0 hash 比对</td></tr>
+  <tr><td>P2</td><td>轻量向量检索（可选）</td><td>SQLite + sentence-transformers</td></tr>
+  <tr><td>P2</td><td>记忆更新不覆盖，旧标 deprecated</td><td>Mem0 ADD-only</td></tr>
+  <tr><td>P3</td><td>跨 agent 共享 PERSIST 层</td><td>Letta shared blocks</td></tr>
+</table>
+
+<h2>结论</h2>
+
+<div class="moat" style="background:linear-gradient(135deg,#122d1a 0%,#0d1117 100%)">
+  <p style="font-size:1.1rem;margin:0">
+    Sisyphus 不跟 Mem0/Cognee 硬拼向量/图数据库。<br>
+    我们的差异是 <strong style="color:var(--grn)">零依赖 + 中文原生 + 代码记忆 + 耐久度分层 + 自进化</strong>。<br><br>
+    不需要 VC 的 41K stars，但对你我自己的工作流有实际价值。
+  </p>
+</div>
+
+<div class="footnote">
+  <p>文档: <code>docs/market-comparison.*</code> · 前版: <code>docs/memory-architecture-v2.*</code></p>
+  <p>Generated by Sisyphus — 2026-05-24</p>
+</div>
+
+</body>
+</html>
