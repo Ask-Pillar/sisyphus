@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sisyphus: 写到 AGENTS.md 就完了</title>
+<style>
+  :root{--bg:#0d1117;--fg:#c9d1d9;--border:#30363d;--acc:#58a6ff;--grn:#3fb950;--red:#f85149;--ora:#d2991d;--pur:#a371f7;--mut:#8b949e;--code:#161b22;--h1:#f0f6fc}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;background:var(--bg);color:var(--fg);line-height:1.7;max-width:900px;margin:0 auto;padding:2rem 1.5rem}
+  h1{color:var(--h1);font-size:1.5rem;text-align:center;margin-bottom:1.5rem}
+  h2{color:var(--h1);font-size:1.15rem;margin:2rem 0 .75rem;padding-bottom:.3rem;border-bottom:1px solid var(--border)}
+  h3{color:var(--h1);font-size:1rem;margin:1.2rem 0 .5rem}
+  .meta{color:var(--mut);font-size:.85rem;text-align:center;margin-bottom:2rem}
+  code{font-family:"SF Mono","Fira Code",monospace;font-size:.82rem;background:var(--code);padding:.1rem .3rem;border-radius:3px}
+  pre{background:var(--code);border:1px solid var(--border);border-radius:6px;padding:.7rem 1rem;overflow-x:auto;margin:.5rem 0;font-size:.78rem}
+  pre code{background:none;padding:0}
+  table{width:100%;border-collapse:collapse;margin:.8rem 0}
+  th,td{border:1px solid var(--border);padding:.45rem .7rem;text-align:left;font-size:.85rem}
+  th{background:var(--code);color:var(--h1)}
+  .card{background:var(--code);border:1px solid var(--border);border-radius:10px;padding:1.2rem;margin:1rem 0}
+  .card h3{margin-top:0}
+  .file{background:var(--code);border:1px solid var(--acc);border-radius:8px;padding:.8rem 1rem;margin:.8rem 0;font-size:.82rem}
+  .file .name{color:var(--acc);font-weight:700}
+  .footnote{color:var(--mut);font-size:.85rem;border-top:1px solid var(--border);padding-top:1.5rem;margin-top:2rem;text-align:center}
+</style>
+</head>
+<body>
+
+<h1>📄 Sisyphus: 写到 AGENTS.md 就完了</h1>
+<p class="meta">2026-05-24 · Hermes/Cursor/Claude Code 都是这么干的</p>
+
+<h2>一、业界都是文件级指令</h2>
+
+<table>
+  <tr><th>项目</th><th>文件</th><th>何时加载</th><th>内容</th></tr>
+  <tr><td><strong>Claude Code</strong></td><td><code>CLAUDE.md</code> + <code>MEMORY.md</code></td><td>每 session 启动</td><td>规则 + agent 自写记忆 · 200行/25KB 上限</td></tr>
+  <tr><td><strong>Hermes</strong></td><td><code>SOUL.md</code> + <code>MEMORY.md</code></td><td>每 session frozen</td><td>身份 + 持久记忆 · 2200/1375 char 硬上限</td></tr>
+  <tr><td><strong>Cursor</strong></td><td><code>.cursor/rules/*.mdc</code></td><td>启动 / 文件匹配 / 手动</td><td>规则 + glob 路径作用域</td></tr>
+  <tr><td><strong>OpenCode</strong></td><td><code>AGENTS.md</code></td><td>自动加载</td><td>项目上下文 + 编码规范</td></tr>
+</table>
+
+<p style="text-align:center;color:var(--mut)">共同模式：<strong>文件即指令，frozen 快照，优先级覆盖</strong>。不需要改 agent 代码。</p>
+
+<h2>二、为 Sisyphus 写的 AGENTS.md 模板</h2>
+
+<div class="file">
+  <p class="name">disk-demo/AGENTS.md</p>
+  <pre><code>## Sisyphus Memory (auto-injected)
+
+Before EVERY response, inject relevant memory context.
+Memory layers: PERSIST (always) → HOT (7d) → CODE (on demand) → COLD.
+
+### Before each turn:
+Run before_turn() to get relevant memories:
+  PYTHONPATH=src python3 -c "
+  from sisyphus.memory.context import AgentMemory
+  from sisyphus.memory.store import MemoryStore
+  store = MemoryStore(Path.home() / '.omo' / 'memory')
+  mem = AgentMemory(store)
+  print(mem.before_turn('CURRENT_QUERY', max_chars=4000))
+  "
+The &lt;sisyphus_context&gt; block contains lessons/decisions/patterns
+from past sessions. Reference them if relevant.
+
+### After each turn (when significant):
+Record decisions, patterns, or bugs:
+  python3 .omo/scripts/memory.py record lesson "title" \
+    --tags "relevant" --content "what happened"
+
+### MCP tools (when connected):
+memory_stats | search_memory | write_memory | run_pipeline</code></pre>
+</div>
+
+<h2>三、一键初始化</h2>
+
+<pre><code># 给任意项目的 AGENTS.md 注入 sisyphus 规则
+./scripts/init-agent.sh /path/to/project
+
+# 效果：
+# ✅ Sisyphus memory rules appended to AGENTS.md
+# → agent 下次启动自动加载
+# → before_turn() 每 turn 自动跑
+# → write_memory 手动记录
+</code></pre>
+
+<h2>四、跟 Hermes/Claude Code 对齐</h2>
+
+<table>
+  <tr><th></th><th>Hermes</th><th>Claude Code</th><th style="color:var(--grn)">Sisyphus</th></tr>
+  <tr><td>指令文件</td><td>SOUL.md</td><td>CLAUDE.md</td><td>AGENTS.md</td></tr>
+  <tr><td>自动加载</td><td>✅ frozen start</td><td>✅ 首200行</td><td>✅ 同 OpenCode 机制</td></tr>
+  <tr><td>主动记忆</td><td>MEMORY.md</td><td>auto memory</td><td>memory.py record</td></tr>
+  <tr><td>上下文注入</td><td>系统 prompt</td><td>系统 prompt</td><td>before_turn() 注入</td></tr>
+</table>
+
+<h2>五、一句话</h2>
+
+<div style="background:var(--code);border:1px solid var(--grn);border-radius:10px;padding:1.3rem;text-align:center;margin:1.5rem 0">
+  <p style="font-size:1.15rem;margin:0">
+    不需要改 opencode 源码。<br>
+    写到 <code style="color:var(--acc)">AGENTS.md</code> 里，agent 自己读、自己调、自己记。<br>
+    <strong style="color:var(--grn)">Hermes / Cursor / Claude Code 都是这么干的。</strong>
+  </p>
+</div>
+
+<div class="footnote">
+  <p>文档: <code>docs/agents-md-integration.*</code></p>
+  <p>Generated by Sisyphus — 2026-05-24</p>
+</div>
+
+</body>
+</html>
