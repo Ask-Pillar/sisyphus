@@ -18,5 +18,17 @@ venv/
 # OS
 .DS_Store
 
-# Paper drafts (not for version control)
+# Paper drafts & derived architecture docs (not for version control)
 docs/sisyphus-paper*.md
+docs/context-is-everything.*
+docs/architecture-redesign.*
+docs/embedded-vs-mcp.*
+docs/final-dev-plan.*
+docs/final-comparison.*
+docs/memory-architecture-v2.*
+docs/memory-defects-plan.*
+docs/agents-md-integration.*
+docs/global-agents-md.*
+docs/market-comparison.*
+docs/market-comparison-v2.*
+docs/summary-report.*
