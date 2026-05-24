@@ -17,3 +17,6 @@ venv/
 
 # OS
 .DS_Store
+
+# Paper drafts (not for version control)
+docs/sisyphus-paper*.md
