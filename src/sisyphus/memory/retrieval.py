@@ -26,7 +26,7 @@ from sisyphus.memory.refined import RefinedStore
 
 logger = logging.getLogger(__name__)
 
-DECAY_HALF_LIFE_DAYS = 30.0
+DECAY_HALF_LIFE_DAYS = 180.0
 
 
 def _days_since(timestamp_iso: str, now: datetime) -> float:
