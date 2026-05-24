@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sisyphus 重构：一切记忆都是上下文组装</title>
+<style>
+  :root{--bg:#0d1117;--fg:#c9d1d9;--border:#30363d;--acc:#58a6ff;--grn:#3fb950;--ora:#d2991d;--pur:#a371f7;--mut:#8b949e;--code:#161b22;--h1:#f0f6fc}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;background:var(--bg);color:var(--fg);line-height:1.7;max-width:860px;margin:0 auto;padding:2rem 1.5rem}
+  h1{color:var(--h1);font-size:1.5rem;text-align:center;margin-bottom:1.5rem}
+  h2{color:var(--h1);font-size:1.1rem;margin:2rem 0 .75rem;padding-bottom:.3rem;border-bottom:1px solid var(--border)}
+  h3{color:var(--h1);font-size:1rem;margin:1.2rem 0 .5rem}
+  .meta{color:var(--mut);font-size:.85rem;text-align:center;margin-bottom:2rem}
+  .insight{text-align:center;font-size:1.1rem;color:var(--grn);margin:1.5rem 0;font-style:italic}
+  code{font-family:"SF Mono","Fira Code",monospace;font-size:.82rem;background:var(--code);padding:.1rem .3rem;border-radius:3px}
+  pre{background:var(--code);border:1px solid var(--border);border-radius:6px;padding:.7rem 1rem;overflow-x:auto;margin:.5rem 0;font-size:.82rem}
+  pre code{background:none;padding:0}
+  table{width:100%;border-collapse:collapse;margin:.8rem 0}
+  th,td{border:1px solid var(--border);padding:.45rem .7rem;text-align:left;font-size:.85rem}
+  th{background:var(--code);color:var(--h1)}
+  .pipe{display:flex;flex-direction:column;gap:.3rem;margin:1rem 0}
+  .pipe .row{display:flex;align-items:center;gap:.5rem;font-size:.82rem}
+  .pipe .sys{background:#1a1a3a;border:1px solid var(--pur);border-radius:4px;padding:.2rem .6rem;min-width:80px;text-align:center;color:var(--pur)}
+  .pipe .arr{color:var(--mut)}
+  .pipe .out{color:var(--grn);font-weight:600}
+  .card{background:var(--code);border:1px solid var(--border);border-radius:8px;padding:1rem 1.2rem;margin:.8rem 0}
+  .card2{background:linear-gradient(135deg,#122d1a11 0%,#1a1a3a22 100%);border:1px solid var(--grn);border-radius:10px;padding:1.3rem;margin:1rem 0}
+  .col2{display:flex;gap:1rem;flex-wrap:wrap}
+  .col2>div{flex:1;min-width:250px}
+  .footnote{color:var(--mut);font-size:.85rem;border-top:1px solid var(--border);padding-top:1.5rem;margin-top:2rem;text-align:center}
+</style>
+</head>
+<body>
+
+<h1>🔬 Sisyphus 重构：一切记忆都是上下文组装</h1>
+<p class="meta">2026-05-24 · 核心洞察："所有的数据对于模型来说不过是提示词和上下文罢了"</p>
+
+<p class="insight">没有"记忆"这种东西，只有"上下文窗口的组装策略"。</p>
+
+<h2>一、七套系统，同一件事</h2>
+
+<div class="pipe">
+  <div class="row"><span class="sys">Mem0</span><span class="arr">→</span>向量相似度<span class="arr">→</span>top-k<span class="arr">→</span>拼接<span class="arr">→</span><span class="out">塞进 prompt</span></div>
+  <div class="row"><span class="sys">Letta</span><span class="arr">→</span>pinned blocks + 搜索<span class="arr">→</span>拼接<span class="arr">→</span><span class="out">塞进 prompt</span></div>
+  <div class="row"><span class="sys">Hermes</span><span class="arr">→</span>frozen MEMORY.md<span class="arr">→</span>直接<span class="arr">→</span><span class="out">塞进 prompt</span></div>
+  <div class="row"><span class="sys">Claude</span><span class="arr">→</span>MEMORY.md 索引 + 后台提取<span class="arr">→</span><span class="out">塞进 prompt</span></div>
+  <div class="row"><span class="sys" style="color:var(--grn);border-color:var(--grn)">Sisyphus</span><span class="arr">→</span>BM25 + LLM recall<span class="arr">→</span>&lt;sisyphus_context&gt;<span class="arr">→</span><span class="out">塞进 prompt</span></div>
+</div>
+
+<p style="text-align:center;color:var(--mut);margin-top:.5rem">差异只在<strong>组装规则</strong>——先装什么、装多少、什么时候刷新、装不下了怎么裁。</p>
+
+<h2>二、概念全部打通</h2>
+
+<table>
+  <tr><th>传统叫法</th><th>实质</th></tr>
+  <tr><td>PERISIST 层</td><td>每 turn 无条件 prepend 固定文本，配额 ≤2000 chars</td></tr>
+  <tr><td>HOT 索引</td><td>按时间+相关性排序，挑 top-k</td></tr>
+  <tr><td>Dream</td><td>离线预计算"将来可能用得上的好文本"</td></tr>
+  <tr><td>Compress</td><td>离线把旧文本压缩成更短的等效文本</td></tr>
+  <tr><td>Skill</td><td>按触发条件动态 append 指令</td></tr>
+  <tr><td>代码索引</td><td>函数签名/调用链翻译成文本</td></tr>
+  <tr><td>before_turn</td><td>上述所有规则的调度器</td></tr>
+  <tr><td>半衰期</td><td>排序分数的时间权重</td></tr>
+  <tr><td>冷热分层</td><td>先搜小池子快，不够再搜大池子</td></tr>
+</table>
+
+<h2>三、简化架构</h2>
+
+<pre><code>before_turn(query):
+    ctx, budget = [], CONTEXT_BUDGET
+
+    // L0 — 无条件，frozen（prefix-cacheable）
+    ctx += SYSTEM_PROMPT          // 身份、工具、规则
+    ctx += PERSIST.load()         // 项目上下文，≤ 2000 chars
+
+    // L1 — 条件匹配，按优先级填充
+    ctx += HOT.search(query, budget × 0.4)
+    ctx += SKILL.match(query, budget × 0.2)
+
+    // L2 — 按需，剩余配额
+    if needs_code:   ctx += CODE.search(query)
+    if needs_history: ctx += COLD.search(query)
+
+    return trim_to_budget(ctx)</code></pre>
+
+<div class="card2">
+  <h3 style="margin-top:0">四个设计原则</h3>
+  <p><strong>1. 配额制，不是类型制</strong> — PERSIST 不是"存什么"，是"占多少 token"。写太多就裁底部。</p>
+  <p><strong>2. 排序优先级场景化</strong> — 编码→CODE+debug；规划→决策+架构；调试→错误模式+调用链。</p>
+  <p><strong>3. 上下文窗口就是可视化</strong> — 显示每层占多少、裁了什么、上次组装时间。</p>
+  <p><strong>4. Dream/Compress 就是离线预填缓存</strong> — 提前算好下次用的好文本，省实时开销。</p>
+</div>
+
+<h2>四、纠结直接消失</h2>
+
+<div class="col2">
+  <div class="card">
+    <p><strong>之前纠结</strong></p>
+    <p>PERSIST 该存多少条？</p>
+    <p>热记忆和冷记忆怎么分？</p>
+    <p>Dream 什么时候触发？</p>
+    <p>为什么要可视化？</p>
+    <p>半衰期几天合适？</p>
+    <p>需要几个 MCP server？</p>
+  </div>
+  <div class="card" style="border-color:var(--grn)">
+    <p><strong style="color:var(--grn)">现在消解</strong></p>
+    <p>→ 配额说了算，存到 2000 chars</p>
+    <p>→ 同一条记忆，两个搜索池子而已</p>
+    <p>→ 配额有富余就触发，预填缓存</p>
+    <p>→ 就是看上下文窗口的占用量</p>
+    <p>→ 只是排序权重，不是强制遗忘</p>
+    <p>→ 只是上下文来源的多样性</p>
+  </div>
+</div>
+
+<h2>五、实施不需要大改</h2>
+
+<pre><code>现有:  before_turn() → ContextRetriever → &lt;sisyphus_context&gt;
+改为:  before_turn() → ContextAssembler(
+           sources=[PERSIST, HOT, SKILL, CODE, COLD]
+       ) → ctx
+
+ContextRetriever 变成 ContextAssembler 的一个 source。
+Memory dataclass 不需要改，pinned/project/scope 是排序元数据。</code></pre>
+
+<h2>六、一句话</h2>
+
+<div class="card2">
+  <p style="font-size:1.1rem;text-align:center;margin:0">
+    Sisyphus 不存储记忆。<strong>它组装上下文。</strong><br>
+    Dream 是缓存预填，HOT 是快速池子，PERSIST 是永不裁切的页眉，<br>
+    半衰期是时间权重——<strong>全都在做同一件事：</strong><br>
+    把最有用的文本，塞进模型前置的几千个 token 里。
+  </p>
+</div>
+
+<div class="footnote">
+  <p>文档: <code>docs/context-is-everything.*</code></p>
+  <p>Generated by Sisyphus — 2026-05-24</p>
+</div>
+
+</body>
+</html>
