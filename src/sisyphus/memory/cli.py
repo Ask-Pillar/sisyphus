@@ -256,6 +256,15 @@ def cmd_audit(args):
     print(auditor.report(days=args.days))
 
 
+def cmd_dashboard(args):
+    from sisyphus.server.dashboard import generate
+
+    store = _store()
+    output = Path(args.output) if args.output else store.base_path / "dashboard.html"
+    count = generate(store, output)
+    print(f"Dashboard generated: {count} memories → {output}")
+
+
 def cmd_agent(args):
     from sisyphus.memory.agent import AgentRegistry
 
@@ -361,6 +370,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_audit = sub.add_parser("audit", help="Audit memory coverage from L2 operation log")
     p_audit.add_argument("--days", "-d", type=int, default=1, help="Days to audit (default: 1)")
 
+    p_dashboard = sub.add_parser("dashboard", help="Generate visualization dashboard HTML")
+    p_dashboard.add_argument("--output", "-o", default=None, help="Output path (default: ~/.omo/memory/dashboard.html)")
+
     p_agent = sub.add_parser("agent", help="Manage sub-agent memory sandboxes")
     p_agent_sub = p_agent.add_subparsers(dest="agent_command")
     p_agent_list = p_agent_sub.add_parser("list", help="List all agent sandboxes")
@@ -414,6 +426,8 @@ def main():
         cmd_rebuild(args)
     elif args.command == "audit":
         cmd_audit(args)
+    elif args.command == "dashboard":
+        cmd_dashboard(args)
     elif args.command == "agent":
         cmd_agent(args)
     elif args.command == "cache":

@@ -7,6 +7,7 @@ INDEX.md serves as the always-loaded table of contents.
 import re
 import json
 import uuid
+import hashlib
 import yaml
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
@@ -88,6 +89,11 @@ class MemoryStore:
         source: str = "",
         session_id: str = "",
     ) -> Memory:
+        fp = hashlib.sha256(f"{type}:{title}".encode()).hexdigest()[:12]
+        for existing in self.list():
+            if hashlib.sha256(f"{existing.type}:{existing.title}".encode()).hexdigest()[:12] == fp:
+                return existing
+
         mem = Memory(
             id=_new_id(),
             type=type,
