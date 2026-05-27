@@ -141,6 +141,17 @@ class SubagentLauncher:
         """
         return self._run("recall_relevant", memory=memory, query=query)
 
+    def extract_turn(self, turn: str) -> dict:
+        """Extract memories from a conversation turn.
+
+        Returns::
+
+            {"status": "ok", "memories": [
+                {"type": "decision", "title": "...", "content": "...", "tags": [...]}
+            ]}
+        """
+        return self._run("extract_turn", turn=turn)
+
     def classify_types(self, types: List[str], query: str) -> dict:
         """Classify which memory types are relevant to a query.
 

@@ -137,6 +137,8 @@ class AgentMemory:
         self._turn = 0
         self._persist_cache: Optional[str] = None
         self._cwd = Path.cwd()
+        self._last_pipeline_turn = 0
+        self._pipeline_cooldown = 3
 
     def _load_persist(self) -> str:
         if self._persist_cache is not None:
@@ -188,7 +190,42 @@ class AgentMemory:
             if project:
                 ctx = project + ctx
 
+        ctx += (
+            "\n## Sisyphus Memory Tools\n"
+            "- search_memory — search memories by keyword\n"
+            "- write_memory — record a new memory\n"
+            "- memory_stats — show memory statistics\n"
+            "- list_memories — browse all memories\n"
+        )
         return ctx
+
+    def after_turn(self, turn: str = ""):
+        """Call after each agent response. Auto-triggers pipeline and extraction if conditions met."""
+        if turn.strip() and self.subagent:
+            try:
+                result = self.subagent.extract_turn(turn)
+                if result.get("status") == "ok":
+                    for mem_data in result.get("memories", []):
+                        self.store.create(
+                            title=mem_data["title"],
+                            type=mem_data.get("type", "lesson"),
+                            content=mem_data.get("content", ""),
+                            tags=mem_data.get("tags", []),
+                        )
+            except Exception as exc:
+                logger.warning("Extraction failed: %s", exc)
+
+        if self._turn - self._last_pipeline_turn < self._pipeline_cooldown:
+            return
+        from sisyphus.memory.pipeline import Pipeline
+        pipeline = Pipeline(base_path=self.store.base_path.parent, subagent=self.subagent)
+        if pipeline._should_dream() or pipeline._should_compress():
+            try:
+                pipeline.run()
+                self._last_pipeline_turn = self._turn
+                logger.info("Pipeline auto-triggered at turn %d", self._turn)
+            except Exception as exc:
+                logger.warning("Pipeline auto-trigger failed: %s", exc)
 
     def record(
         self,

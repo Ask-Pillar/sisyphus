@@ -248,6 +248,14 @@ def cmd_rebuild(args):
     print(f"FTS5 index rebuilt: {count} memories indexed")
 
 
+def cmd_audit(args):
+    from sisyphus.memory.audit import Auditor
+
+    store = _store()
+    auditor = Auditor(store)
+    print(auditor.report(days=args.days))
+
+
 def cmd_agent(args):
     from sisyphus.memory.agent import AgentRegistry
 
@@ -350,6 +358,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_rebuild = sub.add_parser("rebuild", help="Rebuild FTS5 index from RAW files")
 
+    p_audit = sub.add_parser("audit", help="Audit memory coverage from L2 operation log")
+    p_audit.add_argument("--days", "-d", type=int, default=1, help="Days to audit (default: 1)")
+
     p_agent = sub.add_parser("agent", help="Manage sub-agent memory sandboxes")
     p_agent_sub = p_agent.add_subparsers(dest="agent_command")
     p_agent_list = p_agent_sub.add_parser("list", help="List all agent sandboxes")
@@ -401,6 +412,8 @@ def main():
         cmd_clean(args)
     elif args.command == "rebuild":
         cmd_rebuild(args)
+    elif args.command == "audit":
+        cmd_audit(args)
     elif args.command == "agent":
         cmd_agent(args)
     elif args.command == "cache":
