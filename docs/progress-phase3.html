@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sisyphus Phase 1-3 完成报告</title>
+<style>
+:root{--bg:#0d1117;--fg:#c9d1d9;--accent:#58a6ff;--green:#3fb950;--red:#f85149;--yellow:#d2991d;--border:#30363d;--card:#161b22}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:-apple-system,sans-serif;max-width:720px;margin:0 auto;padding:2rem 1rem;line-height:1.6}
+h1{font-size:1.5rem;border-bottom:2px solid var(--accent);padding-bottom:.5rem;margin:1.5rem 0 1rem}
+h2{font-size:1.2rem;color:var(--accent);margin:1.5rem 0 .5rem}
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1rem;margin:.8rem 0}
+table{width:100%;border-collapse:collapse;margin:.5rem 0}
+th,td{border:1px solid var(--border);padding:.4rem .6rem;text-align:left;font-size:.85rem}
+th{background:var(--card);color:var(--accent)}
+.done{color:var(--green);font-weight:600}
+.commit{font-family:monospace;font-size:.75rem;color:var(--accent)}
+.stats{display:flex;gap:.8rem;flex-wrap:wrap;margin:1rem 0}
+.stat{flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:.8rem;text-align:center}
+.stat-num{font-size:1.8rem;font-weight:700;color:var(--accent)}
+.stat-label{font-size:.75rem;color:#8b949e;margin-top:.2rem}
+.progress-bar{background:var(--border);border-radius:8px;height:20px;margin:.5rem 0;overflow:hidden}
+.progress-fill{background:var(--green);height:100%;border-radius:8px}
+.phase-bar{display:flex;gap:4px;margin:1rem 0}
+.phase-block{flex:1;padding:.4rem;border-radius:4px;text-align:center;font-size:.75rem;font-weight:600}
+.p1{background:#238636}
+.p2{background:#1f6feb}
+.p3{background:#8957e5}
+.p4{background:var(--border);color:#8b949e}
+ul{padding-left:1.2rem;font-size:.85rem}
+li{margin:.2rem 0}
+</style>
+</head>
+<body>
+
+<h1>🚀 Sisyphus 迭代进度 — Phase 1-3 完成</h1>
+<div style="color:#8b949e;font-size:.8rem">2026-05-27 凌晨 · 10 commits · 276/277 tests pass</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-num">10</div><div class="stat-label">Commits</div></div>
+<div class="stat"><div class="stat-num">276</div><div class="stat-label">Tests Pass</div></div>
+<div class="stat"><div class="stat-num">3/4</div><div class="stat-label">Phases Done</div></div>
+<div class="stat"><div class="stat-num">80%</div><div class="stat-label">Overall</div></div>
+</div>
+
+<div class="phase-bar">
+<div class="phase-block p1">Phase 1<br>修基底 ✅</div>
+<div class="phase-block p2">Phase 2<br>补架构 ✅</div>
+<div class="phase-block p3">Phase 3<br>自动化 ✅</div>
+<div class="phase-block p4">Phase 4<br>扩展 📋</div>
+</div>
+
+<h2>📋 Phase 1: 修基底 — 4 fixes</h2>
+<table>
+<tr><th>Bug</th><th>内容</th><th>Commit</th></tr>
+<tr><td class="done">P0-2</td><td>store/moc 写冲突 → MOC.md 独立输出 + 双索引读取</td><td class="commit">4d8608c</td></tr>
+<tr><td class="done">P2-1</td><td>测试数据污染 → clean --tag test 命令</td><td class="commit">96dc7ec</td></tr>
+<tr><td class="done">P0-3</td><td>L2 操作日志 → operations.jsonl 追加写入</td><td class="commit">1f59e2b</td></tr>
+<tr><td class="done">P0-1</td><td>REFINED 激活 → Dream 过滤未加工+非Test+新记忆</td><td class="commit">5463a78</td></tr>
+</table>
+
+<h2>🏗️ Phase 2: 补架构 — 4 features</h2>
+<table>
+<tr><th>功能</th><th>内容</th><th>Commit</th></tr>
+<tr><td class="done">L3 FTS5</td><td>SQLite FTS5 全文搜索，"26号聊了什么" 从0到命中</td><td class="commit">9c91ca5</td></tr>
+<tr><td class="done">PERSIST</td><td>pinned+importance≥8 无条件注入，session级frozen</td><td class="commit">cc4295c</td></tr>
+<tr><td class="done">初始感知</td><td>首轮 git log 自动注入项目上下文</td><td class="commit">cc4295c</td></tr>
+<tr><td class="done">冷热分层</td><td>7天 HOT 优先 → 不够再扫 COLD</td><td class="commit">cc4295c</td></tr>
+</table>
+
+<h2>⚡ Phase 3: 自动化回路 — 4 features</h2>
+<table>
+<tr><th>功能</th><th>内容</th><th>Commit</th></tr>
+<tr><td class="done">P1-3 MCP注入</td><td>before_turn 末尾追加 Sisyphus 工具列表</td><td class="commit">867a4ab</td></tr>
+<tr><td class="done">P1-1 自动触发</td><td>after_turn 检测→触发 Pipeline (Dream+Compress+Index)</td><td class="commit">867a4ab</td></tr>
+<tr><td class="done">P1-2 Extractor</td><td>subagent.extract_turn → 自动写 decision/pattern/lesson</td><td class="commit">867a4ab</td></tr>
+<tr><td class="done">P1-audit</td><td>L2日志→覆盖率，CLI: sisyphus audit -d 7</td><td class="commit">867a4ab</td></tr>
+</table>
+
+<h2>📄 论文展望对照（6 项 → 已兑现 5 项）</h2>
+<table>
+<tr><th>论文展望</th><th>状态</th><th>Phase</th></tr>
+<tr><td>L2 操作日志</td><td class="done">✅</td><td>Phase 1</td></tr>
+<tr><td>L3 SQLite FTS5</td><td class="done">✅</td><td>Phase 2</td></tr>
+<tr><td>ContextAssembler（PERSIST+HOT+感知）</td><td class="done">✅</td><td>Phase 2</td></tr>
+<tr><td>Dream 自动触发</td><td class="done">✅</td><td>Phase 3</td></tr>
+<tr><td>CodeGraphContext</td><td>📋</td><td>Phase 4</td></tr>
+<tr><td>可视化仪表盘</td><td>📋</td><td>Phase 4</td></tr>
+</table>
+
+<h2>🛠️ 新增 CLI 命令</h2>
+<ul>
+<li><code>sisyphus clean --tag test --dry-run</code> — 按标签清理记忆</li>
+<li><code>sisyphus rebuild</code> — 从 RAW 文件重建 FTS5 索引</li>
+<li><code>sisyphus audit -d 7</code> — 审计最近 7 天覆盖率</li>
+</ul>
+
+<h2>📦 新增文件</h2>
+<ul>
+<li><code>src/sisyphus/memory/fts_index.py</code> — SQLite FTS5 索引（stdlib，零依赖）</li>
+<li><code>src/sisyphus/memory/audit.py</code> — 审计层（读 L2 日志，算覆盖率）</li>
+</ul>
+
+<h2>📋 Phase 4 待办</h2>
+<table>
+<tr><th>顺序</th><th>内容</th><th>工具</th></tr>
+<tr><td>13</td><td>CodeGraphContext 集成</td><td>pip install（现成）</td></tr>
+<tr><td>14</td><td>可视化仪表盘</td><td>Cytoscape.js + Chart.js（CDN）</td></tr>
+<tr><td>15</td><td>去重</td><td>hash + LLM 相似度</td></tr>
+</table>
+
+<p style="color:#8b949e;text-align:center;margin-top:2rem;font-size:.8rem">
+Sisyphus Progress Report · Phase 1-3 Complete · 2026-05-27 凌晨<br>
+12/15 tasks done · 5/6 paper commitments fulfilled
+</p>
+
+</body>
+</html>

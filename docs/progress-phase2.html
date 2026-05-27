@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sisyphus Phase 1-2 进度报告</title>
+<style>
+:root{--bg:#0d1117;--fg:#c9d1d9;--accent:#58a6ff;--green:#3fb950;--border:#30363d;--card:#161b22}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:-apple-system,sans-serif;max-width:700px;margin:0 auto;padding:2rem 1rem;line-height:1.6}
+h1{font-size:1.5rem;border-bottom:2px solid var(--accent);padding-bottom:.5rem;margin:1.5rem 0 1rem}
+h2{font-size:1.2rem;color:var(--accent);margin:1.5rem 0 .5rem}
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1rem;margin:.8rem 0}
+table{width:100%;border-collapse:collapse;margin:.5rem 0}
+th,td{border:1px solid var(--border);padding:.4rem .6rem;text-align:left;font-size:.9rem}
+th{background:var(--card);color:var(--accent)}
+.done{color:var(--green)}
+.commit{font-family:monospace;font-size:.8rem;color:var(--accent)}
+.progress-bar{background:var(--border);border-radius:8px;height:20px;margin:.5rem 0;overflow:hidden}
+.progress-fill{background:var(--green);height:100%;border-radius:8px;transition:width .3s}
+.stats{display:flex;gap:1rem;flex-wrap:wrap}
+.stat{flex:1;min-width:120px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:.8rem;text-align:center}
+.stat-num{font-size:1.8rem;font-weight:700;color:var(--accent)}
+.stat-label{font-size:.8rem;color:#8b949e;margin-top:.2rem}
+</style>
+</head>
+<body>
+
+<h1>📊 Sisyphus 迭代进度 — Phase 1+2 完成</h1>
+<div style="color:#8b949e;font-size:.85rem">2026-05-27 凌晨 · 276/277 tests pass</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-num">8</div><div class="stat-label">Commits</div></div>
+<div class="stat"><div class="stat-num">276</div><div class="stat-label">Tests Pass</div></div>
+<div class="stat"><div class="stat-num">4/4</div><div class="stat-label">Phase 1</div></div>
+<div class="stat"><div class="stat-num">4/4</div><div class="stat-label">Phase 2</div></div>
+</div>
+
+<div class="progress-bar"><div class="progress-fill" style="width:53%"></div></div>
+<div style="text-align:center;color:#8b949e;font-size:.8rem">Phase 1 ████████ Phase 2 ████████ Phase 3 ⬜⬜⬜⬜ Phase 4 ⬜⬜⬜</div>
+
+<h2>Phase 1: 修基底 ✅</h2>
+<table>
+<tr><th>Bug</th><th>描述</th><th>改动</th><th>Commit</th></tr>
+<tr><td class="done">P0-2</td><td>store/moc 写冲突 → 两个索引共存</td><td>moc→MOC.md + 双索引</td><td class="commit">4d8608c</td></tr>
+<tr><td class="done">P2-1</td><td>测试数据污染 → 可清理+检索排除</td><td>clean 命令</td><td class="commit">96dc7ec</td></tr>
+<tr><td class="done">P0-3</td><td>L2 操作日志 → JSONL 追加</td><td>operations.jsonl</td><td class="commit">1f59e2b</td></tr>
+<tr><td class="done">P0-1</td><td>REFINED 空 → 过滤逻辑激活</td><td>只取未加工非Test记忆</td><td class="commit">5463a78</td></tr>
+</table>
+
+<h2>Phase 2: 补架构 ✅</h2>
+<table>
+<tr><th>功能</th><th>描述</th><th>改动</th><th>Commit</th></tr>
+<tr><td class="done">L3 FTS5</td><td>SQLite FTS5 全文搜索 → "26号聊了什么"从零到命中</td><td>fts_index.py + rebuild CLI</td><td class="commit">9c91ca5</td></tr>
+<tr><td class="done">PERSIST</td><td>pinned+importance≥8 无条件注入，session级frozen</td><td>context.py _load_persist</td><td class="commit">cc4295c</td></tr>
+<tr><td class="done">初始感知</td><td>首轮自动跑 git log 展示项目上下文</td><td>context.py _sniff_project</td><td class="commit">cc4295c</td></tr>
+<tr><td class="done">冷热分层</td><td>7天HOT池优先 → 不够再扫全量COLD</td><td>retrieval.py HOT-first</td><td class="commit">cc4295c</td></tr>
+</table>
+
+<h2>论文展望对照</h2>
+<table>
+<tr><th>论文展望（6项）</th><th>状态</th></tr>
+<tr><td>L2 操作日志</td><td class="done">✅ Phase 1 完成</td></tr>
+<tr><td>L3 SQLite FTS5</td><td class="done">✅ Phase 2 完成</td></tr>
+<tr><td>ContextAssembler（PERSIST+HOT+感知）</td><td class="done">✅ Phase 2 完成（基础版）</td></tr>
+<tr><td>Dream 自动触发</td><td>📋 Phase 3</td></tr>
+<tr><td>CodeGraphContext</td><td>📋 Phase 4</td></tr>
+<tr><td>可视化仪表盘</td><td>📋 Phase 4</td></tr>
+</table>
+
+<h2>下一步: Phase 3 — 自动化回路</h2>
+<table>
+<tr><th>顺序</th><th>内容</th><th>工作量</th></tr>
+<tr><td>9</td><td>MCP 工具注入 - agent知道有哪些工具</td><td>~10行</td></tr>
+<tr><td>10</td><td>Pipeline 自动触发 - after_turn检测→后台Dream</td><td>~60行</td></tr>
+<tr><td>11</td><td>Extractor 自动提取 - 对话后自动写RAW</td><td>~150行</td></tr>
+<tr><td>12</td><td>审计层 - L2日志→覆盖率→告警</td><td>~60行</td></tr>
+</table>
+
+<p style="color:#8b949e;text-align:center;margin-top:2rem;font-size:.8rem">Sisyphus Progress Report · 2026-05-27</p>
+
+</body>
+</html>
