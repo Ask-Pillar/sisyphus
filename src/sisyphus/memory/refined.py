@@ -112,3 +112,6 @@ class RefinedStore:
 
     def get_refined(self, mem_id: str) -> Optional[Memory]:
         return self.store.get(mem_id)
+
+    def delete_refined(self, mem_id: str) -> None:
+        self.store.delete(mem_id)

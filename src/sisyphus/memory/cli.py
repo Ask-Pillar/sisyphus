@@ -224,19 +224,45 @@ def cmd_detect_loop(args):
 def cmd_clean(args):
     store = _store()
     rstore = _refined_store()
-    deleted = 0
+    matches = []
     for m in store.list():
-        if args.tag in m.tags:
-            if not args.dry_run:
-                store.delete(m.id)
-            deleted += 1
-            print(f"{'[DRY RUN] ' if args.dry_run else ''}Deleted: [{m.type}] {m.title}")
+        hit = False
+        if args.tag and args.tag in m.tags:
+            hit = True
+        if args.title and args.title.lower() in m.title.lower():
+            hit = True
+        if hit:
+            matches.append((m, "RAW"))
     for m in rstore.list_refined():
-        if args.tag in m.tags:
-            if not args.dry_run:
-                rstore.delete_refined(m.id)
+        hit = False
+        if args.tag and args.tag in m.tags:
+            hit = True
+        if args.title and args.title.lower() in m.title.lower():
+            hit = True
+        if hit:
+            matches.append((m, "REFINED"))
+
+    if not matches:
+        print("No matching memories found.")
+        return
+
+    for mem, layer in matches:
+        print(f"[{layer}] [{mem.type}] {mem.title}")
+        preview = (mem.content or "")[:100].replace("\n", " ")
+        if preview:
+            print(f"  {preview}")
+
+    if args.force:
+        deleted = 0
+        for mem, layer in matches:
+            if layer == "RAW":
+                store.delete(mem.id)
+            else:
+                rstore.delete_refined(mem.id)
             deleted += 1
-    print(f"Total: {deleted} memory(s) with tag '{args.tag}' {'would be' if args.dry_run else ''} deleted")
+        print(f"\nDeleted {deleted} memories.")
+    else:
+        print(f"\nTotal: {len(matches)} match(es). Use --force to actually delete.")
 
 
 def cmd_rebuild(args):
@@ -361,9 +387,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_loop.add_argument("--threshold", "-t", type=int, default=3,
                         help="Min repeats to flag as loop (default: 3)")
 
-    p_clean = sub.add_parser("clean", help="Delete memories by tag")
-    p_clean.add_argument("--tag", "-t", required=True, help="Tag to filter for deletion")
-    p_clean.add_argument("--dry-run", action="store_true", help="List what would be deleted without deleting")
+    p_clean = sub.add_parser("clean", help="Delete memories by tag or title")
+    p_clean.add_argument("--tag", "-t", help="Tag to filter for deletion")
+    p_clean.add_argument("--title", help="Title to match for deletion")
+    p_clean.add_argument("--force", "-f", action="store_true", help="Actually delete (dry-run by default)")
 
     p_rebuild = sub.add_parser("rebuild", help="Rebuild FTS5 index from RAW files")
 
