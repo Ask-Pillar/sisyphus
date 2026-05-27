@@ -68,18 +68,21 @@ def _collect_types(store: MemoryStore, refined: RefinedStore) -> List[str]:
 
 
 def _moc_types(base_path: Path) -> dict:
-    """Read INDEX.md MOC and return {type_name: [title, ...]}.
+    """Read MOC.md (or INDEX.md fallback) and return {type_name: [title, ...]}.
 
-    Supports two formats:
-      - MocGenerator: '## type_name' with '- [[id|title]]' wikilinks
-      - MemoryStore: '- [id] type | title' flat entries
-    Returns empty dict if INDEX.md doesn't exist or has no content.
+    MOC.md is the grouped index from MocGenerator (## type_name with [[id|title]] wikilinks).
+    INDEX.md is the flat index from MemoryStore (- [id] type | title), used as fallback.
+    Returns empty dict if neither file exists or has no content.
     """
+    # Prefer MOC.md (grouped), fallback to INDEX.md (flat)
+    moc_path = base_path / "MOC.md"
     index_path = base_path / "INDEX.md"
-    if not index_path.exists():
+
+    path = moc_path if moc_path.exists() else index_path
+    if not path.exists():
         return {}
 
-    text = index_path.read_text()
+    text = path.read_text()
     result: dict = {}
     current_type: Optional[str] = None
 

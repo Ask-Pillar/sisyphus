@@ -1,7 +1,7 @@
 """MOC (Map of Content) generation.
 
 Generates type-grouped index pages with Obsidian-compatible wikilinks.
-Replaces the flat INDEX.md format with structured sections.
+Writes to MOC.md (topic-grouped index) to avoid overwriting INDEX.md (flat index).
 """
 
 from pathlib import Path
@@ -16,7 +16,7 @@ MOC_HEADER = "# Sisyphus Memory Index\n\n"
 
 
 class MocGenerator:
-    """Generates INDEX.md and dimension-specific MOC files."""
+    """Generates MOC.md (topic-grouped) and dimension-specific MOC files."""
 
     def __init__(self, store: MemoryStore, refined_store: Optional[RefinedStore] = None):
         self.store = store
@@ -47,7 +47,7 @@ class MocGenerator:
         while lines and lines[-1] == "\n":
             lines.pop()
         lines.append("\n")
-        atomic_write(self.store.base_path / "INDEX.md", "".join(lines))
+        atomic_write(self.store.base_path / "MOC.md", "".join(lines))
 
     def _write_dimension(self, dimension: str, memories):
         sections = self._group_by_type(memories)
