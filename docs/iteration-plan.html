@@ -1,0 +1,224 @@
+# Sisyphus 迭代规划 — 修 Bug + 逐步演进
+
+> 日期: 2026-05-27 凌晨
+> 原则: 能用现成的就用现成的，修地基优先，每步可验证
+
+---
+
+## 零、原则
+
+| 原则 | 说明 |
+|------|------|
+| **现成优先** | Python stdlib 有的不自己写（sqlite3），社区成熟的直接用（CodeGraphContext、Cytoscape.js、Chart.js） |
+| **小步验证** | 每步改完跑 `pytest`，不通过不进入下一步 |
+| **文件是 SSOT** | 所有索引都是可重建的派生品，丢了 `rm cache/ && rebuild` 就行 |
+| **先修地基** | P0 不修，上面盖什么都是歪的 |
+
+---
+
+## 一、Phase 1: 修基底（预计 2-3 天）
+
+### 1.1 P0-2: store/moc 写冲突
+
+| | |
+|---|---|
+| 问题 | `store.py._rebuild_index()` 和 `moc.py.generate()` 都写 `INDEX.md`，后者覆盖前者 |
+| 方案 | `moc.py` 输出到 `MOC.md`，`store.py` 只维护 `INDEX.md`。检索时间时查两个文件 |
+| 改动 | `moc.py` 改一行输出路径，`retrieval.py` / `context.py` 加 MOC.md 读取 |
+| 工作量 | **极小（~10 行）** |
+| 验证 | 写入一条记忆 → 跑 moc → `INDEX.md` 和 `MOC.md` 同时存在且内容各自独立 |
+
+### 1.2 P2-1: 清理测试数据
+
+| | |
+|---|---|
+| 问题 | 90 条 RAW 中 ~69 条标题为 "Test"，检索精度被稀释 |
+| 方案 | 昨天恢复的真实数据足以当测试集。直接删掉 Test 记忆或打 `test` tag 检索时默认排除 |
+| 改动 | CLI 加 `sisyphus clean --tag test`，`retrieval.py` 加 `exclude_tags=["test"]` |
+| 工作量 | **极小（~15 行）** |
+| 验证 | 检索结果不含 Test 记忆，RAW 数量 = 真实记忆数 |
+
+### 1.3 P0-3: L2 操作日志（论文承诺，Plan 遗漏）
+
+| | |
+|---|---|
+| 问题 | 论文 v1-v4 都写了 L2 operations.jsonl，final-dev-plan 完全没提。没有操作日志 = 无法审计 = 无法追溯 |
+| 方案 | `store.py` 每次 create/update/delete 追加一行 JSONL：`{"op":"create","id":"mem_xxx","ts":"2026-05-27T01:00:00Z","type":"decision","title":"..."}` |
+| 用现成的 | Python `json` 模块（stdlib），追加写文件（`open("a")`），不需要任何第三方库 |
+| 改动 | `store.py` 加 `_log_operation()` 方法，`create/update/delete` 调用后自动记日志 |
+| 工作量 | **小（~30 行）** |
+| 验证 | 执行 3 次 `write_memory` → `operations.jsonl` 有 3 行对应记录 |
+
+### 1.4 P0-1: REFINED 层激活
+
+| | |
+|---|---|
+| 问题 | Dream 引擎代码存在但从未跑出结果，`_gather_memories()` 全量拉 90 条含垃圾数据 |
+| 方案 | 1) `_gather_memories()` 只取 `created_at > last_dream AND NOT refined_by AND tag ≠ test` 2) 修 `Pipeline.run()` 确保 Dream/Compress 步骤实际执行 3) 构造 5 条同 topic 记忆手动触发验证 |
+| 用现成的 | Dream 引擎已经有框架代码，主要是修过滤逻辑和触发条件 |
+| 改动 | `dream.py` 修 `_gather_memories()`，`pipeline.py` 修 `run()` |
+| 工作量 | **中（~50 行）** |
+| 验证 | 写入 5 条同 topic 记忆 → `run_pipeline` → REFINED 新增 ≥1 条 |
+
+---
+
+## 二、Phase 2: 补架构层（预计 3-4 天）
+
+### 2.1 P1-fts5: L3 SQLite FTS5 索引（论文承诺，你说要引入的）
+
+| | |
+|---|---|
+| 问题 | BM25 对中文查英文（"26号" vs "May 26"）无能为力。论文指定了 SQLite FTS5 |
+| 方案 | Python `sqlite3`（stdlib 内置）→ 建 FTS5 虚拟表 → 内存内容 + jieba 分词后写入。每次检索走 FTS5 MATCH，结果按 decay_score 排序 |
+| 用现成的 | **`sqlite3`（Python stdlib，零安装）** — Python 3.9+ 就有，不需要 pip install 任何东西。jieba 已经有了 |
+| 改动 | `src/sisyphus/memory/fts_index.py`（新建 ~80 行），`retrieval.py` 加 `_fts_search()` fallback |
+| 重建命令 | `python3 -m sisyphus rebuild` — 扫描所有 .md → jieba 分词 → 重建 FTS5，10 秒完成 |
+| 工作量 | **中（~100 行）** |
+| 验证 | 搜 "26号聊了什么" → 命中 "May 26" 标题的记忆。删 `cache/memory.db` → rebuild → 检索结果一致 |
+
+### 2.2 P1-5: PERSIST 层
+
+| | |
+|---|---|
+| 问题 | 核心决策和普通记忆混一起，可能被上下文窗口裁切掉 |
+| 方案 | Memory 加 `pinned` 字段。`before_turn()` 先加载 `pinned=True OR importance≥8` 的记忆，frozen 在 session 内不变（前缀缓存友好） |
+| 改动 | `store.py` Memory dataclass 加 `pinned`，`context.py` 加 `_load_persist()` |
+| 工作量 | **小（~30 行）** |
+| 验证 | pin 一条记忆 → `before_turn()` 返回的上下文第一条就是它 |
+
+### 2.3 P1-8: 初始感知
+
+| | |
+|---|---|
+| 问题 | `before_turn()` 不知道当前在哪个项目 |
+| 方案 | 第一次 turn 时自动跑 `git log -10 --oneline` + 目录树 + 上次会话摘要，注入 PERSIST 层 |
+| 改动 | `context.py` 加 `_sniff_project(cwd)` |
+| 工作量 | **极小（~15 行）** |
+| 验证 | 在 sisyphus 目录启动 → 上下文含 `git log` + `src/sisyphus/...` 结构 |
+
+### 2.4 P1-4: 冷热分层
+
+| | |
+|---|---|
+| 问题 | 每次检索扫全量，无 7 天优先 |
+| 方案 | 检索时先查 `created_at > now-7d`（HOT 池）→ 不够 top_k 再查全部（COLD 回退） |
+| 改动 | `retrieval.py` 改 `retrieve()`，加 `_hot_first()` |
+| 工作量 | **小（~20 行）** |
+| 验证 | 100 条记忆(10条7天内+90条旧的) → 搜一个关键词 → HOT 池 10 条命中优先返回 |
+
+---
+
+## 三、Phase 3: 自动化回路（预计 4-5 天）
+
+### 3.1 P1-3: MCP 工具注入
+
+| | |
+|---|---|
+| 问题 | agent 不知道 sisyphus MCP 有 search_memory、write_memory 等工具 |
+| 方案 | 在 before_turn 返回的上下文末尾追加工具列表说明 |
+| 改动 | `context.py` 加 `_inject_tool_hint()` |
+| 工作量 | **极小（~10 行）** |
+| 验证 | agent 能调用 `search_memory` |
+
+### 3.2 P1-1: Pipeline 自动触发
+
+| | |
+|---|---|
+| 问题 | Dream/Compress 全靠手动 `run_pipeline` |
+| 方案 | `after_turn()` 检查新增 RAW 数量 → ≥阈值 + 冷却期已过 → `task(run_in_background=true)` 异步触发 Dream |
+| 用现成的 | opencode 的 `task()` 后台子 agent 机制（已有的，不需要自己写调度器） |
+| 改动 | `context.py` 加 `after_turn()`，`pipeline.py` 加 `should_trigger()` |
+| 工作量 | **中（~60 行）** |
+| 验证 | 连续写入 5 条新记忆 → 下次 turn 后 REFINED 自动新增 ≥1 条 |
+
+### 3.3 P1-2: 会话自动提取（最大的活）
+
+| | |
+|---|---|
+| 问题 | 对话结束不提取，全依赖手动 record。你不想手动整理 |
+| 方案 | `after_turn()` → 拿当前 turn 的 prompt+response → 调 LLM 判断是否有 decision/pattern/lesson/preference → 有则自动 `write_memory`。用轻量模型（flash），每次 turn 额外 ~300 token |
+| 用现成的 | LLM 调用走 opencode 现有 provider，不需要自己对接 API。prompt 模板参考已有的 `sisyphus_extract` |
+| 改动 | `extraction.py` 完善 Extractor 逻辑（已有框架），`context.py` 的 `after_turn()` 调用它 |
+| 工作量 | **大（~150 行）** |
+| 验证 | 对话中做出明确决策（如"半衰期改为 180 天"）→ 下一 turn RAW 层自动出现对应 decision 记忆 |
+
+### 3.4 P1-audit: 审计层
+
+| | |
+|---|---|
+| 问题 | 刚才手工恢复发现覆盖率 <10%，无法自动感知 |
+| 方案 | 从 L2 操作日志读事件数 → 从 L3 读同时段记忆增量 → 算覆盖率 → <阈值则告警 |
+| 依赖 | L2 操作日志（Phase 1）+ L3 FTS5（Phase 2）|
+| 改动 | `src/sisyphus/memory/audit.py`（新建 ~60 行），CLI 加 `sisyphus audit` |
+| 工作量 | **中（~60 行）** |
+| 验证 | `sisyphus audit --days 1` → 输出 "5/26: 192 条消息, 30 条记忆, 覆盖率 15%, ⚠ 低于阈值" |
+
+---
+
+## 四、Phase 4: 扩展（预计 3-4 天）
+
+### 4.1 CodeGraphContext 集成
+
+| | |
+|---|---|
+| 方案 | `pip install codegraphcontext` → `cgc index .` → MCP Server 暴露 → ContextAssembler 的 CODE Source |
+| 用现成的 | **CodeGraphContext（3K+⭐，MIT），不自己写 AST 解析器** |
+| 工作量 | 集成 ~40 行 |
+
+### 4.2 可视化仪表盘
+
+| | |
+|---|---|
+| 方案 | 单个 `dashboard.html`，Cytoscape.js 画知识图谱，Chart.js 画统计图表。`python3 -m sisyphus dashboard` 从 L3 读数据生成 |
+| 用现成的 | **Cytoscape.js + Chart.js（CDN 引入，不安装任何东西）** |
+| 工作量 | ~200 行 Python（数据查询）+ ~300 行 HTML/JS |
+
+### 4.3 去重
+
+| | |
+|---|---|
+| 方案 | hash 比对 + LLM 相似度判断 → 相似则标记 `refined_by` |
+| 工作量 | 中（~80 行） |
+
+---
+
+## 五、用现成的清单
+
+| 组件 | 用什么 | 为什么不用自己写 |
+|------|--------|-----------------|
+| L3 全文搜索 | Python `sqlite3` (stdlib) | 内置，零安装，论文指定 |
+| 中文分词 | jieba（已有） | 已集成，已验证提升 @1 56%→83% |
+| 代码索引 | CodeGraphContext (pip) | 3K+⭐，tree-sitter+KùzuDB，自己写 AST 解析不现实 |
+| 知识图谱可视化 | Cytoscape.js (CDN) | 现成的图布局算法，自己写布局是另一个项目 |
+| 统计图表 | Chart.js (CDN) | 饼图/柱状图/时间线，不需要自己画 |
+| 后台子 agent | opencode `task(background)` | 已有机制，不需要自己写进程调度 |
+| 操作日志 | `json` + `open("a")` (stdlib) | 追加写 JSONL，stdlib 足够 |
+| LLM 调用 | opencode 现有 provider | 不需要自己对接 API |
+
+**总外部依赖**：`codegraphcontext` 一个 pip 包。其余全是 Python stdlib 或 CDN。
+
+---
+
+## 六、里程碑
+
+| 阶段 | 交付 | 状态 |
+|------|------|------|
+| Phase 1 | P0 全修 + L2 操作日志落地 | 📋 |
+| Phase 2 | FTS5 可查 + PERSIST 注入 + 初始感知 | 📋 |
+| Phase 3 | 自动触发 + 自动提取 + 审计 | 📋 |
+| Phase 4 | 代码索引 + 可视化 + 去重 | 📋 |
+
+每阶段结束：`pytest` 全绿 → `sisyphus audit` 覆盖率报告 → 进入下一阶段。
+
+---
+
+## 七、与论文展望的对照
+
+| 论文展望 | 对应哪个阶段 |
+|----------|------------|
+| L2 操作日志 | Phase 1 ← 补回来了 |
+| L3 SQLite FTS5 | Phase 2 ← 补回来了 |
+| ContextAssembler | Phase 2 (PERSIST + HOT + 初始感知) |
+| Dream 自动触发 | Phase 3 (P1-1) |
+| CodeGraphContext | Phase 4 |
+| 可视化仪表盘 | Phase 4 |

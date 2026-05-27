@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sisyphus 规划文档整合 — 论文后续路线图</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --fg: #c9d1d9;
+    --dim: #8b949e;
+    --accent: #58a6ff;
+    --red: #f85149;
+    --green: #3fb950;
+    --yellow: #d2991d;
+    --border: #30363d;
+    --card-bg: #161b22;
+    --code-bg: #1c2128;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--fg); font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height:1.6; max-width:900px; margin:0 auto; padding:2rem 1.5rem; }
+  h1 { font-size:1.8rem; border-bottom:2px solid var(--accent); padding-bottom:0.5rem; margin:2rem 0 1rem; }
+  h2 { font-size:1.4rem; color:var(--accent); margin:2rem 0 0.8rem; border-left:3px solid var(--accent); padding-left:0.8rem; }
+  h3 { font-size:1.1rem; margin:1.5rem 0 0.5rem; color:#e6edf3; }
+  h4 { font-size:1rem; margin:1rem 0 0.3rem; color:var(--dim); }
+  p, li { margin:0.4rem 0; }
+  ul, ol { padding-left:1.8rem; margin:0.4rem 0; }
+  code { background:var(--code-bg); padding:0.15em 0.4em; border-radius:3px; font-size:0.9em; }
+  pre { background:var(--code-bg); padding:1rem; border-radius:6px; overflow-x:auto; margin:0.8rem 0; font-size:0.85em; border:1px solid var(--border); }
+  table { width:100%; border-collapse:collapse; margin:1rem 0; }
+  th, td { border:1px solid var(--border); padding:0.5rem 0.8rem; text-align:left; }
+  th { background:var(--card-bg); color:var(--accent); font-weight:600; }
+  tr:nth-child(even) { background:var(--card-bg); }
+  .card { background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:1.2rem; margin:1rem 0; }
+  .tag { display:inline-block; padding:0.15em 0.6em; border-radius:12px; font-size:0.8em; margin:0 0.2em; }
+  .tag-p0 { background:#da3633; color:#fff; }
+  .tag-p1 { background:#d2991d; color:#000; }
+  .tag-p2 { background:#58a6ff; color:#000; }
+  .tag-done { background:#3fb950; color:#000; }
+  .tag-miss { background:#f85149; color:#fff; }
+  .tag-new { background:#a371f7; color:#fff; }
+  .gap { color:var(--red); font-weight:600; }
+  .ok { color:var(--green); }
+  hr { border:none; border-top:1px solid var(--border); margin:2rem 0; }
+  .toc a { color:var(--accent); text-decoration:none; }
+  .toc a:hover { text-decoration:underline; }
+  blockquote { border-left:3px solid var(--dim); padding:0.5rem 1rem; margin:0.8rem 0; color:var(--dim); background:var(--card-bg); border-radius:0 6px 6px 0; }
+  .highlight { background:linear-gradient(90deg, rgba(88,166,255,0.1), transparent); padding:0.5rem 1rem; border-radius:6px; margin:0.5rem 0; }
+</style>
+</head>
+<body>
+
+<h1>📋 Sisyphus 规划文档整合</h1>
+<p style="color:var(--dim)">生成于 2026-05-27 凌晨 · 论文 v4 后续路线图 + 踩坑复盘</p>
+
+<!-- TOC -->
+<div class="card toc" id="toc">
+<h3>目录</h3>
+<ol>
+  <li><a href="#part1">六份原始规划文档</a></li>
+  <li><a href="#part2">文档总结：与论文展望的对照</a></li>
+  <li><a href="#part3">昨天踩坑复盘（5月26-27日）</a></li>
+  <li><a href="#part4">当前需要修的 Bug（优先级排序）</a></li>
+  <li><a href="#part5">如何靠近论文预期：修正后的路线图</a></li>
+</ol>
+</div>
+
+<hr>
+
+<!-- ==================== PART 1 ==================== -->
+<h1 id="part1">第一部分：六份原始规划文档</h1>
+
+<!-- Doc 1 -->
+<h2>1.1 memory-defects-plan.md — 记忆系统缺陷改进计划</h2>
+<div class="card">
+
+<p><strong>日期</strong>: 2026-05-24 &nbsp;|&nbsp; <strong>缺陷总数</strong>: 6 → 后扩展至 9 &nbsp;|&nbsp; P0: 2 | P1: 2 | P2: 2</p>
+
+<h4>优先级总览</h4>
+<table>
+<tr><th>优先级</th><th>缺陷</th><th>影响</th><th>工作量</th></tr>
+<tr><td><span class="tag tag-p0">P0</span></td><td>REFINED 层为空</td><td>Dream/Compress 没产出</td><td>中</td></tr>
+<tr><td><span class="tag tag-p0">P0</span></td><td>store.py / moc.py 写冲突</td><td>MOC 结构永远不生效</td><td>小</td></tr>
+<tr><td><span class="tag tag-p1">P1</span></td><td>Pipeline 无自动触发</td><td>每次手动调</td><td>中</td></tr>
+<tr><td><span class="tag tag-p1">P1</span></td><td>会话不自动提取</td><td>对话结果流失，自进化断链</td><td>大</td></tr>
+<tr><td><span class="tag tag-p2">P2</span></td><td>测试数据污染</td><td>检索精度下降</td><td>小</td></tr>
+<tr><td><span class="tag tag-done">P2</span></td><td>半衰期过短</td><td>记忆过早衰减</td><td>✅ 已修复</td></tr>
+</table>
+
+<h4>实施建议顺序</h4>
+<pre>P0-2 (写冲突) → P0-1 (REFINED) → P2-1 (清理测试数据)
+    ↓
+P1-1 (自动触发) → P1-2 (自动提取)</pre>
+
+<h4>P0-1: REFINED 层为空</h4>
+<p>现状: RAW 90条(69条Test) → REFINED仅1条 → MOC 0。Dream 代码存在但从未实际运行出结果。</p>
+<ul>
+  <li>写集成测试：构造 5 条同 topic 记忆 → 触发 Dream → 验证 REFINED 产出</li>
+  <li>检查 Dream/Compress handler 的 LLM 调用链路</li>
+  <li>确保 Pipeline.run() 实际执行 Dream/Compress（不是 skip）</li>
+</ul>
+
+<h4>P0-2: store.py 和 MOC 写同一文件冲突</h4>
+<pre>store.py: _rebuild_index() → 写 INDEX.md（扁平格式）
+moc.py:   generate()      → 写 INDEX.md（wikilink 分组格式）
+→ 后来者覆盖前者。moc.py 输出永远不生效。</pre>
+<p>方案: moc.py 输出到 MOC.md，store.py 维护 INDEX.md，ContextRetriever 同时查两个索引。</p>
+
+<h4>P1-1: Pipeline 无自动触发</h4>
+<p>after_turn() 钩子 + task(run_in_background=true) 异步触发。Dream 只取未加工记忆(created_at > last_dream AND NOT refined_by AND NOT test)。LLM 后端: opencode subagent(默认)/DeepSeek Flash/Ollama/one-api。</p>
+
+<h4>P1-2: 会话不自动提取</h4>
+<p>Extractor 接收当前 turn 的 prompt+response → LLM 判断是否含决策/模式/教训 → 自动 write_memory。轻量模型避免每次 turn 大量 token 消耗。</p>
+</div>
+
+<!-- Doc 2 -->
+<h2>1.2 final-dev-plan.md — 最终开发计划</h2>
+<div class="card">
+<p><strong>日期</strong>: 2026-05-24 &nbsp;|&nbsp; <strong>缺陷</strong>: 9 项 | P0: 2 | P1: 5 | P2: 2</p>
+
+<h4>缺陷总览（9项，比 defects-plan 多 3 项 P1）</h4>
+<table>
+<tr><th>#</th><th>缺陷</th><th>方案</th><th>工作量</th></tr>
+<tr><td><span class="tag tag-p0">P0-1</span></td><td>REFINED 为空 (90→1)</td><td>Dream 只取 HOT 未加工记忆 + 集成测试</td><td>中</td></tr>
+<tr><td><span class="tag tag-p0">P0-2</span></td><td>store/moc 写冲突</td><td>moc.py→MOC.md，INDEX.md 独立维护</td><td>小</td></tr>
+<tr><td><span class="tag tag-p1">P1-1</span></td><td>Pipeline 手动触发</td><td>after_turn + task(background) + 冷却期</td><td>中</td></tr>
+<tr><td><span class="tag tag-p1">P1-2</span></td><td>会话不自动提取</td><td>Extractor + LLM 判断 → 自动 write_memory</td><td>大</td></tr>
+<tr><td><span class="tag tag-p1">P1-3</span></td><td>MCP 工具无注入</td><td>工具列表注入 skill 或动态生成</td><td>小</td></tr>
+<tr><td><span class="tag tag-p1">P1-4</span></td><td>检索无冷热分层</td><td>HOT.md 7天索引，先搜 hot → fallback</td><td>中</td></tr>
+<tr><td><span class="tag tag-p1">P1-5</span></td><td>无 PERSIST 层</td><td>pinned + importance≥8 → PERSIST.md 无条件注入</td><td>中</td></tr>
+<tr><td><span class="tag tag-new">P1-8</span></td><td>无初始感知（新）</td><td>before_turn 加项目嗅觉: git log + 目录树 + 上次会话摘要</td><td>小</td></tr>
+<tr><td><span class="tag tag-p2">P2-1</span></td><td>测试数据污染</td><td>检索排除 test tag</td><td>待处理</td></tr>
+</table>
+
+<h4>四阶段路线</h4>
+<table>
+<tr><th>阶段</th><th>内容</th><th>里程碑</th></tr>
+<tr><td><strong>Phase 1: 修基底</strong></td><td>P0-2 + P0-1 + P2-1</td><td>REFINED 能产出，MOC 可工作，Test 清理</td></tr>
+<tr><td><strong>Phase 2: 分层</strong></td><td>P1-5 + P1-8 + P1-4</td><td>PERSIST 注入 + 初始感知 + HOT 7天索引</td></tr>
+<tr><td><strong>Phase 3: 自进化</strong></td><td>P1-3 + P1-1 + P1-2</td><td>MCP 注入 + 自动触发 + 自动提取</td></tr>
+<tr><td><strong>Phase 4: 扩展</strong></td><td>P1-6 + P1-7 + P2-3</td><td>CodeGraph + 去重 + 可视化</td></tr>
+</table>
+
+<h4>实施路线（依赖图）</h4>
+<pre>P0-2 → P0-1 → P2-1
+  ├─ P1-5 ──┐
+  │         ├─ P1-8
+  │         └─ P1-4 → P1-3 → P1-1 → P1-2
+  └─ P1-6 → P1-7 → P2-3</pre>
+
+<h4>Memory 字段（最终版）</h4>
+<pre>@dataclass
+class Memory:
+    id, type, title, content, tags, created_at, importance  # 现有
+    
+    pinned: bool = False       # P1-5: PERSIST 标记
+    scope: str = "global"      # global | project | session
+    project: str = ""          # P1-8: 所属项目名
+    
+    session_id: str = ""       # P1-8: 产生此记忆的 session
+    cwd: str = ""              # P1-8: 产生时的目录
+    
+    code_refs: list[str] = []  # P1-6: 代码关联</pre>
+</div>
+
+<!-- Doc 3 -->
+<h2>1.3 architecture-redesign.md — 架构重设计</h2>
+<div class="card">
+<p><strong>日期</strong>: 2026-05-24 &nbsp;|&nbsp; <strong>核心</strong>: ContextRetriever → ContextAssembler</p>
+
+<h4>当前架构（问题）</h4>
+<pre>AgentMemory.before_turn(query)
+  └─ ContextRetriever → 单一 pipeline
+       无 PERSIST 层，无 scene 感知，无 source 抽象</pre>
+
+<h4>目标架构</h4>
+<pre>ContextAssembler.assemble(query, scene="coding")
+  ├─ Budget.allocate(total=8000)
+  ├─ Source[0]: PERSIST (frozen, 无条件) → 2000 chars
+  ├─ Source[1]: HOT (7天内, 按相关性) → 1800 chars
+  ├─ Source[2]: SKILL (条件触发) → 800 chars
+  ├─ Source[3]: CODE (scene=coding) → 1200 chars
+  ├─ Source[4]: COLD (兜底) → 剩余配额
+  └─ trim_to_budget()</pre>
+
+<h4>改前 vs 改后</h4>
+<table>
+<tr><th>维度</th><th>改前</th><th>改后</th></tr>
+<tr><td>PERSIST</td><td class="gap">❌ 无</td><td class="ok">✅ frozen, session 级缓存</td></tr>
+<tr><td>HOT</td><td class="gap">❌ 无独立概念</td><td class="ok">✅ 7天优先</td></tr>
+<tr><td>CODE</td><td class="gap">❌ 无</td><td class="ok">✅ CodeGraphContext Source</td></tr>
+<tr><td>场景感知</td><td class="gap">❌ 无</td><td class="ok">✅ coding/planning/debugging</td></tr>
+<tr><td>前缀缓存</td><td class="gap">❌ 每次重新检索</td><td class="ok">✅ PERSIST frozen</td></tr>
+</table>
+
+<h4>迁移路径（向后兼容）</h4>
+<pre>Step 1: 加 Source 接口 + PERSIST Source
+Step 2: 加 HOT Source + ContextAssembler
+Step 3: 加 CODE Source (CodeGraphContext)
+Step 4: 加 SKILL Source + scene 切换</pre>
+</div>
+
+<!-- Doc 4 -->
+<h2>1.4 summary-report.md — 综合评估报告</h2>
+<div class="card">
+<p><strong>日期</strong>: 2026-05-24 &nbsp;|&nbsp; <strong>来源</strong>: Sisyphus 主 session + WeChat agent 审查</p>
+
+<h4>关键实证结果</h4>
+<table>
+<tr><th>实验</th><th>结果</th></tr>
+<tr><td>BM25 @1 (jieba 分词)</td><td class="ok">56% → 83%</td></tr>
+<tr><td>A/B 测试 (有记忆 vs 无)</td><td class="ok">1.1 vs 0.6</td></tr>
+<tr><td>Qwen3-Embedding (0.6B)</td><td class="gap">76% → 43% (负收益，已移除)</td></tr>
+<tr><td>Reranker (同 topic ≥8条)</td><td class="ok">+13% @1</td></tr>
+</table>
+
+<h4>代码索引方案</h4>
+<p>推荐直接用 CodeGraphContext（3K+⭐、MIT、tree-sitter + KùzuDB），不自己造。</p>
+
+<h4>微信端讨论要点</h4>
+<ul>
+  <li>Auto-trigger: "每次都要手动触发" → 需 after_turn 自动化</li>
+  <li>半衰期: 30天→180天 ✅</li>
+  <li>会话提取: "对话会被汇总到记忆系统里吗？" → 目前不会，需 Extractor</li>
+  <li>冷热分层: "近期记忆放最快访问分区" → P1-4</li>
+</ul>
+</div>
+
+<!-- Doc 5 -->
+<h2>1.5 context-is-everything.md — 一切记忆都是上下文组装</h2>
+<div class="card">
+<p><strong>日期</strong>: 2026-05-24 &nbsp;|&nbsp; <strong>核心洞察</strong>: "所有数据对于模型来说不过是提示词和上下文罢了"</p>
+
+<h4>所有记忆系统做同一件事</h4>
+<pre>Mem0:    向量相似度 → top-k → 塞进 prompt
+Letta:   pinned + 向量搜索 → 塞进 prompt
+Hermes:  frozen MEMORY.md → 塞进 prompt
+Claude:  MEMORY.md 索引 + 后台提取 → 塞进 prompt
+Sisyphus: BM25 + LLM recall → <sisyphus_context> → 塞进 prompt
+
+差异只在组装规则——先装什么、装多少、什么时候刷新。</pre>
+
+<h4>概念统一</h4>
+<table>
+<tr><th>传统叫法</th><th>实质</th></tr>
+<tr><td>PERSIST 层</td><td>每 turn 无条件 prepend 固定文本，配额 ≤2000 chars</td></tr>
+<tr><td>HOT 索引</td><td>按时间+相关性排序，挑 top-k</td></tr>
+<tr><td>Dream</td><td>离线预计算"将来可能用得上的好文本"</td></tr>
+<tr><td>Compress</td><td>离线把旧文本压缩成更短的等效文本</td></tr>
+<tr><td>半衰期</td><td>排序分数的时间权重</td></tr>
+</table>
+
+<blockquote><strong>没有"记忆"这种东西，只有"上下文窗口的组装策略"。</strong></blockquote>
+</div>
+
+<!-- Doc 6 -->
+<h2>1.6 embedded-vs-mcp.md — before_turn 内嵌 vs MCP</h2>
+<div class="card">
+<p><strong>日期</strong>: 2026-05-24 &nbsp;|&nbsp; <strong>核心</strong>: before_turn 是预处理，不是工具调用</p>
+
+<h4>9 个 MCP 工具，两类操作</h4>
+<pre>被动（预处理，不该是 MCP）：
+  get_context → 应该在 before_turn 里自动跑
+
+主动（工具操作，适合 MCP）：
+  write_memory, search_memory, get_memory, list_memories,
+  delete_memory, run_pipeline, import_memories, memory_stats</pre>
+
+<h4>推荐架构：混合</h4>
+<pre>内嵌（Python import）: AgentMemory.before_turn() → PERSIST+HOT+CODE+COLD → 注入 prompt
+                      AgentMemory.after_turn() → Extractor → 自动写 RAW
+
+MCP Server（保留 8 个主动工具）: write/search/list/delete/stats/pipeline/import/get_memory</pre>
+
+<blockquote>before_turn 不应该是一个工具调用，就像 import 不应该是一个 HTTP 请求。</blockquote>
+</div>
+
+<hr>
+
+<!-- ==================== PART 2 ==================== -->
+<h1 id="part2">第二部分：六份文档总结 — 与论文展望的对照</h1>
+
+<div class="card">
+<h3>论文 v4 展望（第 219 行）共 6 项</h3>
+
+<table>
+<tr><th>#</th><th>论文展望</th><th>final-dev-plan 覆盖?</th><th>对应位置</th></tr>
+<tr>
+  <td>1</td>
+  <td>实现 L2 操作日志</td>
+  <td><span class="tag tag-miss">❌ 遗漏</span></td>
+  <td>不在任何 phase。论文说 L2 是"仅追加的操作日志，可追溯谁在什么时候说了什么"——正是审计层的基础</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td>实现 L3 FTS5 索引</td>
+  <td><span class="tag tag-miss">❌ 遗漏</span></td>
+  <td>不在任何 phase。当前用 BM25 代替，但论文三层架构的第三层未实现</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td>ContextRetriever → ContextAssembler</td>
+  <td><span class="tag tag-done">✅ Phase 2</span></td>
+  <td>architecture-redesign.md + context-is-everything.md 详细设计</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td>Dream 自动触发</td>
+  <td><span class="tag tag-done">✅ P1-1 (Phase 3)</span></td>
+  <td>memory-defects-plan.md + final-dev-plan.md</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td>集成 CodeGraphContext</td>
+  <td><span class="tag tag-done">✅ Phase 4</span></td>
+  <td>summary-report.md 推荐直接用现成的</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td>可视化仪表盘</td>
+  <td><span class="tag tag-done">✅ P2-3 (Phase 4)</span></td>
+  <td>final-dev-plan.md</td>
+</tr>
+</table>
+
+<h3 style="color:var(--red); margin-top:1.5rem;">⚠️ 两个论文核心承诺偏离</h3>
+
+<div class="highlight">
+<p><strong>L2 操作日志</strong> — 论文 v1-v4 所有版本的三层架构第二层。论文定义："仅追加的操作日志层，记录每一次记忆变更，可追溯谁在什么时候说了什么"。它是审计层的<strong>前置依赖</strong>。刚才手动恢复 5月24-26 时间线时，因为没有 L2，只能翻 bridge 日志 + session 历史拼凑。</p>
+<p style="color:var(--yellow)"><strong>你的原话</strong>：论文 v1-v4 每一版都写了 L2 operations.jsonl + L3 SQLite FTS5。这是从项目第一天就定下的架构承诺。但 final-dev-plan.md 的 Phase 1-4 完全没提。</p>
+</div>
+
+<div class="highlight">
+<p><strong>L3 SQLite FTS5 索引</strong> — 论文明确指定使用 SQLite FTS5 全文搜索 + jieba 分词 + CJK 单字回退。当前 BM25 对中文查询匹配英文内容（"26号" vs "May 26"）会直接失败。ADR-001 和 ADR-003 都提到了 SQLite，但代码层面零落地。</p>
+<p style="color:var(--yellow)"><strong>你的原话</strong>：你说过要引入 SQLite，论文每一版都明确写了 SQLite FTS5，但 plan 偏离了——变成纯文件 BM25 打天下。</p>
+</div>
+
+<h3>Plan 偏离论文的根因</h3>
+<div class="card" style="border-left: 4px solid var(--red);">
+<p>论文 v1-v4 <strong>所有版本</strong> 都写了同一句话：</p>
+<blockquote>L2 操作日志（operations.jsonl）+ L3 SQLite FTS5 索引</blockquote>
+<p>这是从 5月20日项目第一天就定下的三层架构承诺。ADR-001、ADR-003、P5-PLAN 都提到了 SQLite。但到了 <code>final-dev-plan.md</code>（5月24日），这个承诺消失了——Plan 变成了纯文件 BM25 + 修 bug。</p>
+<p><strong>偏离原因猜测</strong>：5月24日审计发现地基塌了（REFINED 空、MOC 冲突），全部精力转向填坑，把架构愿景搁置了。但这不是"搁置"，这是"论文承诺的 L2+L3 被降级到不存在"。</p>
+<p style="color:var(--yellow)"><strong>你的原话</strong>：你之前就说过要引入 SQLite。论文白纸黑字写了。现在需要把这些承诺恢复回 plan。</p>
+</div>
+
+<h3>六份文档之间的关系</h3>
+<pre>
+论文 v4 展望（219行）
+  │
+  ├─ L2 操作日志 ──── ❌ 漏了，需补入 plan
+  ├─ L3 FTS5 索引 ─── ❌ 漏了，需补入 plan
+  │
+  ├─ ContextAssembler ──→ architecture-redesign.md (详细设计)
+  │                       └─ context-is-everything.md (哲学基础)
+  │
+  ├─ Dream 自动触发 ────→ memory-defects-plan.md (P1-1)
+  │                       └─ final-dev-plan.md (Phase 3)
+  │
+  ├─ CodeGraphContext ──→ summary-report.md (推荐方案)
+  │
+  └─ 可视化仪表盘 ──────→ final-dev-plan.md (P2-3)
+
+核心架构决策:
+  embedded-vs-mcp.md — before_turn 内嵌，8个主动工具保留MCP
+  final-dev-plan.md  — 四阶段路线图，9缺陷修复顺序
+</pre>
+</div>
+
+<hr>
+
+<!-- ==================== PART 3 ==================== -->
+<h1 id="part3">第三部分：昨天踩坑复盘（5月26-27日）</h1>
+
+<div class="card">
+<h3>坑 1: 手工记忆恢复 — 覆盖率 <10%</h3>
+<table>
+<tr><th>日期</th><th>微信消息</th><th>自动记忆</th><th>手动补记</th><th>覆盖率</th></tr>
+<tr><td>5/24</td><td>~100条</td><td>22 (架构审计)</td><td>0</td><td class="gap">漏全部测试对话</td></tr>
+<tr><td>5/25</td><td>~300条</td><td>6</td><td>0</td><td class="gap">仅"记下来"触发</td></tr>
+<tr><td>5/26</td><td>~192条</td><td>0</td><td>30 (16:44窗口)</td><td class="gap">0% 自动</td></tr>
+</table>
+
+<h3>坑 2: BM25 中文查不到英文内容</h3>
+<p>用 <code>sisyphus_search_memory("26聊了什么")</code> 搜不到 <code>"May 26"</code> 开头的记忆。BM25 靠词匹配，"26号" 对不上 "May 26"，"聊了" 对不上 "discussed"。<br>
+→ 需要 FTS5 或 LLM 语义检索。</p>
+
+<h3>坑 3: Session 重启全丢上下文</h3>
+<p>三次"汇报状态" + 一次"昨天说了啥"的短 session 反复重启，每次重启都从零开始恢复记忆。记忆系统能存关键决策但不会自动注入。</p>
+
+<h3>坑 4: MCP get_context 是工具而非自动注入</h3>
+<p>WeChat bridge agent 不知道要"调用" get_context → 失忆。before_turn 内嵌方案已设计但未实施（embedded-vs-mcp.md）。</p>
+
+<h3>坑 5: Bridge 断连 40 分钟（26号下午）</h3>
+<p>15:40-16:19 无响应。根因：旧 ACP session 累积 + 模型切换卡死。临时修复：清 session + 重启 bridge。没有自动健康检查。</p>
+
+<h3>坑 6: 规划文档分散在 6 个文件</h3>
+<p>论文展望 → final-dev-plan → defects-plan → architecture-redesign → context-is-everything → embedded-vs-mcp，分散且缺少交叉索引。这也是为什么你现在要求整合成一体的原因。</p>
+</div>
+
+<hr>
+
+<!-- ==================== PART 4 ==================== -->
+<h1 id="part4">第四部分：当前需要修的 Bug（优先级排序）</h1>
+
+<div class="card">
+<h3>修正后的优先级排序</h3>
+
+<table>
+<tr><th>顺序</th><th>Bug</th><th>优先级</th><th>工作量</th><th>论文对应</th></tr>
+<tr>
+  <td>1</td>
+  <td><strong>store/moc 写冲突</strong><br>两个 writer 写同一个 INDEX.md，MOC 永远不生效</td>
+  <td><span class="tag tag-p0">P0</span></td>
+  <td>小 (10行)</td>
+  <td>修复检索基础设施</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><strong>REFINED 层为空</strong><br>Dream 引擎存在但从未产出，_gather_memories() 全量拉 90 条含 69 条 Test</td>
+  <td><span class="tag tag-p0">P0</span></td>
+  <td>中</td>
+  <td>Dream 自动触发 (论文#4)</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><strong>测试数据污染</strong><br>90条 RAW 中 69 条 Test，检索精度下降</td>
+  <td><span class="tag tag-p2">P2</span></td>
+  <td>小</td>
+  <td>检索质量</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><strong>PERSIST 层不存在</strong><br>核心决策/项目上下文混在普通记忆中，可能被裁切</td>
+  <td><span class="tag tag-p1">P1-5</span></td>
+  <td>中</td>
+  <td>ContextAssembler 基础 (论文#3)</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><strong>初始感知缺失 (P1-8)</strong><br>before_turn 不感知当前项目，没有 git log + 目录树</td>
+  <td><span class="tag tag-p1">P1-8</span></td>
+  <td>小</td>
+  <td>ContextAssembler (论文#3)</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><strong>冷热分层缺失</strong><br>每次搜全量 90 条，无 7 天优先索引</td>
+  <td><span class="tag tag-p1">P1-4</span></td>
+  <td>中</td>
+  <td>检索效率</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><strong>MCP 工具无注入</strong><br>agent 不知道 sisyphus MCP 存在</td>
+  <td><span class="tag tag-p1">P1-3</span></td>
+  <td>小</td>
+  <td>embedded-vs-mcp</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><strong>Pipeline 手动触发</strong><br>Dream/Compress 需手动 run_pipeline</td>
+  <td><span class="tag tag-p1">P1-1</span></td>
+  <td>中</td>
+  <td>论文#4 的实现</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><strong>会话不自动提取</strong><br>Extractor 未实现，对话结果流失</td>
+  <td><span class="tag tag-p1">P1-2</span></td>
+  <td>大</td>
+  <td>自进化断链</td>
+</tr>
+<tr style="background:rgba(163,113,247,0.1);">
+  <td>🆕 10</td>
+  <td><strong>审计层缺失</strong><br>无法自动感知覆盖率 <10%，全靠人肉翻日志</td>
+  <td><span class="tag tag-new">P1-audit</span></td>
+  <td>中</td>
+  <td>论文 L2 操作日志的前置</td>
+</tr>
+<tr style="background:rgba(248,81,73,0.15); border-left:3px solid var(--red);">
+  <td>🆕 11</td>
+  <td><strong>L2 操作日志缺失</strong><br>论文 v1-v4 所有版本的三层架构承诺。24号Plan完全遗漏。</td>
+  <td><span class="tag tag-p0">P0-3</span></td>
+  <td>中</td>
+  <td>论文 #1 — 架构基础</td>
+</tr>
+<tr style="background:rgba(248,81,73,0.15); border-left:3px solid var(--red);">
+  <td>🆕 12</td>
+  <td><strong>L3 SQLite FTS5 索引缺失</strong><br>你说过要引入 SQLite，论文每版都写 FTS5。Plan 用 BM25 代替了。</td>
+  <td><span class="tag tag-p1">P1-fts5</span></td>
+  <td>中</td>
+  <td>论文 #2 — 你之前的要求</td>
+</tr>
+</table>
+</div>
+
+<hr>
+
+<!-- ==================== PART 5 ==================== -->
+<h1 id="part5">第五部分：如何靠近论文预期 — 修正后的路线图</h1>
+
+<div class="card">
+<h3>核心原则</h3>
+<ol>
+  <li><strong>P0 先修地基</strong> — 不修 P0 其他都是沙上建塔</li>
+  <li><strong>L2 操作日志插入 Phase 1</strong> — 它是审计层的依赖，也是论文三层架构的承诺</li>
+  <li><strong>审计层插在 L2 之后</strong> — 有了操作日志才能自动算覆盖率</li>
+  <li><strong>L3 FTS5 插入 Phase 2</strong> — 提升检索质量，解决中文查英文的坑</li>
+  <li><strong>每一步都在靠近论文</strong> — 修 bug ≠ 偏离论文，正相反，每个 P0/P1 都在兑现论文承诺</li>
+</ol>
+
+<h3>修正后的四阶段（保持 final-dev-plan 框架，补漏）</h3>
+
+<table>
+<tr><th>阶段</th><th>原内容</th><th>🆕 新增</th><th>里程碑</th></tr>
+<tr>
+  <td><strong>Phase 1: 修基底</strong></td>
+  <td>P0-2 + P0-1 + P2-1</td>
+  <td><span class="tag tag-new">P0-3: L2 操作日志</span></td>
+  <td>REFINED 产出 ✅  MOC 独立 ✅  Test 清除 ✅  <strong>操作可追溯 ✅</strong></td>
+</tr>
+<tr>
+  <td><strong>Phase 2: 分层</strong></td>
+  <td>P1-5 + P1-8 + P1-4</td>
+  <td><span class="tag tag-new">P1-fts5: L3 FTS5 索引</span></td>
+  <td>PERSIST ✅  初始感知 ✅  HOT 7天 ✅  <strong>FTS5 语义检索 ✅</strong></td>
+</tr>
+<tr>
+  <td><strong>Phase 3: 自进化</strong></td>
+  <td>P1-3 + P1-1 + P1-2</td>
+  <td><span class="tag tag-new">P1-audit: 审计层</span></td>
+  <td>MCP 注入 ✅  自动触发 ✅  自动提取 ✅  <strong>覆盖率监控 ✅</strong></td>
+</tr>
+<tr>
+  <td><strong>Phase 4: 扩展</strong></td>
+  <td>P1-6 + P1-7 + P2-3</td>
+  <td>—</td>
+  <td>CodeGraph + 去重 + 可视化</td>
+</tr>
+</table>
+
+<h3>修 bug 与论文预期的对应关系</h3>
+<table>
+<tr><th>修的 Bug</th><th>论文展望哪条</th><th>关系</th></tr>
+<tr><td>L2 操作日志</td><td>#1 实现 L2 操作日志</td><td>直接对应</td></tr>
+<tr><td>L3 FTS5 索引</td><td>#2 实现 L3 FTS5 索引</td><td>直接对应</td></tr>
+<tr><td>PERSIST 层 + 初始感知 + ContextAssembler</td><td>#3 ContextRetriever→ContextAssembler</td><td>Phase 2 实现迁移</td></tr>
+<tr><td>REFINED 空 + Pipeline 自动触发 + P1-1</td><td>#4 Dream 自动触发</td><td>P0-1 + P1-1 = 论文#4</td></tr>
+<tr><td>CodeGraphContext 集成</td><td>#5 CodeGraphContext</td><td>Phase 4</td></tr>
+<tr><td>可视化仪表盘</td><td>#6 可视化</td><td>P2-3</td></tr>
+<tr><td>审计层</td><td>论文 5.2 "原型成熟度" + L2</td><td>质量保证，论文未写但隐含需要</td></tr>
+<tr><td>Extractor (P1-2)</td><td>论文综述 "自进化" 主题</td><td>闭合自进化回路</td></tr>
+</table>
+
+<h3>一句话</h3>
+<blockquote>
+修 P0 → 补 L2/L3 → 分层 → 审计 → 自进化 → 扩展。<br>
+每一步都在兑现论文 v4 第 219 行的承诺，同时堵上昨天手工恢复发现的漏洞。<br>
+问题不是"偏了"，而是论文写了 6 项展望，plan 只计划了 4 项——现在补回来。
+</blockquote>
+</div>
+
+<hr>
+
+<p style="color:var(--dim); text-align:center; margin-top:2rem;">
+  整合完成 · Sisyphus Planning Consolidated · 2026-05-27 凌晨<br>
+  6 份原始文档 + 论文对照 + 踩坑复盘 + 修正路线图
+</p>
+
+</body>
+</html>
