@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>记忆系统数据审计 · 24-26号</title>
+<style>
+  :root{--bg:#0d1117;--fg:#c9d1d9;--border:#30363d;--acc:#58a6ff;--grn:#3fb950;--red:#f85149;--ora:#d2991d;--mut:#8b949e;--code:#161b22;--h1:#f0f6fc}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--fg);line-height:1.7;max-width:800px;margin:0 auto;padding:2rem 1.5rem}
+  h1{color:var(--h1);font-size:1.4rem;text-align:center;margin-bottom:1.5rem}
+  h2{color:var(--h1);font-size:1.1rem;margin:2rem 0 .75rem;border-bottom:1px solid var(--border);padding-bottom:.3rem}
+  .meta{color:var(--mut);font-size:.85rem;text-align:center;margin-bottom:2rem}
+  table{width:100%;border-collapse:collapse;margin:.8rem 0;font-size:.85rem}
+  th,td{border:1px solid var(--border);padding:.4rem .7rem;text-align:left}
+  th{background:var(--code);color:var(--h1)}
+  .ok{color:var(--grn)} .bad{color:var(--red)} .warn{color:var(--ora)}
+  .box{background:var(--code);border-radius:8px;padding:1rem;margin:.8rem 0}
+  .root{background:linear-gradient(135deg,#2d1212 0%,#1a1a3a 100%);border:1px solid var(--red);border-radius:12px;padding:1.3rem;margin:1.2rem 0}
+  .root h3{color:var(--red);margin-top:0}
+</style></head>
+<body>
+
+<h1>🔍 记忆系统数据审计报告</h1>
+<p class="meta">审计范围: May 24-26 · 592条微信消息 · 58条记忆 · 2026-05-27 01:40</p>
+
+<h2>整体数据</h2>
+<table>
+  <tr><th>日期</th><th>微信消息</th><th>记忆数</th><th>自动记录</th><th>手动补录</th><th>覆盖率</th></tr>
+  <tr><td>5/24</td><td>~60条</td><td>22</td><td>22</td><td>0</td><td><span class="warn">部分</span></td></tr>
+  <tr><td>5/25</td><td>~300条</td><td>6</td><td>6</td><td>0</td><td><span class="bad">严重不足</span></td></tr>
+  <tr><td>5/26</td><td>~230条</td><td>30</td><td><span class="bad">0</span></td><td>30</td><td><span class="bad">全部手动</span></td></tr>
+</table>
+
+<h2>按日排查</h2>
+
+<h3>5/24 — 架构审计有，测试对话全漏</h3>
+<div class="box">
+  <p><span class="ok">✅ 记录了</span>: 微信agent凌晨自动审计四层架构(22条, 00:09-02:19)</p>
+  <p><span class="bad">❌ 漏了</span>: 全部测试对话——A/B测试/子进程调度/模型切换/百万元测试</p>
+  <p style="color:var(--mut)">60条微信消息中约40条关于测试的, 一条记忆都没有</p>
+</div>
+
+<h3>5/25 — 6条全被微信agent当self-recorded</h3>
+<div class="box">
+  <p><span class="ok">✅ 记录了</span>: 个人外脑愿景/Git同步方案/脑力训练(6条, 01:50-16:05)</p>
+  <p><span class="bad">❌ 漏了</span>: 模型部署方案/hardware配置讨论/DevOps CICD规划</p>
+  <p style="color:var(--mut)">300条消息只有6条记忆。只有用户明确说"记下来"的时候才记录</p>
+</div>
+
+<h3>5/26 — 零自动记录, 全靠我手动补</h3>
+<div class="box">
+  <p><span class="bad">❌ 自动记录: 0条</span></p>
+  <p>全部30条都是我下午16:44开始手动补录的, recording timestamp挤在16:44-17:15半小时窗口</p>
+  <p><span class="bad">❌ 漏了</span>: 上午硬件咨询/Mac对比/GPU讨论/模型部署/DevOps CICD</p>
+  <p><span class="bad">❌ 漏了</span>: 下午bridge断连之前的全部对话</p>
+  <p style="color:var(--mut)">最严重的一天。230条消息, 自动记忆=0</p>
+</div>
+
+<div class="root">
+  <h3>根因</h3>
+  <p>Extractor(自动提取)没做。当前记忆完全靠用户手动说"记录下来"或agent偶尔自我反思。</p>
+  <p>P1-2 就是修这个——每个turn后自动分析对话、提取决策/教训/模式、写入RAW。</p>
+  <p>在没有自动提取之前,记忆覆盖率取决于用户说"记下来"的频率。5/26上午聊了两三个小时, 一次都没说, 一条记忆都没产生。</p>
+</div>
+
+<h2>时间线错乱</h2>
+<div class="box">
+  <p><strong>不是时间线错</strong>——所有记忆的recording timestamp是正确的。</p>
+  <p>问题是手动补录的30条全部挤在16:44-17:15这个窗口, 而它们记录的事件跨越了26号全天。</p>
+  <p>记忆系统缺"事件时间"vs"记录时间"的区分, 导致检索"26号上午"时无法定位到补录的记忆。</p>
+</div>
+
+</body></html>

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>记忆系统全量审计 · 24-26号真实时间线</title>
+<style>
+  :root{--bg:#0d1117;--fg:#c9d1d9;--border:#30363d;--acc:#58a6ff;--grn:#3fb950;--red:#f85149;--ora:#d2991d;--mut:#8b949e;--code:#161b22;--h1:#f0f6fc}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--fg);line-height:1.7;max-width:850px;margin:0 auto;padding:2rem 1.5rem}
+  h1{color:var(--h1);font-size:1.4rem;text-align:center;margin-bottom:1.5rem}
+  h2{color:var(--h1);font-size:1.1rem;margin:2rem 0 .75rem;border-bottom:1px solid var(--border);padding-bottom:.3rem}
+  h3{color:var(--h1);font-size:1rem;margin:1.2rem 0 .5rem}
+  .meta{color:var(--mut);font-size:.85rem;text-align:center;margin-bottom:2rem}
+  table{width:100%;border-collapse:collapse;margin:.8rem 0;font-size:.83rem}
+  th,td{border:1px solid var(--border);padding:.35rem .6rem;text-align:left}
+  th{background:var(--code);color:var(--h1)}
+  .ok{color:var(--grn)} .bad{color:var(--red)} .warn{color:var(--ora)}
+  .box{background:var(--code);border-radius:8px;padding:1rem;margin:.8rem 0}
+  .day{background:var(--code);border-left:3px solid var(--acc);border-radius:0 8px 8px 0;padding:.8rem 1rem;margin:.6rem 0}
+  .day h4{margin:0;color:var(--acc)}
+  .fix{background:linear-gradient(135deg,#122d1a 0%,#1a1a3a 100%);border:1px solid var(--grn);border-radius:12px;padding:1.3rem;margin:1.2rem 0}
+  .fix h3{color:var(--grn);margin-top:0}
+</style></head>
+<body>
+
+<h1>🔍 记忆系统全量审计 · 24-26号</h1>
+<p class="meta">基于bridge日志592条+58条记忆 · 2026-05-27 凌晨</p>
+
+<h2>真实时间线（bridge log 还原）</h2>
+
+<div class="day">
+  <h4>5/24 15:26 — 5/25 凌晨</h4>
+  <p>bridge首次启动 → 模型切换(deepseek-v4-flash) → 项目进度讨论 → 自动化测试方案 → A/B测试设计 → 子进程调度 → "睡觉了明天上班"(16:05) → 凌晨仍在线(00:03仍发/model list)</p>
+  <p style="color:var(--mut)">记忆: 22条(凌晨00:09-02:19微信agent自动审计四层架构)</p>
+  <p><span class="bad">漏了</span>: 全部测试对话(60+条消息, 一条自动记忆都没有)</p>
+</div>
+
+<div class="day">
+  <h4>5/25 凌晨 — 5/25 下午</h4>
+  <p>"今天就是早上12:31之前..." → 本地数据训练讨论 → AI记忆系统痛点 → "今天我的思考" → 脑力训练游戏 → disk-demo回顾 → 个人外脑愿景 → Web AI + Git同步 → 浏览器插件 → 数据监控方案 → "睡觉了明天上班"</p>
+  <p style="color:var(--mut)">记忆: 6条(01:50-16:05, 微信agent自记录: 个人外脑/Git同步/脑力训练)</p>
+  <p><span class="bad">漏了</span>: 本地数据训练讨论、AI痛点分析、浏览器插件细节、数据监控方案</p>
+</div>
+
+<div class="day">
+  <h4>5/26 早晨 — 5/26 下午 15:40</h4>
+  <p>"昨晚说的浏览器插件" → Mac/GPU硬件讨论 → 27B/7B模型 → VICTUS/拯救者Y9000 → DevOps CICD → 模型部署方案 → bridge开始异常(15:40+/model list失败) → bridge断连(15:57无回复) → "？""人呢？"(16:19)</p>
+  <p style="color:var(--mut)">记忆: <span class="bad">0条自动记录</span>。全部30条下午16:44手动补录</p>
+  <p><span class="bad">漏了</span>: 上午全部硬件对话、CICD讨论、bridge断连原因分析</p>
+</div>
+
+<div class="day">
+  <h4>5/26 傍晚 — 5/27 凌晨</h4>
+  <p>bridge修复(清session) → 模型切换(NVIDIA) → 记忆同步调试 → MCP工具调试 → "昨天聊了什么"记忆召回测试</p>
+  <p style="color:var(--mut)">记忆: 手动补录30条(16:44-17:15全挤在半小时窗口)</p>
+</div>
+
+<h2>数据对比</h2>
+<table>
+  <tr><th>日期</th><th>bridge消息</th><th>记忆总数</th><th>自动</th><th>手动</th><th>覆盖</th></tr>
+  <tr><td>5/24</td><td>~100</td><td>22</td><td>22</td><td>0</td><td><span class="warn">架构有 测试全漏</span></td></tr>
+  <tr><td>5/25</td><td>~260</td><td>6</td><td>6</td><td>0</td><td><span class="bad">严重不足</span></td></tr>
+  <tr><td>5/26</td><td>~230</td><td>30</td><td><span class="bad">0</span></td><td>30</td><td><span class="bad">全部手动</span></td></tr>
+  <tr><td><strong>合计</strong></td><td><strong>592</strong></td><td><strong>58</strong></td><td><strong>28</strong></td><td><strong>30</strong></td><td><span class="bad">~10%</span></td></tr>
+</table>
+
+<h2>根因分析</h2>
+<table>
+  <tr><th>问题</th><th>根因</th><th>影响</th></tr>
+  <tr><td>自动提取=0</td><td>Extractor未实现(P1-2)</td><td>592条消息仅28条自动记忆</td></tr>
+  <tr><td>记忆依赖手动触发</td><td>只有用户说"记下来"才记录</td><td>5/25 260条消息仅6条记忆</td></tr>
+  <tr><td>时间线无法追溯</td><td>Memory缺happened_at字段</td><td>手动补录全部挤在同一时刻</td></tr>
+  <tr><td>日志无日期</td><td>bridge log仅HH:MM:SS</td><td>无法精确还原消息日期</td></tr>
+  <tr><td>AGENTS.md无强制力</td><td>agent可忽略before_turn指令</td><td>微信agent每次回复不查记忆</td></tr>
+</table>
+
+<div class="fix">
+  <h3>改善方案</h3>
+  <table>
+    <tr><td><strong>P1-2</strong></td><td>实现Extractor:每个turn后自动提取决策/教训→写入RAW。触发条件:对话含明确决策/发现/纠正</td><td>🟡 设计完成</td></tr>
+    <tr><td><strong>Memory字段</strong></td><td>加happened_at字段(事件时间),与created_at(记录时间)分离</td><td>🟡 设计完成</td></tr>
+    <tr><td><strong>Bridge日志</strong></td><td>时间戳加日期前缀:[2026-05-26 15:30:57]替代[15:30:57]</td><td>🔴 未开始</td></tr>
+    <tr><td><strong>agent集成</strong></td><td>before_turn嵌入agent runtime(不是MCP工具),自动执行不依赖AGENTS.md</td><td>🟡 设计完成</td></tr>
+  </table>
+</div>
+
+</body></html>

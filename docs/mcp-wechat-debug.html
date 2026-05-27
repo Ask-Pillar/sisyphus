@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WeChat Bridge → Sisyphus MCP 接入调试全记录</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --fg: #c9d1d9;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --red: #f85149;
+    --orange: #d2991d;
+    --muted: #8b949e;
+    --code-bg: #161b22;
+    --h1-color: #f0f6fc;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--fg); line-height: 1.6;
+    max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem;
+  }
+  h1 { color: var(--h1-color); font-size: 1.8rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 0.5rem; }
+  h2 { color: var(--h1-color); font-size: 1.3rem; margin-top: 2rem; margin-bottom: 0.75rem; }
+  h3 { color: var(--h1-color); font-size: 1.1rem; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+  p { margin: 0.6rem 0; }
+  .meta { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+  .meta a { color: var(--accent); }
+  .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600; margin-right: 0.3rem; }
+  .badge-ok { background: #1a3a1a; color: var(--green); }
+  .badge-warn { background: #3a2a0a; color: var(--orange); }
+  .badge-err { background: #3a0a0a; color: var(--red); }
+  code { font-family: "SF Mono", "Fira Code", monospace; font-size: 0.85rem; background: var(--code-bg); padding: 0.15rem 0.35rem; border-radius: 4px; }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 1rem; overflow-x: auto; margin: 0.75rem 0; }
+  pre code { background: none; padding: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+  th, td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; }
+  th { background: var(--code-bg); color: var(--h1-color); }
+  .emoji { margin-right: 0.3rem; }
+  .summary-box {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 1rem 1.25rem; margin: 1rem 0;
+  }
+  .summary-box .item { display: flex; align-items: flex-start; gap: 0.5rem; margin: 0.4rem 0; }
+  .step { counter-reset: step; }
+  .step li { list-style: none; margin: 0.75rem 0; padding-left: 2rem; position: relative; }
+  .step li::before {
+    counter-increment: step; content: counter(step);
+    position: absolute; left: 0; top: 0;
+    width: 1.5rem; height: 1.5rem; line-height: 1.5rem;
+    background: var(--accent); color: #fff; border-radius: 50%;
+    text-align: center; font-size: 0.8rem; font-weight: 700;
+  }
+  .footnote { color: var(--muted); font-size: 0.85rem; border-top: 1px solid var(--border); padding-top: 1.5rem; margin-top: 2rem; }
+</style>
+</head>
+<body>
+
+<h1>🔍 WeChat Bridge → Sisyphus MCP 接入调试全记录</h1>
+
+<p class="meta">
+  日期: 2026-05-23 ~ 2026-05-24 ·
+  状态: <span class="badge badge-warn">部分完成</span> ·
+  相关: <a href="..">sisyphus</a> · <a href="#">wechat-bridge-opencode v0.3.2</a>
+</p>
+
+<h2>背景</h2>
+<p>
+  Sisyphus 记忆系统通过 MCP Server（<code>sisyphus.server.mcp</code>）对外提供
+  <strong>9 个工具</strong>（write_memory / search_memory / get_context / memory_stats /
+  get_memory / list_memories / delete_memory / run_pipeline / import_memories）。
+  期望微信端用户通过 <strong>WeChat Bridge → opencode ACP agent → MCP Server</strong> 调用这些工具。
+</p>
+<p>用户反馈：微信那边接入 MCP 有问题。</p>
+
+<h2>调试链路</h2>
+
+<ol class="step">
+  <li>
+    <h3>MCP Server 启动失败 <span class="badge badge-err">根因 #1</span></h3>
+    <p><strong>现象</strong>：bridge 日志报 schema 校验错误</p>
+    <pre><code>Expected { readonly "type": "local", ... }, got {"command":"python3"...}
+Missing key mcp.sisyphus.enabled</code></pre>
+    <p><strong>根因</strong>：<code>sisyphus/src/sisyphus/server/mcp.py</code> 78-93 行存在 P5 重构遗留的合并冲突残骸——<code>_handle_context</code> 和 <code>_handle_stats</code> 各重复定义，中间夹了三行孤儿代码（<code>for m, s in results / ] / }</code>），导致 Python <code>IndentationError</code>。</p>
+    <pre><code># 72-76:  _handle_context v1 ✅
+# 79-90:  _handle_stats v1   (只统计 all_mems)
+# 91-93:  孤儿代码 ← IndentationError!
+# 96-100: _handle_context v2 (重复)
+# 103-114:_handle_stats v2   (含 refined_mems, 更好)</code></pre>
+    <p><strong>修复</strong>：删除重复 handler + 孤儿代码，24 行删除，<strong>292 tests 全通过</strong>。</p>
+    <p><code>git: sisyphus 0e3439b</code></p>
+  </li>
+
+  <li>
+    <h3>Bridge 固定传空 mcpServers <span class="badge badge-err">根因 #2</span></h3>
+    <p><strong>现象</strong>：MCP Server 修好后，agent 仍然只用 bash。日志中 <code>[available_commands_update]</code> 只有 16 个内置命令，没有 <code>mcp__sisyphus__*</code> 工具。</p>
+
+    <table>
+      <tr><th></th><th>Sisyphus 主 session</th><th>WeChat agent (ACP)</th></tr>
+      <tr><td>skill_mcp</td><td>✅ (仅 playwright)</td><td>✅</td></tr>
+      <tr><td>mcp__sisyphus__*</td><td>❌</td><td>❌</td></tr>
+    </table>
+
+    <p><strong>根因</strong>：Bridge v0.3.2 源码中 8 处全部硬编码 <code>mcpServers: []</code>：</p>
+    <pre><code>dist/src/acp/session.js:        5 处 mcpServers: []
+dist/src/acp/agent-manager.js:  3 处 mcpServers: []</code></pre>
+    <p>Bridge 从不读取 opencode 配置文件，因此 ACP agent 收不到任何 MCP Server 信息。</p>
+
+    <p><strong>修复</strong>：在两个文件中增加 <code>getMcpServers(cwd)</code> 函数，依次检查：</p>
+    <ol>
+      <li><code>{cwd}/.opencode/opencode.json</code></li>
+      <li><code>{cwd}/.opencode/opencode.jsonc</code></li>
+      <li><code>~/.config/opencode/opencode.json</code></li>
+    </ol>
+    <p>同时在 <code>disk-demo/</code> 下创建项目级 MCP 配置。</p>
+    <p><code>git: disk-demo ff9e8aa</code></p>
+
+    <p><strong>验证</strong>：debug log 确认配置加载成功 ✅</p>
+    <pre><code>LOADED 1 servers: [{"name":"sisyphus","command":"python3",
+  "args":["-m","sisyphus.server.mcp"],
+  "env":[{"name":"PYTHONPATH","value":".../sisyphus/src"}]}]</code></pre>
+  </li>
+
+  <li>
+    <h3>ACP Agent 不显示 MCP 工具 <span class="badge badge-warn">⚠ 未解决</span></h3>
+    <p>MCP Server 配置已成功传给 ACP agent，但工具仍然不显示。Agent 的 thought log：</p>
+    <pre><code>I'm wondering if there's a way to just show the result
+without running a new subprocess each time.
+
+I should also try using the Playwright MCP...
+no, that's unrelated.
+Let me just do it quickly. [tool] bash (pending)</code></pre>
+
+    <p><strong>推测根因 #3</strong> — <code>sdk.mcp.add</code> 静默失败</p>
+    <p>opencode 源码 <code>packages/opencode/src/acp/agent.ts</code> 1147-1185 行：</p>
+    <pre><code>await this.sdk.mcp.add(
+  { directory, name: key, config: mcp },
+  { throwOnError: true },
+).catch((error) => {
+  log.error("failed to add mcp server", { name: key, error })
+})</code></pre>
+    <p>可能原因：</p>
+    <ul>
+      <li><strong>ACP session 复用</strong>：每次 resume <code>ses_1c24fc596ffe962zwQMnxEOxIR</code>，旧 session 可能缓存了"无 MCP"状态</li>
+      <li><strong>stdio 启动失败</strong>：MCP Server 子进程 spawn 失败但错误被吞</li>
+      <li><strong>ACP 协议版本</strong>：<code>sdk.mcp.add</code> 端点可能不被当前协议版本支持</li>
+      <li><strong>权限/沙箱</strong>：ACP 进程无法访问 disk-demo 目录</li>
+    </ul>
+  </li>
+</ol>
+
+<h2>当前状态</h2>
+
+<div class="summary-box">
+  <div class="item">✅ <strong>mcp.py 语法</strong> — 已修复，292 tests 通过</div>
+  <div class="item">✅ <strong>MCP Server 功能</strong> — 直接调用正常（90 raw / 1 refined）</div>
+  <div class="item">✅ <strong>Bridge 配置读取</strong> — 已打补丁，能加载 MCP 配置</div>
+  <div class="item">✅ <strong>WeChat 通道</strong> — 消息收发正常</div>
+  <div class="item">✅ <strong>Agent bash 调用</strong> — 能通过 bash + Python 访问 sisyphus</div>
+  <div class="item">❌ <strong>Agent MCP 工具显示</strong> — 未出现（下一步攻关）</div>
+</div>
+
+<h2>涉及的补丁文件</h2>
+
+<h3>已提交</h3>
+<table>
+  <tr><th>仓库</th><th>文件</th><th>变更</th></tr>
+  <tr>
+    <td>sisyphus</td>
+    <td><code>src/sisyphus/server/mcp.py</code></td>
+    <td>删除重复 handler + 孤儿代码</td>
+  </tr>
+  <tr>
+    <td>disk-demo</td>
+    <td><code>.opencode/opencode.json</code><br><code>.opencode/opencode.jsonc</code></td>
+    <td>新增项目级 MCP 配置</td>
+  </tr>
+</table>
+
+<h3>本地补丁（未提交）</h3>
+<table>
+  <tr><th>包</th><th>文件</th><th>变更</th></tr>
+  <tr>
+    <td rowspan="2">wechat-bridge-opencode</td>
+    <td><code>dist/src/acp/session.js</code></td>
+    <td>新增 <code>getMcpServers()</code> + 5 处替换 <code>mcpServers: getMcpServers(cwd)</code></td>
+  </tr>
+  <tr>
+    <td><code>dist/src/acp/agent-manager.js</code></td>
+    <td>新增 <code>getMcpServers()</code> + 3 处替换 <code>mcpServers: getMcpServers(cwd)</code></td>
+  </tr>
+</table>
+
+<h2>下一步</h2>
+<ol>
+  <li>查 opencode ACP agent 的 <code>sdk.mcp.add</code> 实现（<code>packages/opencode/src/acp/agent.ts</code>）</li>
+  <li>尝试新建 session 而非复用旧 session</li>
+  <li>检查 stdout/stderr 中是否有 <code>"failed to add mcp server"</code> 错误</li>
+  <li>考虑直接升级 wechat-bridge-opencode 版本（当前 0.3.2）</li>
+</ol>
+
+<div class="footnote">
+  <p>Generated by Sisyphus — 2026-05-24</p>
+</div>
+
+</body>
+</html>

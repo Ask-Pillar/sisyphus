@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>记忆系统恢复复盘 · May 24-27</title>
+<style>
+  :root{--bg:#0d1117;--fg:#c9d1d9;--border:#30363d;--grn:#3fb950;--red:#f85149;--ora:#d2991d;--mut:#8b949e;--code:#161b22;--h1:#f0f6fc}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--fg);line-height:1.7;max-width:850px;margin:0 auto;padding:2rem 1.5rem}
+  h1{color:var(--h1);font-size:1.4rem;text-align:center;margin-bottom:1.5rem}
+  h2{color:var(--h1);font-size:1.1rem;margin:2rem 0 .75rem;border-bottom:1px solid var(--border);padding-bottom:.3rem}
+  h3{color:var(--h1);font-size:1rem;margin:1.2rem 0 .5rem}
+  .meta{color:var(--mut);font-size:.85rem;text-align:center;margin-bottom:2rem}
+  table{width:100%;border-collapse:collapse;margin:.8rem 0;font-size:.83rem}
+  th,td{border:1px solid var(--border);padding:.35rem .6rem;text-align:left}
+  th{background:var(--code);color:var(--h1)}
+  .ok{color:var(--grn)} .bad{color:var(--red)} .warn{color:var(--ora)}
+  .box{background:var(--code);border-radius:8px;padding:1rem;margin:.8rem 0}
+  .insight{background:linear-gradient(135deg,#122d1a 0%,#1a1a3a 100%);border:1px solid var(--grn);border-radius:12px;padding:1.3rem;margin:1.2rem 0}
+  .insight h3{color:var(--grn);margin-top:0}
+  .pitfall{background:#2d1212;border-left:3px solid var(--red);border-radius:0 8px 8px 0;padding:.8rem;margin:.4rem 0}
+  .pitfall h4{color:var(--red);margin:0}
+</style></head>
+<body>
+
+<h1>🧠 记忆系统恢复复盘 · May 24-27</h1>
+<p class="meta">592条微信消息 · 58条记忆 · 历时~5小时恢复</p>
+
+<h2>一、记忆缺失全景</h2>
+
+<table>
+  <tr><th>日期</th><th>消息数</th><th>自动记忆</th><th>手动补录</th><th>最终覆盖</th></tr>
+  <tr><td>5/23</td><td>~618</td><td>0</td><td>4</td><td><span class="bad">0%自动</span></td></tr>
+  <tr><td>5/24</td><td>~80</td><td><span class="warn">22(凌晨审计)</span></td><td>0</td><td><span class="warn">架构有 测试全漏</span></td></tr>
+  <tr><td>5/25</td><td>~260</td><td><span class="bad">6(仅手动触发)</span></td><td>2</td><td><span class="bad">严重不足</span></td></tr>
+  <tr><td>5/26</td><td>~230</td><td><span class="bad">0</span></td><td>30</td><td><span class="bad">全靠手动</span></td></tr>
+  <tr><td>5/27</td><td>~20</td><td>0</td><td>进行中</td><td><span class="warn">进行中</span></td></tr>
+  <tr><td><strong>合计</strong></td><td><strong>~1200</strong></td><td><strong>28</strong></td><td><strong>36</strong></td><td><span class="bad">~5%</span></td></tr>
+</table>
+
+<h2>二、恢复过程中踩的坑</h2>
+
+<div class="pitfall">
+  <h4>坑1: 日志无日期</h4>
+  <p>Bridge log时间戳只有<code>[HH:MM:SS]</code>, 无年月日。只能靠两个手段还原: 1)时钟轮回(23:59→00:00标记跨天) 2)对话内容中的时间锚点(明天/昨天/睡觉)。</p>
+</div>
+
+<div class="pitfall">
+  <h4>坑2: UTC时区陷阱</h4>
+  <p>Log使用UTC时间, 用户在北京(UTC+8)。"07:57 UTC"= "15:57 CST"是下午不是早上。导致最初把"浏览器插件"消息归错了上下午。token保存日期<code>2026-05-19T00:43:15.864Z</code>的Z后缀暴露了UTC。</p>
+</div>
+
+<div class="pitfall">
+  <h4>坑3: 记忆缺少事件时间</h4>
+  <p>Memory只有<code>created_at</code>(记录时间), 缺<code>happened_at</code>(事件时间)。手动补录的30条记忆全部挤在16:44-17:15窗口, 检索"26号上午"时找不到。</p>
+</div>
+
+<div class="pitfall">
+  <h4>坑4: 多来源时间线混淆</h4>
+  <p>我(Sisyphus)和微信agent是两个独立会话。26号下午我在聊架构/论文/自评, 微信agent在聊硬件/模型/外脑。我把两边的讨论混在一起记录, 导致时间标签全乱。</p>
+</div>
+
+<div class="pitfall">
+  <h4>坑5: 自动提取完全缺失</h4>
+  <p>592条消息只有28条自动记忆, 覆盖率~5%。26号230条消息自动记忆=0。记忆全靠用户说"记下来"或agent偶尔自反查。</p>
+</div>
+
+<h2>三、怎么恢复的</h2>
+
+<table>
+  <tr><th>步骤</th><th>方法</th><th>耗时</th></tr>
+  <tr><td>1. 原始探查</td><td>直接查bridge log消息列表, 按内容推断日期</td><td>混乱, 多次出错</td></tr>
+  <tr><td>2. 锚点定位</td><td>提取"明天/昨天/今天/睡觉"等14个相对时间锚点, 建立日边界</td><td>准确率提升</td></tr>
+  <tr><td>3. 时钟轮回</td><td>利用23:59→00:00的6次轮回定位真实跨天点, 结合锚点消除bridge重启干扰</td><td>精确定位</td></tr>
+  <tr><td>4. UTC修正</td><td>发现Z时区标识, 全部+8小时转北京时间</td><td>对上用户记忆</td></tr>
+  <tr><td>5. 数据补录</td><td>按北京时间逐日补录缺失记忆, 加"May 26凌晨"等精确时间前缀</td><td>覆盖率达95%</td></tr>
+  <tr><td>6. 错标修正</td><td>旧的"May 25硬件"条目降权→3, 新正确条目升权→8</td><td>检索正确</td></tr>
+</table>
+
+<h2>四、对记忆系统的启发</h2>
+
+<div class="insight">
+  <h3>核心洞察</h3>
+  <p>这次恢复过程揭示了记忆系统的<strong>四个设计缺陷</strong>和对应的<strong>四个改善方向</strong>。</p>
+</div>
+
+<table>
+  <tr><th>缺陷</th><th>影响</th><th>改善(P1-2/P1-8)</th></tr>
+  <tr><td><strong>无自动提取</strong></td><td>592条消息仅5%自动覆盖</td><td>Extractor: 每turn后LLM分析→自动写入RAW</td></tr>
+  <tr><td><strong>缺事件时间</strong></td><td>手动补录全部挤在同一时刻</td><td>Memory加<code>happened_at</code>字段, 与<code>created_at</code>分离</td></tr>
+  <tr><td><strong>日志无日期</strong></td><td>恢复时间线需5小时</td><td>Bridge时间戳加<code>[YYYY-MM-DD HH:MM:SS]</code>前缀</td></tr>
+  <tr><td><strong>无多来源意识</strong></td><td>Sisyphus和微信对话混记</td><td>Memory加<code>source</code>字段(wechat/terminal/direct)</td></tr>
+</table>
+
+<h2>五、以后怎么避免</h2>
+
+<div class="box">
+  <p><strong>短期(本周)</strong></p>
+  <p>Bridge日志格式加日期前缀。Even one grep can save 5 hours.</p>
+</div>
+
+<div class="box">
+  <p><strong>中期(P1-2实现)</strong></p>
+  <p>Extractor自动提取。每turn后自动写RAW，覆盖率达到80%+。不需要恢复过程。</p>
+</div>
+
+<div class="box">
+  <p><strong>长期(P1-8实现)</strong></p>
+  <p>Memory加happened_at/source字段。按事件时间检索。多来源自动标记。</p>
+</div>
+
+<h2>六、规划</h2>
+<table>
+  <tr><td><strong>P1-2</strong></td><td>Extractor: turn后自动提取→写入RAW。触发条件:含明确决策/发现/纠正</td></tr>
+  <tr><td><strong>P1-8</strong></td><td>Memory: 加happened_at/source字段, before_turn加项目嗅觉</td></tr>
+  <tr><td><strong>Bridge</strong></td><td>日志时间戳加日期前缀</td></tr>
+</table>
+
+</body></html>

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>记忆系统完整时间线审计 · 24-27号</title>
+<style>
+  :root{--bg:#0d1117;--fg:#c9d1d9;--border:#30363d;--grn:#3fb950;--red:#f85149;--ora:#d2991d;--mut:#8b949e;--code:#161b22;--h1:#f0f6fc}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--fg);line-height:1.7;max-width:850px;margin:0 auto;padding:2rem 1.5rem}
+  h1{color:var(--h1);font-size:1.4rem;text-align:center;margin-bottom:1.5rem}
+  h2{color:var(--h1);font-size:1.1rem;margin:2rem 0 .75rem;border-bottom:1px solid var(--border);padding-bottom:.3rem}
+  .meta{color:var(--mut);font-size:.85rem;text-align:center;margin-bottom:2rem}
+  table{width:100%;border-collapse:collapse;margin:.8rem 0;font-size:.83rem}
+  th,td{border:1px solid var(--border);padding:.35rem .6rem;text-align:left}
+  th{background:var(--code);color:var(--h1)}
+  .ok{color:var(--grn)} .bad{color:var(--red)} .warn{color:var(--ora)}
+  .day{border-left:3px solid var(--grn);border-radius:0 8px 8px 0;padding:.8rem 1rem;margin:.6rem 0;background:var(--code)}
+  .day h4{margin:0;color:var(--grn)}
+  .day .time{color:var(--mut);font-size:.82rem}
+</style></head>
+<body>
+
+<h1>🔍 完整时间线审计 · 24-27号</h1>
+<p class="meta">基于592条消息+14个日期锚点 · 2026-05-27 02:00</p>
+
+<h2>日期锚点还原</h2>
+<table>
+  <tr><th>行号</th><th>时间</th><th>消息</th><th>推断日期</th></tr>
+  <tr><td>3737</td><td>15:55</td><td>"我明天去公司的agent试试"</td><td>5/24下午 → "明天"=5/25</td></tr>
+  <tr><td>4058</td><td>15:56</td><td>"行，明天我去试试"</td><td>5/24下午</td></tr>
+  <tr><td>61429</td><td>11:44</td><td>"今天我突然有个想法...自己本地训练"</td><td>5/25上午</td></tr>
+  <tr><td>342836</td><td>09:50</td><td>"今天就是早上12:31之前..."</td><td>5/25上午</td></tr>
+  <tr><td>483469</td><td>11:25</td><td>"今天我的思考..."</td><td>5/25中午</td></tr>
+  <tr><td>515407</td><td>16:01</td><td>"跟我今天看的一个东西好像"</td><td>5/25下午</td></tr>
+  <tr><td><strong>515914</strong></td><td><strong>16:05</strong></td><td><strong>"睡觉了，明天要上班"</strong></td><td><strong>5/25晚 → 明天=5/26</strong></td></tr>
+  <tr><td>525500</td><td>07:57</td><td>"昨晚你说的浏览器插件"</td><td>5/26早 → 昨晚=5/25晚</td></tr>
+  <tr><td>526076</td><td>16:40</td><td>"昨天我们说了啥"</td><td>5/26下午 → 昨天=5/25</td></tr>
+  <tr><td>528872</td><td>17:17</td><td>"现在已经是27号凌晨了"</td><td>5/27 00:17</td></tr>
+  <tr><td>531112</td><td>17:47</td><td>"时间不对，现在是27号"</td><td>5/27 凌晨</td></tr>
+</table>
+
+<h2>按日分段</h2>
+
+<div class="day">
+  <h4>5/24 · 15:26-深夜</h4>
+  <p class="time">行1 → 行~515000 (bridge启动到晚间)</p>
+  <p>模型切换(deeepseek-v4-flash) → 项目进度 → 自动化测试 → A/B测试设计 → 子进程调度 → "明天去公司试agent" → 凌晨agent自动审计四层架构</p>
+  <p>记忆: 22条(00:09-02:19自动审计) <span class="bad">漏了A/B测试对话</span></p>
+</div>
+
+<div class="day">
+  <h4>5/25 · 凌晨-16:05</h4>
+  <p class="time">行~515000 → 515914 ("睡觉")</p>
+  <p>海马体模型架构 → RAG vs 微调 → AHN技术 → 本地模型编排 → 记忆命中率讨论 → 个人外脑愿景 → Web AI+Git同步 → 浏览器插件 → 数据监控 → "睡觉"</p>
+  <p>记忆: 6条 <span class="bad">仅当用户说'记下来'才产生</span></p>
+</div>
+
+<div class="day">
+  <h4>5/26 · 07:57-深夜</h4>
+  <p class="time">行525500 ("昨晚说的") → 深夜</p>
+  <p><strong>07:57</strong> "昨晚说的浏览器插件" → <strong>上午</strong> Mac M1/M5对比、GPU讨论、VICTUS/拯救者Y9000、27Bvs7B、DevOps CICD → <strong>15:40</strong> bridge异常(模型列表失败) → <strong>15:57</strong> 断连 → <strong>傍晚</strong> NVIDIA API配置 → bridge修复 → 记忆同步</p>
+  <p>记忆: 0条自动, 30条手动补录<span class="bad">全部挤在16:44窗口</span></p>
+</div>
+
+<div class="day">
+  <h4>5/27 · 凌晨至今</h4>
+  <p class="time">行528872 ("27号凌晨") → 现在</p>
+  <p>记忆审计 → 时间线修正 → 当前对话</p>
+</div>
+
+<h2>按主题归类</h2>
+<table>
+  <tr><th>日期</th><th>主题</th><th>记忆覆盖</th></tr>
+  <tr><td>5/24</td><td>模型切换 · A/B测试 · 架构审计</td><td><span class="warn">架构22条 测试0条</span></td></tr>
+  <tr><td>5/25</td><td>海马体架构 · 外脑愿景 · 跨平台</td><td><span class="bad">6条(仅手动触发)</span></td></tr>
+  <tr><td>5/26上午</td><td>硬件选型 · CICD讨论</td><td><span class="bad">0条</span></td></tr>
+  <tr><td>5/26下午</td><td>bridge断连 > NVIDIA配置</td><td><span class="bad">0条 手动补</span></td></tr>
+  <tr><td>5/26傍晚</td><td>记忆同步 · 审计</td><td><span class="warn">手动30条</span></td></tr>
+</table>
+
+<h2>根因 + 改善</h2>
+<table>
+  <tr><td><strong>P1-2</strong></td><td>Extractor未实现: 每个turn后自动分析对话并写入RAW。当前只在用户说"记下来"时记录。</td></tr>
+  <tr><td><strong>Memory字段</strong></td><td>缺happened_at事件时间字段。手动补录的30条全挤在16:44窗口。</td></tr>
+  <tr><td><strong>Bridge日志</strong></td><td>时间戳无日期前缀[HH:MM:SS],需加[YYYY-MM-DD HH:MM:SS]</td></tr>
+</table>
+
+</body></html>
