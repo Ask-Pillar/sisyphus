@@ -1,6 +1,7 @@
 """Dream engine — LLM-driven reflection and insight generation via subagent."""
 
 import logging
+from datetime import datetime, timezone, timedelta
 from typing import List
 
 from sisyphus.memory.store import MemoryStore, Memory
@@ -50,7 +51,27 @@ class DreamEngine:
         return created
 
     def _gather_memories(self) -> List[Memory]:
-        return self.store.list()
+        all_mems = self.store.list()
+        last_dream_ts = self._last_dream_time()
+        valid = []
+        for m in all_mems:
+            if "test" in m.tags:
+                continue
+            if m.refined_by and len(m.refined_by) > 0:
+                continue
+            if m.created_at and last_dream_ts:
+                created = datetime.fromisoformat(m.created_at)
+                if created <= last_dream_ts:
+                    continue
+            valid.append(m)
+        return valid
+
+    def _last_dream_time(self):
+        refined = self.refined.list_refined()
+        if not refined:
+            return None
+        latest = max(refined, key=lambda r: r.created_at or "")
+        return datetime.fromisoformat(latest.created_at) if latest.created_at else None
 
     def _update_refined_by(self, ref_id: str, evidence_ids: List[str]):
         for mem_id in evidence_ids:

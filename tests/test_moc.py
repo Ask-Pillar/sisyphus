@@ -24,12 +24,12 @@ def generator(store):
 class TestMocGeneration:
     def test_generate_creates_index(self, generator):
         generator.generate()
-        index_file = generator.store.base_path / "INDEX.md"
+        index_file = generator.store.base_path / "MOC.md"
         assert index_file.exists()
 
     def test_empty_store_index_has_header(self, generator):
         generator.generate()
-        index = (generator.store.base_path / "INDEX.md").read_text()
+        index = (generator.store.base_path / "MOC.md").read_text()
         assert index.startswith("# Sisyphus Memory Index")
 
     def test_index_groups_by_type(self, generator):
@@ -37,14 +37,14 @@ class TestMocGeneration:
         generator.store.create(title="B", type="decision", content="C2")
         generator.store.create(title="C", type="lesson", content="C3")
         generator.generate()
-        index = (generator.store.base_path / "INDEX.md").read_text()
+        index = (generator.store.base_path / "MOC.md").read_text()
         assert "## lesson" in index
         assert "## decision" in index
 
     def test_index_uses_wikilinks(self, generator):
         mem = generator.store.create(title="My title", type="pattern", content="Content.")
         generator.generate()
-        index = (generator.store.base_path / "INDEX.md").read_text()
+        index = (generator.store.base_path / "MOC.md").read_text()
         assert f"[[{mem.id}|My title]]" in index
 
     def test_refined_memories_included(self, generator):
@@ -52,7 +52,7 @@ class TestMocGeneration:
         refined.create_reflection(title="Reflection 1", content="Reflected.")
         refined.create_summary(title="Summary 1", content="Summarized.")
         generator.generate()
-        index = (generator.store.base_path / "INDEX.md").read_text()
+        index = (generator.store.base_path / "MOC.md").read_text()
         assert "## reflection" in index
         assert "## summary" in index
 
@@ -60,13 +60,13 @@ class TestMocGeneration:
         m1 = generator.store.create(title="Lesson A", type="lesson", content="C1")
         m2 = generator.store.create(title="Lesson B", type="lesson", content="C2")
         generator.generate()
-        index = (generator.store.base_path / "INDEX.md").read_text()
+        index = (generator.store.base_path / "MOC.md").read_text()
         assert f"[[{m1.id}|Lesson A]]" in index
         assert f"[[{m2.id}|Lesson B]]" in index
 
     def test_empty_type_not_in_index(self, generator):
         generator.generate()
-        index = (generator.store.base_path / "INDEX.md").read_text()
+        index = (generator.store.base_path / "MOC.md").read_text()
         assert index.count("\n## ") == 0
 
     def test_generate_dimension_creates_moc_file(self, generator):
