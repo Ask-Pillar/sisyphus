@@ -40,6 +40,11 @@ def _days_since(timestamp_iso: str, now: datetime) -> float:
         return 0.0
 
 
+def _now_cutoff_7d() -> str:
+    cutoff = datetime.now(timezone.utc).replace(microsecond=0) - __import__('datetime').timedelta(days=7)
+    return cutoff.isoformat()
+
+
 def decay_score(memory: Memory, now: Optional[datetime] = None) -> float:
     """Compute decay-adjusted relevance score for a memory.
 
@@ -722,13 +727,27 @@ class ContextRetriever:
 
         all_raw = self.store.list()
         all_refined = self.refined.list_refined()
+
+        cutoff = _now_cutoff_7d()
+        hot_raw = [m for m in all_raw if m.created_at and m.created_at >= cutoff]
+        hot_refined = [m for m in all_refined if m.created_at and m.created_at >= cutoff]
+
         if types:
-            refined_mems = [m for m in all_refined if m.type in types]
-            raw_mems = [m for m in all_raw if m.type in types]
+            refined_mems = [m for m in hot_refined if m.type in types]
+            raw_mems = [m for m in hot_raw if m.type in types]
         else:
-            refined_mems = all_refined
-            raw_mems = all_raw
+            refined_mems = hot_refined
+            raw_mems = hot_raw
         candidates = list({m.id: m for m in refined_mems + raw_mems}.values())
+
+        if len(candidates) < top_k:
+            if types:
+                refined_mems = [m for m in all_refined if m.type in types]
+                raw_mems = [m for m in all_raw if m.type in types]
+            else:
+                refined_mems = all_refined
+                raw_mems = all_raw
+            candidates = list({m.id: m for m in refined_mems + raw_mems}.values())
 
         if query.strip() and self.subagent and len(candidates) > top_k:
             try:

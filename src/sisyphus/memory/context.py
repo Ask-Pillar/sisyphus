@@ -3,10 +3,15 @@
 Called before each conversation turn to retrieve relevant memories
 and format them as a Markdown block for system prompt injection.
 
-Replaces the one-shot FrozenSnapshot model with dynamic, layered retrieval.
+Layers:
+    PERSIST — pinned + importance>=8 memories, always injected first (frozen in session)
+    HOT — dynamic retrieval from ContextRetriever
+    Initial awareness — git log + project tree on first turn
 """
 
 import logging
+import subprocess
+from pathlib import Path
 from typing import List, Optional, Tuple
 
 from sisyphus.memory.store import Memory, MemoryStore
@@ -130,16 +135,60 @@ class AgentMemory:
                                           reranker=reranker, cache_path=cache_path)
         self.context = MemoryContext(self.retriever, self.store, refresh_interval)
         self._turn = 0
+        self._persist_cache: Optional[str] = None
+        self._cwd = Path.cwd()
+
+    def _load_persist(self) -> str:
+        if self._persist_cache is not None:
+            return self._persist_cache
+
+        all_mems = self.store.list()
+        persist_mems = [m for m in all_mems if getattr(m, 'pinned', False) or m.importance >= 8]
+        if not persist_mems:
+            self._persist_cache = ""
+            return ""
+
+        lines = ["## PERSIST\n"]
+        for m in persist_mems:
+            content = (m.content or "")[:150]
+            lines.append(f"- [{m.type}] {m.title}\n  {content}\n")
+        self._persist_cache = "".join(lines)
+        return self._persist_cache
+
+    def _sniff_project(self) -> str:
+        lines = []
+        try:
+            result = subprocess.run(
+                ["git", "log", "-5", "--oneline"],
+                cwd=self._cwd, capture_output=True, text=True, timeout=3,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                lines.append("## Recent Commits\n")
+                for commit in result.stdout.strip().split("\n")[:5]:
+                    lines.append(f"  {commit}\n")
+        except Exception:
+            pass
+        return "".join(lines)
 
     def before_turn(self, query: str = "", max_chars: int = 4000) -> str:
-        """Call before each agent response.
-
-        Returns a formatted ``<sisyphus_context>`` block with relevant
-        memories, automatically handling full vs incremental refresh
-        and responding to new memory writes (dirty detection).
-        """
+        """Call before each agent response."""
         self._turn += 1
-        return self.context.build(query=query, turn_count=self._turn, max_chars=max_chars)
+        ctx = self.context.build(query=query, turn_count=self._turn, max_chars=max_chars)
+
+        persist = self._load_persist()
+        if persist:
+            persist_len = len(persist)
+            if persist_len < max_chars:
+                max_chars -= persist_len
+                ctx = self.context.build(query=query, turn_count=self._turn, max_chars=max_chars)
+            ctx = persist + ctx
+
+        if self._turn == 1:
+            project = self._sniff_project()
+            if project:
+                ctx = project + ctx
+
+        return ctx
 
     def record(
         self,
