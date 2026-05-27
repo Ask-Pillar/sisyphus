@@ -221,6 +221,24 @@ def cmd_detect_loop(args):
         print(f"  [{lp['record_id']}] {lp['pattern']} (x{lp['count']})")
 
 
+def cmd_clean(args):
+    store = _store()
+    rstore = _refined_store()
+    deleted = 0
+    for m in store.list():
+        if args.tag in m.tags:
+            if not args.dry_run:
+                store.delete(m.id)
+            deleted += 1
+            print(f"{'[DRY RUN] ' if args.dry_run else ''}Deleted: [{m.type}] {m.title}")
+    for m in rstore.list_refined():
+        if args.tag in m.tags:
+            if not args.dry_run:
+                rstore.delete_refined(m.id)
+            deleted += 1
+    print(f"Total: {deleted} memory(s) with tag '{args.tag}' {'would be' if args.dry_run else ''} deleted")
+
+
 def cmd_agent(args):
     from sisyphus.memory.agent import AgentRegistry
 
@@ -317,6 +335,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_loop.add_argument("--threshold", "-t", type=int, default=3,
                         help="Min repeats to flag as loop (default: 3)")
 
+    p_clean = sub.add_parser("clean", help="Delete memories by tag")
+    p_clean.add_argument("--tag", "-t", required=True, help="Tag to filter for deletion")
+    p_clean.add_argument("--dry-run", action="store_true", help="List what would be deleted without deleting")
+
     p_agent = sub.add_parser("agent", help="Manage sub-agent memory sandboxes")
     p_agent_sub = p_agent.add_subparsers(dest="agent_command")
     p_agent_list = p_agent_sub.add_parser("list", help="List all agent sandboxes")
@@ -364,6 +386,8 @@ def main():
         cmd_link(args)
     elif args.command == "detect-loop":
         cmd_detect_loop(args)
+    elif args.command == "clean":
+        cmd_clean(args)
     elif args.command == "agent":
         cmd_agent(args)
     elif args.command == "cache":
