@@ -717,6 +717,18 @@ class ContextRetriever:
             raw_mems = all_raw
         candidates = list({m.id: m for m in refined_mems + raw_mems}.values())
 
+        if query.strip() and self.subagent and len(candidates) > top_k:
+            try:
+                llm_ids = self.subagent.recall_search(candidates, query)
+                if llm_ids.get("status") in ("ok",) and llm_ids.get("memory_ids"):
+                    ids = set(llm_ids["memory_ids"])
+                    llm_candidates = [m for m in candidates if m.id in ids]
+                    if llm_candidates:
+                        candidates = llm_candidates
+                        logger.info("LLM recall: %d→%d candidates", len(refined_mems + raw_mems), len(candidates))
+            except Exception:
+                pass
+
         if len(candidates) < top_k and query.strip():
             all_mems = list({m.id: m for m in all_raw + all_refined}.values())
             bm25_all = BM25Ranker(all_mems)
