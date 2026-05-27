@@ -239,6 +239,15 @@ def cmd_clean(args):
     print(f"Total: {deleted} memory(s) with tag '{args.tag}' {'would be' if args.dry_run else ''} deleted")
 
 
+def cmd_rebuild(args):
+    from sisyphus.memory.fts_index import FtsIndex
+
+    store = _store()
+    fts = FtsIndex(store)
+    count = fts.rebuild()
+    print(f"FTS5 index rebuilt: {count} memories indexed")
+
+
 def cmd_agent(args):
     from sisyphus.memory.agent import AgentRegistry
 
@@ -339,6 +348,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_clean.add_argument("--tag", "-t", required=True, help="Tag to filter for deletion")
     p_clean.add_argument("--dry-run", action="store_true", help="List what would be deleted without deleting")
 
+    p_rebuild = sub.add_parser("rebuild", help="Rebuild FTS5 index from RAW files")
+
     p_agent = sub.add_parser("agent", help="Manage sub-agent memory sandboxes")
     p_agent_sub = p_agent.add_subparsers(dest="agent_command")
     p_agent_list = p_agent_sub.add_parser("list", help="List all agent sandboxes")
@@ -388,6 +399,8 @@ def main():
         cmd_detect_loop(args)
     elif args.command == "clean":
         cmd_clean(args)
+    elif args.command == "rebuild":
+        cmd_rebuild(args)
     elif args.command == "agent":
         cmd_agent(args)
     elif args.command == "cache":

@@ -631,7 +631,8 @@ class ContextRetriever:
                  reranker: Optional[object] = None,
                  embedder: Optional[object] = None,
                  cache_path: Optional[str] = None,
-                 tree: Optional[object] = None):
+                 tree: Optional[object] = None,
+                 fts_index: Optional[object] = None):
         self.store = store
         self.refined = refined
         self.subagent = subagent
@@ -639,6 +640,7 @@ class ContextRetriever:
         self.embedder = embedder
         self._cache = EmbeddingCache(cache_path) if cache_path else None
         self._tree = tree
+        self._fts = fts_index
 
     @staticmethod
     def _choose_path(query: str) -> str:
@@ -668,6 +670,14 @@ class ContextRetriever:
                 result = self._retrieve_tree(query, top_k)
                 if result:
                     return result
+            except Exception:
+                pass
+
+        if self._fts is not None and self._fts.is_populated and query.strip():
+            try:
+                fts_results = self._fts.search(query, top_k=top_k)
+                if fts_results:
+                    return fts_results
             except Exception:
                 pass
 
