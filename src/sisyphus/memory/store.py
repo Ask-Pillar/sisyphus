@@ -5,6 +5,7 @@ INDEX.md serves as the always-loaded table of contents.
 """
 
 import re
+import json
 import uuid
 import yaml
 from dataclasses import dataclass, field, asdict
@@ -104,6 +105,7 @@ class MemoryStore:
         self._write_topic(mem)
         self._rebuild_index()
         self._dirty = True
+        self._log_operation("create", mem)
         return mem
 
     def get(self, mem_id: str) -> Optional[Memory]:
@@ -166,6 +168,7 @@ class MemoryStore:
         self._write_topic(mem)
         self._rebuild_index()
         self._dirty = True
+        self._log_operation("update", mem)
         return mem
 
     def delete(self, mem_id: str) -> None:
@@ -174,6 +177,7 @@ class MemoryStore:
             topic_file.unlink()
             self._rebuild_index()
             self._dirty = True
+            self._log_operation("delete", None, mem_id=mem_id)
 
     def _ensure_index(self):
         index = self.base_path / "INDEX.md"
@@ -314,6 +318,19 @@ class MemoryStore:
             created = m.created_at[:19].replace("T", " ") if m.created_at else ""
             lines.append(INDEX_ENTRY.format(id=m.id, type=m.type, title=m.title, created_at=created))
         atomic_write(self.base_path / "INDEX.md", "".join(lines))
+
+    def _log_operation(self, op: str, mem: Optional[Memory] = None, mem_id: str = ""):
+        """Append an operation record to L2 operations log (JSONL)."""
+        log_path = self.base_path / "operations.jsonl"
+        record = {
+            "op": op,
+            "id": mem.id if mem else mem_id,
+            "ts": _now(),
+            "type": mem.type if mem else "",
+            "title": mem.title if mem else "",
+        }
+        with open(log_path, "a") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
 # Old format parsing helpers (kept for backward compatibility)
