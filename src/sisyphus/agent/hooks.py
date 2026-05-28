@@ -29,7 +29,7 @@ def after_turn():
     """Called by OpenCode after each agent response."""
     from sisyphus.memory.store import MemoryStore
     from sisyphus.memory.context import AgentMemory
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     store = MemoryStore(Path.home() / ".omo" / "memory")
     memory = AgentMemory(store)
@@ -37,7 +37,7 @@ def after_turn():
     if not turn:
         return
 
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H%M%S")
+    ts = datetime.now().astimezone().strftime("%Y-%m-%dT%H%M%S")
     store.create(
         title=f"Conversation {ts}",
         type="conversation",

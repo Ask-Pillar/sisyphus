@@ -10,7 +10,7 @@ import uuid
 import hashlib
 import yaml
 from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
 
@@ -26,30 +26,11 @@ class Memory:
     tags: list[str] = field(default_factory=list)
     created_at: str = ""
     updated_at: str = ""
-    importance: int = 5
-    links: list[str] = field(default_factory=list)
-    status: str = "active"
-    source: str = ""
-    session_id: str = ""
-    refined_by: list[str] = field(default_factory=list)
-    # Refined-layer fields
-    evidence: list[str] = field(default_factory=list)
-    compressed_from: list[str] = field(default_factory=list)
-    trigger: str = ""
-    input_count: int = 0
-    llm_calls: int = 0
-    duration_ms: int = 0
-    detected_at: str = ""
-    repeat_count: int = 0
-    repeat_pattern: str = ""
-    resolved: bool = False
-    # Retrieval-layer fields
-    recall_count: int = 0
-    last_recalled_at: str = ""
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    """Return current time as ISO 8601 string in the system's local timezone."""
+    return datetime.now().astimezone().isoformat()
 
 
 def _new_id() -> str:
@@ -120,12 +101,14 @@ class MemoryStore:
             return None
         return self._parse_topic(topic_file)
 
-    def list(self, type_filter: Optional[str] = None) -> List[Memory]:
+    def list(self, type_filter: Optional[str] = None, include_deleted: bool = False) -> List[Memory]:
         memories = []
         for f in sorted(self.base_path.glob("*.md")):
             if f.name == "INDEX.md":
                 continue
             mem = self._parse_topic(f)
+            if not include_deleted and mem.deleted:
+                continue
             if type_filter is None or mem.type == type_filter:
                 memories.append(mem)
         return memories
@@ -177,13 +160,31 @@ class MemoryStore:
         self._log_operation("update", mem)
         return mem
 
-    def delete(self, mem_id: str) -> None:
-        topic_file = self.base_path / f"{mem_id}.md"
-        if topic_file.exists():
-            topic_file.unlink()
-            self._rebuild_index()
-            self._dirty = True
-            self._log_operation("delete", None, mem_id=mem_id)
+    def delete(self, mem_id: str) -> bool:
+        """Soft delete: mark as deleted without removing the file."""
+        mem = self.get(mem_id)
+        if mem is None:
+            return False
+        mem.deleted = True
+        mem.updated_at = _now()
+        self._write_topic(mem)
+        self._rebuild_index()
+        self._dirty = True
+        self._log_operation("delete", mem)
+        return True
+
+    def restore(self, mem_id: str) -> bool:
+        """Restore a soft-deleted memory."""
+        mem = self.get(mem_id)
+        if mem is None or not mem.deleted:
+            return False
+        mem.deleted = False
+        mem.updated_at = _now()
+        self._write_topic(mem)
+        self._rebuild_index()
+        self._dirty = True
+        self._log_operation("restore", mem)
+        return True
 
     def _ensure_index(self):
         index = self.base_path / "INDEX.md"
@@ -198,6 +199,7 @@ class MemoryStore:
             "tags": mem.tags,
             "importance": mem.importance,
             "links": mem.links,
+            "deleted": mem.deleted,
             "status": mem.status,
             "source": mem.source,
             "session_id": mem.session_id,
