@@ -16,7 +16,7 @@ import json
 import logging
 import os
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -40,9 +40,15 @@ def _days_since(timestamp_iso: str, now: datetime) -> float:
         return 0.0
 
 
-def _now_cutoff_7d() -> str:
-    cutoff = datetime.now(timezone.utc).replace(microsecond=0) - __import__('datetime').timedelta(days=7)
-    return cutoff.isoformat()
+def _now_cutoff_7d() -> datetime:
+    return datetime.now(timezone.utc) - timedelta(days=7)
+
+
+def _parse_dt(ts: str) -> Optional[datetime]:
+    try:
+        return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    except Exception:
+        return None
 
 
 def decay_score(memory: Memory, now: Optional[datetime] = None) -> float:
@@ -729,8 +735,8 @@ class ContextRetriever:
         all_refined = self.refined.list_refined()
 
         cutoff = _now_cutoff_7d()
-        hot_raw = [m for m in all_raw if m.created_at and m.created_at >= cutoff]
-        hot_refined = [m for m in all_refined if m.created_at and m.created_at >= cutoff]
+        hot_raw = [m for m in all_raw if m.created_at and _parse_dt(m.created_at) >= cutoff]
+        hot_refined = [m for m in all_refined if m.created_at and _parse_dt(m.created_at) >= cutoff]
 
         if types:
             refined_mems = [m for m in hot_refined if m.type in types]

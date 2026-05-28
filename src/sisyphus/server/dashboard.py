@@ -187,7 +187,7 @@ def generate(store: MemoryStore, output_path: Path):
 
 def _build_tab_lines(stats):
     tc = stats.get("type_counts", {})
-    order = ["decision", "lesson", "pattern", "note", "conversation"]
+    order = ["decision", "lesson", "pattern", "note", "project_context", "conversation", "idea", "reflection", "compressed", "user_preference"]
     lines = []
     for t in order:
         count = tc.get(t, 0)
@@ -219,7 +219,7 @@ def _build_card_lines(cards):
 
 def _compute_stats(memories):
     now = datetime.now(timezone.utc)
-    week_ago = (now - timedelta(days=7)).isoformat()
+    week_ago = (now - timedelta(days=7))
     type_counts = {}
     total_imp = 0
     pinned = 0
@@ -229,8 +229,13 @@ def _compute_stats(memories):
         total_imp += m.importance or 5
         if getattr(m, "pinned", False):
             pinned += 1
-        if m.created_at and m.created_at >= week_ago:
-            this_week += 1
+        if m.created_at:
+            try:
+                dt = datetime.fromisoformat(m.created_at.replace("Z", "+00:00"))
+                if dt >= week_ago:
+                    this_week += 1
+            except Exception:
+                pass
     return {
         "total": len(memories),
         "this_week": this_week,
@@ -280,10 +285,11 @@ def _format_time(ts):
         return ""
     try:
         dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-        diff = datetime.now(timezone.utc) - dt
-        if diff.days == 0:
+        now = datetime.now(timezone.utc)
+        diff = now - dt
+        if diff.total_seconds() < 86400:
             return "今天"
-        elif diff.days == 1:
+        elif diff.total_seconds() < 172800:
             return "昨天"
         elif diff.days < 7:
             return f"{diff.days}天前"
