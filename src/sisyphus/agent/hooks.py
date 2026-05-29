@@ -26,26 +26,43 @@ def before_turn():
 
 
 def after_turn():
-    """Called by OpenCode after each agent response."""
+    """Called by OpenCode after each agent response.
+
+    Writes ALL turns to session log. Only stores significant turns
+    to MemoryStore when signal words trigger.
+    """
     from sisyphus.memory.store import MemoryStore
     from sisyphus.memory.context import AgentMemory
+    from sisyphus.memory.trigger import l0_signal_words
     from datetime import datetime
 
-    store = MemoryStore(Path.home() / ".omo" / "memory")
-    memory = AgentMemory(store)
     turn = sys.stdin.read().strip() if not sys.stdin.isatty() else ""
     if not turn:
         return
 
-    ts = datetime.now().astimezone().strftime("%Y-%m-%dT%H%M%S")
-    store.create(
-        title=f"Conversation {ts}",
-        type="conversation",
-        content=turn[:2000],
-        tags=["raw", "conversation", "auto"],
-    )
+    ts = datetime.now().astimezone()
+    date_str = ts.strftime("%Y-%m-%d")
 
-    memory.after_turn(turn=turn)
+    # Always write to session log
+    session_dir = Path.home() / ".omo" / "sessions"
+    session_dir.mkdir(parents=True, exist_ok=True)
+    session_file = session_dir / f"{date_str}.md"
+    entry = f"\n---\n## {ts.strftime('%H:%M:%S')}\n\n{turn[:2000]}\n"
+    with open(session_file, "a") as f:
+        f.write(entry)
+
+    # Only store to MemoryStore when signal words trigger
+    trigger = l0_signal_words(turn)
+    if trigger.should_trigger:
+        store = MemoryStore(Path.home() / ".omo" / "memory")
+        store.create_if_new(
+            title=f"Conversation {ts.strftime('%Y-%m-%dT%H%M%S')}",
+            type="conversation",
+            content=turn[:2000],
+            tags=["raw", "conversation", "auto", f"trigger:{trigger.reason}"],
+        )
+        memory = AgentMemory(store)
+        memory.after_turn(turn=turn)
 
 
 if __name__ == "__main__":

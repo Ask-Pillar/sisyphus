@@ -139,6 +139,7 @@ class AgentMemory:
         self._cwd = Path.cwd()
         self._last_pipeline_turn = 0
         self._pipeline_cooldown = 3
+        self._consecutive_misses = 0
 
     def _load_persist(self) -> str:
         if self._persist_cache is not None:
@@ -173,8 +174,17 @@ class AgentMemory:
         return "".join(lines)
 
     def before_turn(self, query: str = "", max_chars: int = 4000) -> str:
-        """Call before each agent response."""
+        """Call before each agent response. Uses trigger to decide retrieval depth."""
         self._turn += 1
+
+        from sisyphus.memory.trigger import should_retrieve_memory
+        trigger = should_retrieve_memory(query, self._turn, self._consecutive_misses)
+
+        if not trigger.should_trigger and self._turn > 1:
+            self._consecutive_misses += 1
+            return ""
+
+        self._consecutive_misses = 0 if trigger.should_trigger else self._consecutive_misses
         ctx = self.context.build(query=query, turn_count=self._turn, max_chars=max_chars)
 
         persist = self._load_persist()
