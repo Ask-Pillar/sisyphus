@@ -19,21 +19,21 @@ from sisyphus.memory.retrieval import (
 class TestDecayScore:
 
     def test_full_score_when_never_recalled(self):
-        mem = Memory(id="t1", type="lesson", title="T", content="", importance=8)
+        mem = Memory(id="t1", types=["lesson"], title="T", content="", importance=8)
         now = datetime(2026, 6, 1, tzinfo=timezone.utc)
         mem.created_at = "2026-06-01T00:00:00+00:00"
         score = decay_score(mem, now)
         assert score == 8.0
 
     def test_half_life_reduces_score(self):
-        mem = Memory(id="t1", type="lesson", title="T", content="", importance=8)
+        mem = Memory(id="t1", types=["lesson"], title="T", content="", importance=8)
         now = datetime(2026, 12, 1, tzinfo=timezone.utc)
         mem.created_at = "2026-06-04T00:00:00+00:00"  # 180 days → half-life
         score = decay_score(mem, now)
         assert abs(score - 4.0) < 0.01
 
     def test_uses_last_recalled_over_created(self):
-        mem = Memory(id="t1", type="lesson", title="T", content="", importance=8)
+        mem = Memory(id="t1", types=["lesson"], title="T", content="", importance=8)
         now = datetime(2026, 7, 15, tzinfo=timezone.utc)
         mem.created_at = "2026-01-01T00:00:00+00:00"
         mem.last_recalled_at = "2026-07-01T00:00:00+00:00"
@@ -42,7 +42,7 @@ class TestDecayScore:
         assert abs(score - expected) < 0.01
 
     def test_zero_importance_always_zero(self):
-        mem = Memory(id="t1", type="lesson", title="T", content="", importance=0)
+        mem = Memory(id="t1", types=["lesson"], title="T", content="", importance=0)
         score = decay_score(mem, datetime.now(timezone.utc))
         assert score == 0.0
 

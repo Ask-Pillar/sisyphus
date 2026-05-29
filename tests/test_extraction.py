@@ -55,7 +55,7 @@ class TestExtractor:
         results = xt.extract("We spent 3 hours debugging the pagination bug.")
         assert len(results) == 1
         assert results[0].title == "Found a bug in pagination"
-        assert results[0].type == "lesson"
+        assert results[0].types[0] == "lesson"
         # Memory should be in the store
         all_mems = store.list()
         assert len(all_mems) == 1

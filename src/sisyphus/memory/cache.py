@@ -66,7 +66,7 @@ class CacheStore:
                      created_at, updated_at)
                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (
-                    m.id, m.type, m.title, m.content,
+                    m.id, m.types[0] if m.types else "", m.title, m.content,
                     ",".join(m.tags), m.importance, m.status,
                     ",".join(m.links), ",".join(m.evidence),
                     ",".join(m.compressed_from), ",".join(m.refined_by),

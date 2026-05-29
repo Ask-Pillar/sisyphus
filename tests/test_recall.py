@@ -132,7 +132,7 @@ class TestRecallIntegration:
         results = recall.search("我应该用什么语言沟通")
         assert len(results) == 1
         mem = results[0]
-        assert mem.type == "user_preference"
+        assert mem.types[0] == "user_preference"
         assert "中文" in mem.content
 
     def test_is_relevant_delegates_to_subagent(self, populated_store):

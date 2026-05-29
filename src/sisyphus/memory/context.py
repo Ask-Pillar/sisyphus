@@ -29,7 +29,7 @@ def _format_entry(memory: Memory, score: float) -> str:
     title = memory.title
     content = memory.content[:200] if memory.content else ""
     return ENTRY_TEMPLATE.format(
-        type=memory.type,
+        type=memory.types[0] if memory.types else "",
         title=title,
         score=score,
         content=content,
@@ -153,7 +153,7 @@ class AgentMemory:
         lines = ["## PERSIST\n"]
         for m in persist_mems:
             content = (m.content or "")[:150]
-            lines.append(f"- [{m.type}] {m.title}\n  {content}\n")
+            lines.append(f"- [{'|'.join(m.types) if m.types else 'unknown'}] {m.title}\n  {content}\n")
         self._persist_cache = "".join(lines)
         return self._persist_cache
 

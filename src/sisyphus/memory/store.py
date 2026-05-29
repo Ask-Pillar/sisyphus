@@ -20,12 +20,33 @@ from sisyphus.memory.utils import atomic_write
 @dataclass
 class Memory:
     id: str
-    type: str
-    title: str
-    content: str
+    types: list[str] = field(default_factory=list)
+    title: str = ""
+    content: str = ""
     tags: list[str] = field(default_factory=list)
     created_at: str = ""
     updated_at: str = ""
+    importance: int = 5
+    links: list[str] = field(default_factory=list)
+    deleted: bool = False
+    status: str = "active"
+    source: str = ""
+    session_id: str = ""
+    refined_by: list[str] = field(default_factory=list)
+    # Refined-layer fields
+    evidence: list[str] = field(default_factory=list)
+    compressed_from: list[str] = field(default_factory=list)
+    trigger: str = ""
+    input_count: int = 0
+    llm_calls: int = 0
+    duration_ms: int = 0
+    detected_at: str = ""
+    repeat_count: int = 0
+    repeat_pattern: str = ""
+    resolved: bool = False
+    # Retrieval-layer fields
+    recall_count: int = 0
+    last_recalled_at: str = ""
 
 
 def _now() -> str:
@@ -42,11 +63,12 @@ INDEX_ENTRY = "- [{id}] {type} | {title} | {created_at}\n"
 
 
 class MemoryStore:
-    def __init__(self, base_path: Path):
+    def __init__(self, base_path: Path, max_raw: int = 0):
         self.base_path = Path(base_path)
         self.base_path.mkdir(parents=True, exist_ok=True)
         self._ensure_index()
         self._dirty = False
+        self.max_raw = max_raw  # 0 = unlimited
 
     @property
     def is_dirty(self) -> bool:
@@ -61,7 +83,7 @@ class MemoryStore:
     def create(
         self,
         title: str,
-        type: str,
+        type: str = "",
         content: str = "",
         tags: Optional[List[str]] = None,
         importance: int = 5,
@@ -69,15 +91,19 @@ class MemoryStore:
         status: str = "active",
         source: str = "",
         session_id: str = "",
+        types: Optional[List[str]] = None,
+        _dedup: bool = True,
     ) -> Memory:
-        fp = hashlib.sha256(f"{type}:{title}".encode()).hexdigest()[:12]
-        for existing in self.list():
-            if hashlib.sha256(f"{existing.type}:{existing.title}".encode()).hexdigest()[:12] == fp:
-                return existing
+        _types = types or ([type] if type else [])
+        if _dedup:
+            fp = hashlib.sha256(f"{':'.join(sorted(_types))}:{title}".encode()).hexdigest()[:12]
+            for existing in self.list():
+                if hashlib.sha256(f"{':'.join(sorted(existing.types))}:{existing.title}".encode()).hexdigest()[:12] == fp:
+                    return existing
 
         mem = Memory(
             id=_new_id(),
-            type=type,
+            types=_types,
             title=title,
             content=content,
             tags=tags or [],
@@ -109,7 +135,7 @@ class MemoryStore:
             mem = self._parse_topic(f)
             if not include_deleted and mem.deleted:
                 continue
-            if type_filter is None or mem.type == type_filter:
+            if type_filter is None or type_filter in mem.types:
                 memories.append(mem)
         return memories
 
@@ -194,7 +220,7 @@ class MemoryStore:
     def _write_topic(self, mem: Memory):
         fm = {
             "id": mem.id,
-            "type": mem.type,
+            "types": mem.types,
             "title": mem.title,
             "tags": mem.tags,
             "importance": mem.importance,
@@ -248,7 +274,7 @@ class MemoryStore:
             content = self._extract_content_after_fm(text)
             return Memory(
                 id=fm.get("id", path.stem),
-                type=fm.get("type", "lesson"),
+                types=fm.get("types", fm.get("type") and [fm.get("type")] or []),
                 title=fm.get("title", ""),
                 content=content,
                 tags=fm.get("tags", []),
@@ -256,6 +282,7 @@ class MemoryStore:
                 updated_at=fm.get("updated", ""),
                 importance=fm.get("importance", 5),
                 links=fm.get("links", []),
+                deleted=fm.get("deleted", False),
                 status=fm.get("status", "active"),
                 source=fm.get("source", ""),
                 session_id=fm.get("session_id", ""),
@@ -301,9 +328,10 @@ class MemoryStore:
         tags = [t.strip() for t in tags_raw.split(",") if t.strip()]
         title = _extract_title(text)
         content = _extract_content(text)
+        _types = [mem_type] if mem_type else []
         return Memory(
             id=mem_id,
-            type=mem_type,
+            types=_types,
             title=title,
             content=content,
             tags=tags,
@@ -324,7 +352,7 @@ class MemoryStore:
         lines = [INDEX_HEADER]
         for m in memories:
             created = m.created_at[:19].replace("T", " ") if m.created_at else ""
-            lines.append(INDEX_ENTRY.format(id=m.id, type=m.type, title=m.title, created_at=created))
+            lines.append(INDEX_ENTRY.format(id=m.id, type=m.types[0] if m.types else "", title=m.title, created_at=created))
         atomic_write(self.base_path / "INDEX.md", "".join(lines))
 
     def _log_operation(self, op: str, mem: Optional[Memory] = None, mem_id: str = ""):
@@ -334,7 +362,7 @@ class MemoryStore:
             "op": op,
             "id": mem.id if mem else mem_id,
             "ts": _now(),
-            "type": mem.type if mem else "",
+            "type": mem.types[0] if mem.types else "",
             "title": mem.title if mem else "",
         }
         with open(log_path, "a") as f:

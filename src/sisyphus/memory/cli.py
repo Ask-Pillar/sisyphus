@@ -56,7 +56,7 @@ def cmd_search(args):
     for m in results:
         created = m.created_at[:19].replace("T", " ") if m.created_at else ""
         tags = f" [{', '.join(m.tags)}]" if m.tags else ""
-        print(f"  [{m.id}] {m.type:20s} | {created} | {m.title}{tags}")
+        print(f"  [{m.id}] {'|'.join(m.types) if m.types else '':20s} | {created} | {m.title}{tags}")
         if m.content:
             print(f"         {m.content[:80]}")
         print()
@@ -74,7 +74,7 @@ def cmd_recent(args):
     for m in memories:
         created = m.created_at[:19].replace("T", " ") if m.created_at else ""
         tags = f" [{', '.join(m.tags)}]" if m.tags else ""
-        print(f"  [{m.id}] {m.type:20s} | {created} | {m.title}{tags}")
+        print(f"  [{m.id}] {'|'.join(m.types) if m.types else '':20s} | {created} | {m.title}{tags}")
 
 
 def cmd_show(args):
@@ -87,7 +87,7 @@ def cmd_show(args):
         print(f"Memory not found: {args.id}")
         return
     print(f"ID:        {mem.id}")
-    print(f"Type:      {mem.type}")
+    print(f"Type:      {'|'.join(mem.types) if mem.types else '(none)'}")
     print(f"Title:     {mem.title}")
     print(f"Created:   {mem.created_at[:19].replace('T', ' ') if mem.created_at else ''}")
     print(f"Updated:   {mem.updated_at[:19].replace('T', ' ') if mem.updated_at else ''}")
@@ -112,8 +112,19 @@ def cmd_show(args):
 
 def cmd_forget(args):
     store = _store()
-    store.delete(args.id)
-    print(f"Forgotten: {args.id}")
+    ok = store.delete(args.id)
+    if ok:
+        print(f"Soft-deleted (can restore): {args.id}")
+    else:
+        print(f"Memory not found: {args.id}")
+
+def cmd_restore(args):
+    store = _store()
+    ok = store.restore(args.id)
+    if ok:
+        print(f"Restored: {args.id}")
+    else:
+        print(f"Not found or not deleted: {args.id}")
 
 
 def cmd_stats(args):
@@ -126,9 +137,11 @@ def cmd_stats(args):
         return
     by_type = {}
     for m in memories:
-        by_type[m.type] = by_type.get(m.type, 0) + 1
+        for t in (m.types or []):
+            by_type[t] = by_type.get(t, 0) + 1
     for m in refined:
-        by_type[m.type] = by_type.get(m.type, 0) + 1
+        for t in (m.types or []):
+            by_type[t] = by_type.get(t, 0) + 1
     total = len(memories) + len(refined)
     print(f"Total memories: {total} (RAW: {len(memories)}, Refined: {len(refined)})")
     print(f"Store:         {store.base_path}")
@@ -178,7 +191,7 @@ def cmd_refined(args):
     for m in mems:
         created = m.created_at[:19].replace("T", " ") if m.created_at else ""
         tags = f" [{', '.join(m.tags)}]" if m.tags else ""
-        print(f"  [{m.id}] {m.type:20s} | {created} | {m.title}{tags}")
+        print(f"  [{m.id}] {'|'.join(m.types) if m.types else '':20s} | {created} | {m.title}{tags}")
 
 
 def cmd_dream(args):
@@ -247,7 +260,7 @@ def cmd_clean(args):
         return
 
     for mem, layer in matches:
-        print(f"[{layer}] [{mem.type}] {mem.title}")
+        print(f"[{layer}] [{'|'.join(mem.types) if mem.types else ''}] {mem.title}")
         preview = (mem.content or "")[:100].replace("\n", " ")
         if preview:
             print(f"  {preview}")
@@ -362,8 +375,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_show = sub.add_parser("show", help="Show a memory")
     p_show.add_argument("id", help="Memory ID")
 
-    p_forget = sub.add_parser("forget", help="Delete a memory")
+    p_forget = sub.add_parser("forget", help="Soft-delete a memory (can be restored)")
     p_forget.add_argument("id", help="Memory ID")
+
+    p_restore = sub.add_parser("restore", help="Restore a soft-deleted memory")
+    p_restore.add_argument("id", help="Memory ID")
 
     p_stats = sub.add_parser("stats", help="Memory statistics")
 
@@ -431,6 +447,8 @@ def main():
         cmd_show(args)
     elif args.command == "forget":
         cmd_forget(args)
+    elif args.command == "restore":
+        cmd_restore(args)
     elif args.command == "stats":
         cmd_stats(args)
     elif args.command == "snapshot":

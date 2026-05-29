@@ -123,7 +123,7 @@ function doSearch(val) {{ applyFilters(val.toLowerCase()); }}
 function applyFilters(searchVal) {{
   var visible = 0;
   allCards.forEach(function(c) {{
-    var typeMatch = activeType === 'all' || c.dataset.type === activeType;
+    var typeMatch = activeType === 'all' || c.dataset.type === activeType || (c.dataset.types || '').split(' ').includes(activeType);
     var pinnedMatch = !activePinned || c.dataset.pinned === 'true';
     var text = (c.dataset.title + ' ' + c.dataset.preview + ' ' + c.dataset.tags).toLowerCase();
     var searchMatch = searchVal === '' || text.indexOf(searchVal) >= 0;
@@ -207,7 +207,7 @@ def _build_card_lines(cards):
         tags_html = "".join(f'<span class="tag">{t}</span>' for t in c["tags"][:4])
         pinned = 'data-pinned="true"' if c["pinned"] else ""
         lines.append(
-            f'<div class="card" data-type="{c["type"]}" data-id="{c["id"]}" data-title="{c["title"]}" data-preview="{c["preview"]}" data-tags="{c["tags_str"]}" {pinned}>'
+            f'<div class="card" data-type="{c["type"]}" data-types="{c["types_str"]}" data-id="{c["id"]}" data-title="{c["title"]}" data-preview="{c["preview"]}" data-tags="{c["tags_str"]}" {pinned}>'
             f'<div class="card-header"><span class="card-type" style="background:{color}22;color:{color}">{label}</span>'
             f'<span class="card-title">{c["title"]}</span><span class="card-importance">&#11088;{c["importance"]}</span></div>'
             f'<div class="card-preview">{c["preview"]}</div>'
@@ -225,7 +225,8 @@ def _compute_stats(memories):
     pinned = 0
     this_week = 0
     for m in memories:
-        type_counts[m.type] = type_counts.get(m.type, 0) + 1
+        for t in (m.types or []):
+            type_counts[t] = type_counts.get(t, 0) + 1
         total_imp += m.importance or 5
         if getattr(m, "pinned", False):
             pinned += 1
@@ -253,7 +254,8 @@ def _build_cards(memories):
         tags_str = " ".join(m.tags or [])
         cards.append({
             "id": m.id,
-            "type": m.type,
+            "type": m.types[0] if m.types else "",
+            "types_str": " ".join(m.types or []),
             "title": title,
             "preview": preview,
             "tags": (m.tags or [])[:4],
@@ -274,7 +276,7 @@ def _build_graph(memories):
             continue
         added.add(m.id)
         label = (m.title or "")[:20]
-        nodes.append({"data": {"id": m.id, "label": label.replace('"', "'"), "type": m.type}})
+        nodes.append({"data": {"id": m.id, "label": label.replace('"', "'"), "type": m.types[0] if m.types else ""}})
         for link in (m.links or []):
             edges.append({"data": {"source": m.id, "target": link}})
     return nodes, edges

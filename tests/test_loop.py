@@ -34,7 +34,7 @@ class TestLoopDetect:
 
     def test_detects_exact_duplicate_titles(self, detector):
         for i in range(3):
-            detector.store.create(title="User likes dark mode", type="lesson", content=str(i))
+            detector.store.create(title="User likes dark mode", type="lesson", content=str(i), _dedup=False)
         results = detector.detect()
         assert len(results) == 1
         assert results[0]["count"] == 3
@@ -42,7 +42,7 @@ class TestLoopDetect:
     def test_marks_original_memories(self, detector):
         mems = []
         for i in range(3):
-            m = detector.store.create(title="Repeat pattern", type="lesson", content=str(i))
+            m = detector.store.create(title="Repeat pattern", type="lesson", content=str(i), _dedup=False)
             mems.append(m)
         detector.detect()
         updated = detector.store.get(mems[0].id)
@@ -52,7 +52,7 @@ class TestLoopDetect:
 
     def test_creates_loop_record_in_refined(self, detector):
         for i in range(3):
-            detector.store.create(title="Loop item", type="lesson", content=str(i))
+            detector.store.create(title="Loop item", type="lesson", content=str(i), _dedup=False)
         detector.detect()
         records = detector.refined.list_refined(type_filter="loop_record")
         assert len(records) == 1
@@ -60,8 +60,8 @@ class TestLoopDetect:
 
     def test_multiple_distinct_patterns(self, detector):
         for i in range(3):
-            detector.store.create(title="Pattern A", type="lesson", content=str(i))
-            detector.store.create(title="Pattern B", type="lesson", content=str(i))
+            detector.store.create(title="Pattern A", type="lesson", content=str(i), _dedup=False)
+            detector.store.create(title="Pattern B", type="lesson", content=str(i), _dedup=False)
         results = detector.detect()
         assert len(results) == 2
 

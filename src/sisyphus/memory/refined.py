@@ -45,7 +45,7 @@ class RefinedStore:
     ) -> Memory:
         mem = Memory(
             id=_refined_id("ref"),
-            type="reflection",
+            types=["reflection"],
             title=title,
             content=content,
             evidence=evidence or [],
@@ -70,7 +70,7 @@ class RefinedStore:
     ) -> Memory:
         mem = Memory(
             id=_refined_id("sum"),
-            type="summary",
+            types=["summary"],
             title=title,
             content=content,
             compressed_from=compressed_from or [],
@@ -93,7 +93,7 @@ class RefinedStore:
     ) -> Memory:
         mem = Memory(
             id=_refined_id("loop"),
-            type="loop_record",
+            types=["loop_record"],
             title=title,
             content=content,
             repeat_count=repeat_count,

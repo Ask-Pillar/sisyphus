@@ -57,7 +57,7 @@ def _handle_write(args: Dict[str, Any]) -> Dict[str, Any]:
     importance = args.get("importance", 5)
     _setup()
     mem = _store.create(title=title, type=mem_type, content=content, tags=tags, importance=importance)
-    return {"id": mem.id, "title": mem.title, "type": mem.type}
+    return {"id": mem.id, "title": mem.title, "types": mem.types}
 
 
 def _handle_search(args: Dict[str, Any]) -> Dict[str, Any]:
@@ -65,14 +65,14 @@ def _handle_search(args: Dict[str, Any]) -> Dict[str, Any]:
     top_k = args.get("top_k", 5)
     _setup()
     results = _retriever.retrieve(query, top_k=top_k)
-    items = [{"title": m.title, "type": m.type, "content": m.content[:200], "tags": m.tags} for m, s in results]
+    items = [{"title": m.title, "types": m.types, "content": m.content[:200], "tags": m.tags} for m, s in results]
     return {"results": items, "count": len(items)}
 
 
 def _handle_context(args: Dict[str, Any]) -> Dict[str, Any]:
     _setup()
     results = _retriever.retrieve("", top_k=8)
-    items = [{"title": m.title, "type": m.type} for m, s in results]
+    items = [{"title": m.title, "types": m.types} for m, s in results]
     return {"context": items, "count": len(items)}
 
 
@@ -82,7 +82,8 @@ def _handle_stats(args: Dict[str, Any]) -> Dict[str, Any]:
     refined_mems = _refined.list_refined()
     by_type = {}
     for m in all_mems + refined_mems:
-        by_type[m.type] = by_type.get(m.type, 0) + 1
+        for t in (m.types or []):
+            by_type[t] = by_type.get(t, 0) + 1
     return {
         "total_raw": len(all_mems),
         "total_refined": len(refined_mems),
@@ -97,7 +98,7 @@ def _handle_get(args: Dict[str, Any]) -> Dict[str, Any]:
     if mem is None:
         return {"error": f"Memory {mem_id} not found"}
     return {
-        "id": mem.id, "type": mem.type, "title": mem.title,
+        "id": mem.id, "types": mem.types, "title": mem.title,
         "content": mem.content, "tags": mem.tags,
         "importance": mem.importance, "status": mem.status,
         "created_at": mem.created_at, "updated_at": mem.updated_at,
@@ -111,14 +112,14 @@ def _handle_list(args: Dict[str, Any]) -> Dict[str, Any]:
     refined = _refined.list_refined()
     seen_ids = set()
     all_mems = []
-    for m in mems + [m for m in refined if type_filter is None or m.type == type_filter]:
+    for m in mems + [m for m in refined if type_filter is None or (m.types and type_filter in m.types)]:
         if m.id not in seen_ids:
             seen_ids.add(m.id)
             all_mems.append(m)
     return {
         "total": len(all_mems),
         "memories": [
-            {"id": m.id, "type": m.type, "title": m.title, "importance": m.importance, "created_at": m.created_at}
+            {"id": m.id, "types": m.types, "title": m.title, "importance": m.importance, "created_at": m.created_at}
             for m in all_mems
         ],
     }

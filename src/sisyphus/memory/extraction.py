@@ -35,7 +35,7 @@ Conversation turn:
 
 def _fingerprint(mem: Memory) -> str:
     """Create a stable fingerprint for dedup."""
-    return f"{mem.type}:::{mem.title}:::{mem.content[:100]}"
+    return f"{mem.types[0] if mem.types else ''}:::{mem.title}:::{mem.content[:100]}"
 
 
 class Extractor:
@@ -86,7 +86,7 @@ class Extractor:
             if title and content:
                 result.append(Memory(
                     id="",
-                    type=mem_type,
+                    types=[mem_type],
                     title=title,
                     content=content,
                     tags=tags,
@@ -107,7 +107,7 @@ class Extractor:
                 continue
             saved_mem = self.store.create(
                 title=mem.title,
-                type=mem.type,
+                type=mem.types[0] if mem.types else "",
                 content=mem.content,
                 tags=mem.tags,
             )

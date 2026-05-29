@@ -9,7 +9,7 @@ from sisyphus.memory.store import MemoryStore, Memory
 class TestMemoryDataclass:
 
     def test_new_fields_exist_with_defaults(self):
-        mem = Memory(id="mem_001", type="lesson", title="T", content="C")
+        mem = Memory(id="mem_001", types=["lesson"], title="T", content="C")
         assert hasattr(mem, "importance")
         assert mem.importance == 5
         assert hasattr(mem, "links")
@@ -22,7 +22,7 @@ class TestMemoryDataclass:
         assert mem.session_id == ""
 
     def test_recall_fields_have_defaults(self):
-        mem = Memory(id="mem_001", type="lesson", title="T", content="C")
+        mem = Memory(id="mem_001", types=["lesson"], title="T", content="C")
         assert mem.recall_count == 0
         assert mem.last_recalled_at == ""
 
@@ -56,7 +56,7 @@ class TestFrontmatterFormat:
         assert text.startswith("---\n")
         assert "id: " + mem.id in text
         assert "title: FM test" in text
-        assert "type: lesson" in text
+        assert "types:" in text
         assert "---" in text
 
     def test_parses_frontmatter_correctly(self, tmp_path):
@@ -66,7 +66,7 @@ class TestFrontmatterFormat:
         fetched = store.get(mem.id)
         assert fetched is not None
         assert fetched.title == "Parse test"
-        assert fetched.type == "pattern"
+        assert fetched.types == ["pattern"]
         assert fetched.content == "Parsed content."
         assert fetched.tags == ["x", "y"]
         assert fetched.importance == 8
@@ -99,7 +99,7 @@ class TestFrontmatterFormat:
         mem = store.get("mem_old")
         assert mem is not None
         assert mem.title == "Old Memory"
-        assert mem.type == "lesson"
+        assert mem.types == ["lesson"]
         assert mem.content == "Old content here."
         assert mem.tags == ["test", "old"]
 
@@ -114,6 +114,6 @@ class TestFrontmatterFormat:
         fm = yaml.safe_load(parts[1])
         assert fm["id"] == mem.id
         assert fm["title"] == "YAML test"
-        assert fm["type"] == "lesson"
+        assert fm["types"] == ["lesson"]
         assert fm["importance"] == 7
         assert fm["tags"] == ["valid"]

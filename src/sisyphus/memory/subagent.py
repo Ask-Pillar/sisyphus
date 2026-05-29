@@ -330,7 +330,7 @@ def _handle_dream(store_path: Path, memories: List[Memory]) -> dict:
     lines = []
     for m in memories:
         tags = f" [{', '.join(m.tags)}]" if m.tags else ""
-        lines.append(f"[{m.id}] ({m.type}) {m.title}{tags}")
+        lines.append(f"[{m.id}] ({'|'.join(m.types) if m.types else ''}) {m.title}{tags}")
         if m.content:
             lines.append(f"    {m.content[:200]}")
     formatted = "\n".join(lines)
@@ -388,7 +388,7 @@ def _handle_compress(store_path: Path, threshold: int = 20, keep_recent: int = 5
 
     lines = []
     for m in old_mems:
-        lines.append(f"[{m.created_at[:10]}] ({m.type}) {m.title}")
+        lines.append(f"[{m.created_at[:10]}] ({'|'.join(m.types) if m.types else ''}) {m.title}")
         lines.append(m.content[:500])
         lines.append("---")
     text = "\n".join(lines)
@@ -431,7 +431,7 @@ def _handle_recall_search(memories: List[Memory], query: str) -> dict:
     for m in memories:
         created = m.created_at[:10] if m.created_at else ""
         tags = f" [{', '.join(m.tags)}]" if m.tags else ""
-        lines.append(f"- {m.id} | type={m.type} | {m.title}{tags} | {created}")
+        lines.append(f"- {m.id} | type={'|'.join(m.types) if m.types else ''} | {m.title}{tags} | {created}")
     index_text = "\n".join(lines)
     prompt = RECALL_SEARCH_PROMPT.format(index=index_text, query=query)
 
@@ -460,7 +460,7 @@ def _handle_recall_relevant(memory: Optional[Memory], query: str) -> dict:
 
     llm = LLMClient()
     prompt = RECALL_RELEVANT_PROMPT.format(
-        mem_type=memory.type,
+        mem_type="|".join(memory.types) if memory.types else "",
         mem_title=memory.title,
         mem_content=memory.content[:200],
         query=query,

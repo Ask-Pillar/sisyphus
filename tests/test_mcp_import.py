@@ -25,7 +25,7 @@ Python 类型标注内容""")
     mems = store.list()
     assert len(mems) == 1
     assert mems[0].title == "test import"
-    assert mems[0].type == "lesson"
+    assert mems[0].types[0] == "lesson"
     assert mems[0].importance == 7
 
 
@@ -37,7 +37,7 @@ def test_import_md_without_frontmatter():
     assert result["imported"] == 1
     mems = store.list()
     assert mems[0].title == "note"
-    assert mems[0].type == "note"
+    assert mems[0].types[0] == "note"
 
 
 def test_import_duplicate_skipped():

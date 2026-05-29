@@ -37,7 +37,7 @@ class DreamEngine:
             mem = Memory(
                 id=ref_data["id"],
                 title=ref_data["title"],
-                type="reflection",
+                types=["reflection"],
                 content=ref_data.get("content", ""),
                 evidence=ref_data.get("evidence", []),
                 importance=ref_data.get("importance", 5),

@@ -70,11 +70,13 @@ def _collect_types(store: MemoryStore, refined: RefinedStore) -> List[str]:
     """Collect unique memory types from both RAW and refined stores."""
     types: set = set()
     for m in store.list():
-        if m.type:
-            types.add(m.type)
+        for t in (m.types or []):
+            if t:
+                types.add(t)
     for m in refined.list_refined():
-        if m.type:
-            types.add(m.type)
+        for t in (m.types or []):
+            if t:
+                types.add(t)
     return sorted(types)
 
 
@@ -739,8 +741,8 @@ class ContextRetriever:
         hot_refined = [m for m in all_refined if m.created_at and _parse_dt(m.created_at) >= cutoff]
 
         if types:
-            refined_mems = [m for m in hot_refined if m.type in types]
-            raw_mems = [m for m in hot_raw if m.type in types]
+            refined_mems = [m for m in hot_refined if any(t in types for t in (m.types or []))]
+            raw_mems = [m for m in hot_raw if any(t in types for t in (m.types or []))]
         else:
             refined_mems = hot_refined
             raw_mems = hot_raw
@@ -748,8 +750,8 @@ class ContextRetriever:
 
         if len(candidates) < top_k:
             if types:
-                refined_mems = [m for m in all_refined if m.type in types]
-                raw_mems = [m for m in all_raw if m.type in types]
+                refined_mems = [m for m in all_refined if any(t in types for t in (m.types or []))]
+                raw_mems = [m for m in all_raw if any(t in types for t in (m.types or []))]
             else:
                 refined_mems = all_refined
                 raw_mems = all_raw
@@ -922,7 +924,8 @@ class ContextRetriever:
     def _auto_reranker(self, candidates):
         type_counts = {}
         for m in candidates:
-            type_counts[m.type] = type_counts.get(m.type, 0) + 1
+            for t in (m.types or []):
+                type_counts[t] = type_counts.get(t, 0) + 1
         max_same = max(type_counts.values()) if type_counts else 0
         if max_same < 8:
             return None

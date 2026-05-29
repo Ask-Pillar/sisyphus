@@ -62,7 +62,8 @@ class MocGenerator:
     def _group_by_type(self, memories):
         sections = {}
         for m in memories:
-            sections.setdefault(m.type, []).append(m)
+            for t in (m.types or [""]):
+                sections.setdefault(t, []).append(m)
         return sections
 
 

@@ -66,6 +66,6 @@ class LoopDetector:
         for m in memories:
             if not m.title:
                 continue
-            key = (m.type, m.title.lower().strip())
+            key = (m.types[0] if m.types else "", m.title.lower().strip())
             groups.setdefault(key, []).append(m)
         return groups

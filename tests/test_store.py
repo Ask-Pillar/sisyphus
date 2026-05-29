@@ -40,7 +40,7 @@ class TestMemoryCRUD:
         )
         assert mem.id is not None
         assert mem.title == "Test memory"
-        assert mem.type == "lesson"
+        assert mem.types == ["lesson"]
         assert mem.content == "This is a test memory."
         assert mem.tags == ["test", "pytest"]
         assert mem.created_at is not None
@@ -59,7 +59,7 @@ class TestMemoryCRUD:
         content = topic_file.read_text()
         assert "title: File test" in content
         assert "In file." in content
-        assert "type: lesson" in content
+        assert "types:" in content
 
     def test_get_memory(self, store):
         created = store.create(title="Get me", type="pattern", content="To be retrieved.")
@@ -99,19 +99,46 @@ class TestMemoryCRUD:
         index = (store.base_path / "INDEX.md").read_text()
         assert "Updated" in index
 
-    def test_delete_memory(self, store):
+    def test_soft_delete_memory(self, store):
         mem = store.create(title="Delete me", type="lesson", content="Going away.")
         store.delete(mem.id)
-        assert store.get(mem.id) is None
-        # Topic file should be removed
+        # get() still works (file kept)
+        retrieved = store.get(mem.id)
+        assert retrieved is not None
+        assert retrieved.deleted is True
+        # Topic file should still exist (soft delete)
         topic_file = store.base_path / f"{mem.id}.md"
-        assert not topic_file.exists()
-        # Index should no longer list it
-        index = (store.base_path / "INDEX.md").read_text()
-        assert mem.id not in index
+        assert topic_file.exists()
+        # list() excludes deleted by default
+        all_mems = store.list()
+        assert all(m.id != mem.id for m in all_mems)
+        # list(include_deleted=True) includes deleted
+        all_with_deleted = store.list(include_deleted=True)
+        assert any(m.id == mem.id for m in all_with_deleted)
 
-    def test_delete_nonexistent_does_not_raise(self, store):
-        store.delete("nonexistent")  # should not raise
+    def test_restore_memory(self, store):
+        mem = store.create(title="Restore me", type="decision", content="Coming back.")
+        store.delete(mem.id)
+        store.restore(mem.id)
+        retrieved = store.get(mem.id)
+        assert retrieved is not None
+        assert retrieved.deleted is False
+        # list() includes restored memory
+        all_mems = store.list()
+        assert any(m.id == mem.id for m in all_mems)
+
+    def test_restore_undeleted_returns_false(self, store):
+        mem = store.create(title="Never gone", type="lesson", content="Still here.")
+        result = store.restore(mem.id)
+        assert result is False  # was never deleted
+
+    def test_delete_nonexistent_returns_false(self, store):
+        result = store.delete("nonexistent")
+        assert result is False
+
+    def test_restore_nonexistent_returns_false(self, store):
+        result = store.restore("nonexistent")
+        assert result is False
 
 
 class TestMemoryPersistence:

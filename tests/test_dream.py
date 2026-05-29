@@ -84,7 +84,7 @@ class TestDream:
         result = engine.dream()
         assert len(result) == 1
         mem = result[0]
-        assert mem.type == "reflection"
+        assert mem.types == ["reflection"]
         assert mem.title == "Core conventions"
         assert mem.importance == 7
         assert len(mem.evidence) == 2

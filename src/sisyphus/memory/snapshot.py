@@ -65,7 +65,7 @@ class FrozenSnapshot:
             date = mem.created_at[:10] if mem.created_at else ""
             tags = ", ".join(mem.tags) if mem.tags else ""
             entry = ENTRY_TEMPLATE.format(
-                type=mem.type,
+                type=mem.types[0] if mem.types else "",
                 title=mem.title,
                 tags=tags,
                 date=date,

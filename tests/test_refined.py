@@ -44,7 +44,7 @@ class TestCreateReflection:
             input_count=5,
         )
         assert mem.id.startswith("ref_")
-        assert mem.type == "reflection"
+        assert mem.types[0] == "reflection"
         assert mem.title == "Test reflection"
         assert mem.content == "This is a reflection."
         assert mem.evidence == ["mem_001", "mem_002"]
@@ -75,7 +75,7 @@ class TestCreateSummary:
             compressed_from=["mem_001", "mem_002", "mem_003"],
         )
         assert mem.id.startswith("sum_")
-        assert mem.type == "summary"
+        assert mem.types[0] == "summary"
         assert mem.compressed_from == ["mem_001", "mem_002", "mem_003"]
 
     def test_summary_has_compressed_from_in_frontmatter(self, refined_store):
@@ -99,7 +99,7 @@ class TestCreateLoopRecord:
             resolved=True,
         )
         assert mem.id.startswith("loop_")
-        assert mem.type == "loop_record"
+        assert mem.types[0] == "loop_record"
         assert mem.repeat_count == 5
         assert mem.repeat_pattern == "pytest test_xxx.py"
         assert mem.resolved is True
@@ -143,7 +143,7 @@ class TestListAndGet:
         assert retrieved is not None
         assert retrieved.id == created.id
         assert retrieved.title == "Get me"
-        assert retrieved.type == "reflection"
+        assert retrieved.types[0] == "reflection"
 
     def test_get_nonexistent_returns_none(self, refined_store):
         assert refined_store.get_refined("nonexistent") is None

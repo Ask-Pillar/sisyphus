@@ -52,7 +52,7 @@ class FtsIndex:
             "VALUES (?, ?, ?, ?, ?, ?)",
             (
                 mem.id,
-                mem.type,
+                mem.types[0] if mem.types else "",
                 mem.title,
                 mem.content,
                 " ".join(mem.tags),

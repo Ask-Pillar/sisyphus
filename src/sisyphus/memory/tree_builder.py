@@ -57,8 +57,8 @@ class TreeBuilder:
         """Group by type. Returns list of (cluster_title, [Memory])."""
         groups = {}
         for m in memories:
-            key = m.type
-            groups.setdefault(key, []).append(m)
+            for t in (m.types or [""]):
+                groups.setdefault(t, []).append(m)
         result = []
         for mem_type in sorted(groups):
             result.append((f"Type: {mem_type}", groups[mem_type]))

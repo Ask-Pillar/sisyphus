@@ -33,7 +33,7 @@ class TestFormatContext:
         assert result == CONTEXT_HEADER + CONTEXT_FOOTER
 
     def test_includes_memories(self):
-        mem = Memory(id="t1", type="lesson", title="Test", content="Content text", importance=8)
+        mem = Memory(id="t1", types=["lesson"], title="Test", content="Content text", importance=8)
         result = _format_context([(mem, 8.0)], max_chars=4000)
         assert "Test" in result
         assert "Content text" in result
@@ -41,13 +41,13 @@ class TestFormatContext:
         assert "importance=8" in result
 
     def test_respects_max_chars(self):
-        mem = Memory(id="t1", type="lesson", title="Long " * 100, content="X" * 1000, importance=5)
+        mem = Memory(id="t1", types=["lesson"], title="Long " * 100, content="X" * 1000, importance=5)
         result = _format_context([(mem, 5.0)], max_chars=200)
         assert len(result) <= 200
 
     def test_multiple_memories(self):
-        m1 = Memory(id="t1", type="lesson", title="First", content="A", importance=8)
-        m2 = Memory(id="t2", type="pattern", title="Second", content="B", importance=5)
+        m1 = Memory(id="t1", types=["lesson"], title="First", content="A", importance=8)
+        m2 = Memory(id="t2", types=["pattern"], title="Second", content="B", importance=5)
         result = _format_context([(m1, 8.0), (m2, 5.0)], max_chars=4000)
         assert "First" in result
         assert "Second" in result
@@ -73,7 +73,7 @@ class TestMemoryContext:
     def test_full_retrieve_when_turn_reaches_interval(self, tmp_path):
         store = MemoryStore(base_path=tmp_path / "mem")
         retriever = MockRetriever()
-        mem = Memory(id="t1", type="lesson", title="Python", content="Type hints", importance=7)
+        mem = Memory(id="t1", types=["lesson"], title="Python", content="Type hints", importance=7)
         retriever.results = [(mem, 7.0)]
         ctx = MemoryContext(retriever, store, refresh_interval=5)
         result = ctx.build("Python typing", turn_count=5)
@@ -84,7 +84,7 @@ class TestMemoryContext:
     def test_incremental_uses_refined_only(self, tmp_path):
         store = MemoryStore(base_path=tmp_path / "mem")
         retriever = MockRetriever()
-        mem = Memory(id="t1", type="lesson", title="Ref", content="x", importance=5)
+        mem = Memory(id="t1", types=["lesson"], title="Ref", content="x", importance=5)
         retriever.refined_results = [(mem, 5.0)]
         ctx = MemoryContext(retriever, store, refresh_interval=5)
         ctx.build("query", turn_count=1)
@@ -95,7 +95,7 @@ class TestMemoryContext:
     def test_refined_results_appear_in_output(self, tmp_path):
         store = MemoryStore(base_path=tmp_path / "mem")
         retriever = MockRetriever()
-        mem = Memory(id="t1", type="lesson", title="Refined result", content="detail", importance=6)
+        mem = Memory(id="t1", types=["lesson"], title="Refined result", content="detail", importance=6)
         retriever.refined_results = [(mem, 6.0)]
         ctx = MemoryContext(retriever, store, refresh_interval=5)
         result = ctx.build("query", turn_count=1)
@@ -105,7 +105,7 @@ class TestMemoryContext:
         store = MemoryStore(base_path=tmp_path / "mem")
         retriever = MockRetriever()
         retriever.results = []
-        mem = Memory(id="t1", type="lesson", title="R", content="x", importance=5)
+        mem = Memory(id="t1", types=["lesson"], title="R", content="x", importance=5)
         retriever.refined_results = [(mem, 5.0)]
         ctx = MemoryContext(retriever, store, refresh_interval=3)
         ctx.build("q", turn_count=1)
@@ -116,7 +116,7 @@ class TestMemoryContext:
     def test_caches_result(self, tmp_path):
         store = MemoryStore(base_path=tmp_path / "mem")
         retriever = MockRetriever()
-        mem = Memory(id="t1", type="lesson", title="Cached", content="x", importance=5)
+        mem = Memory(id="t1", types=["lesson"], title="Cached", content="x", importance=5)
         retriever.results = [(mem, 5.0)]
         ctx = MemoryContext(retriever, store)
         r1 = ctx.build("q", turn_count=5)
@@ -127,7 +127,7 @@ class TestMemoryContext:
         store = MemoryStore(base_path=tmp_path / "mem")
         retriever = MockRetriever()
         retriever.results = []
-        m = Memory(id="t1", type="x", title="D", content="y", importance=5)
+        m = Memory(id="t1", types=["x"], title="D", content="y", importance=5)
         retriever.refined_results = [(m, 5.0)]
         ctx = MemoryContext(retriever, store, refresh_interval=10)
         ctx.build("q", turn_count=1)
