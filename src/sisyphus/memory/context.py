@@ -206,7 +206,7 @@ class AgentMemory:
                 result = self.subagent.extract_turn(turn)
                 if result.get("status") == "ok":
                     for mem_data in result.get("memories", []):
-                        self.store.create(
+                        self.store.create_if_new(
                             title=mem_data["title"],
                             type=mem_data.get("type", "lesson"),
                             content=mem_data.get("content", ""),
@@ -236,7 +236,7 @@ class AgentMemory:
         importance: int = 5,
     ) -> Memory:
         """Record a new memory and auto-refresh context next turn."""
-        return self.store.create(
+        return self.store.create_if_new(
             title=title, type=type, content=content,
             tags=tags, importance=importance,
         )

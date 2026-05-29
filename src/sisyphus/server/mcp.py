@@ -56,7 +56,7 @@ def _handle_write(args: Dict[str, Any]) -> Dict[str, Any]:
     tags = args.get("tags", [])
     importance = args.get("importance", 5)
     _setup()
-    mem = _store.create(title=title, type=mem_type, content=content, tags=tags, importance=importance)
+    mem = _store.create_if_new(title=title, type=mem_type, content=content, tags=tags, importance=importance)
     return {"id": mem.id, "title": mem.title, "types": mem.types}
 
 

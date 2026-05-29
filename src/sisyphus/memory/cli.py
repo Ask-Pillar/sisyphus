@@ -33,7 +33,7 @@ def _subagent() -> SubagentLauncher:
 
 def cmd_record(args):
     store = _store()
-    mem = store.create(
+    mem = store.create_if_new(
         title=args.title,
         type=args.type,
         content=args.content or "",

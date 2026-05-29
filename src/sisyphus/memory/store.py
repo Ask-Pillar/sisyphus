@@ -92,15 +92,8 @@ class MemoryStore:
         source: str = "",
         session_id: str = "",
         types: Optional[List[str]] = None,
-        _dedup: bool = True,
     ) -> Memory:
         _types = types or ([type] if type else [])
-        if _dedup:
-            fp = hashlib.sha256(f"{':'.join(sorted(_types))}:{title}".encode()).hexdigest()[:12]
-            for existing in self.list():
-                if hashlib.sha256(f"{':'.join(sorted(existing.types))}:{existing.title}".encode()).hexdigest()[:12] == fp:
-                    return existing
-
         mem = Memory(
             id=_new_id(),
             types=_types,
@@ -120,6 +113,24 @@ class MemoryStore:
         self._dirty = True
         self._log_operation("create", mem)
         return mem
+
+    def find_similar(self, title: str, types: Optional[List[str]] = None, type: str = "") -> Optional[Memory]:
+        """Find existing memory with same (types, title). Returns None if not found."""
+        _types = types or ([type] if type else [])
+        fp = hashlib.sha256(f"{':'.join(sorted(_types))}:{title}".encode()).hexdigest()[:12]
+        for existing in self.list():
+            if hashlib.sha256(f"{':'.join(sorted(existing.types))}:{existing.title}".encode()).hexdigest()[:12] == fp:
+                return existing
+        return None
+
+    def create_if_new(self, **kwargs) -> Memory:
+        """Create memory only if no similar one exists. Returns existing if found."""
+        title = kwargs.get("title", "")
+        types = kwargs.get("types") or ([kwargs.get("type", "")] if kwargs.get("type") else [])
+        existing = self.find_similar(title=title, types=types)
+        if existing:
+            return existing
+        return self.create(**kwargs)
 
     def get(self, mem_id: str) -> Optional[Memory]:
         topic_file = self.base_path / f"{mem_id}.md"

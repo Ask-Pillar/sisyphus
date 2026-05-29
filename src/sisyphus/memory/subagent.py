@@ -404,7 +404,7 @@ def _handle_compress(store_path: Path, threshold: int = 20, keep_recent: int = 5
     except Exception as e:
         return {"status": "error", "message": str(e), "deleted_count": 0, "summary": None}
 
-    summary = store.create(
+    summary = store.create_if_new(
         title="[compressed] " + data.get("title", "Untitled"),
         type="compressed",
         content=data.get("content", ""),

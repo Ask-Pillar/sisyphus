@@ -86,7 +86,7 @@ def _import_one(store, item):
     for m in existing:
         if m.title == title:
             return False
-    store.create(title=title, type=mem_type, content=content, tags=tags, importance=importance)
+    store.create_if_new(title=title, type=mem_type, content=content, tags=tags, importance=importance)
     return True
 
 
