@@ -40,11 +40,11 @@ class TestPipelineInit:
 
 class TestRun:
     def test_run_completes_on_empty_store(self, pipeline):
-        result = pipeline.run()
+        result = pipeline.run(force=True)
         assert result["status"] == "completed"
 
     def test_run_logs_activity(self, pipeline):
-        pipeline.run()
+        pipeline.run(force=True)
         logs = pipeline.logger.list_logs()
         assert len(logs) >= 1
         assert logs[0].command == "pipeline"
@@ -52,20 +52,20 @@ class TestRun:
     def test_run_does_not_compress_below_threshold(self, pipeline):
         for i in range(5):
             pipeline.store.create(title=f"M{i}", type="lesson", content="x")
-        result = pipeline.run()
-        assert "compress" not in result.get("steps", [])
+        result = pipeline.run(force=True)
+        assert result.get("results", {}).get("compress", {}).get("status") == "skipped"
 
     def test_run_triggers_compress_above_threshold(self, pipeline):
         for i in range(25):
             pipeline.store.create(title=f"M{i}", type="lesson", content="x")
-        result = pipeline.run()
+        result = pipeline.run(force=True)
         assert result["status"] == "completed"
 
     def test_run_triggers_index_when_refined_exists(self, pipeline):
         pipeline.refined.create_reflection(
             title="Test", content="Refined exists."
         )
-        result = pipeline.run()
+        result = pipeline.run(force=True)
         assert result["status"] == "completed"
 
     def test_should_dream_true_with_unprocessed_memories(self, pipeline):
@@ -88,7 +88,7 @@ class TestRun:
     def test_run_delegates_dream_to_subagent(self, pipeline):
         for i in range(3):
             pipeline.store.create(title=f"M{i}", type="lesson", content="x")
-        pipeline.run()
+        pipeline.run(force=True, use_llm=True)
         subagent = pipeline.subagent
         assert isinstance(subagent, MockSubagent)
         dream_calls = [c for c in subagent.calls if c[0] == "dream"]
@@ -104,10 +104,10 @@ class TestThresholdConfig:
             assert p.compress_threshold == 3
             for i in range(5):
                 p.store.create(title=f"M{i}", type="lesson", content="x")
-            result = p.run()
+            result = p.run(force=True)
             assert result["status"] == "completed"
 
     def test_run_cleans_old_logs_smoke(self, pipeline):
-        pipeline.run()
-        pipeline.run()
+        pipeline.run(force=True)
+        pipeline.run(force=True)
         assert len(pipeline.logger.list_logs()) >= 2
