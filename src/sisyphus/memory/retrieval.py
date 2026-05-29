@@ -55,15 +55,18 @@ def decay_score(memory: Memory, now: Optional[datetime] = None) -> float:
     """Compute decay-adjusted relevance score for a memory.
 
     Uses last_recalled_at if set, otherwise falls back to created_at.
-    Half-life: 30 days. Never recalled = uses creation time.
+    Half-life: 180 days. Recall_count boosts relevance.
     """
+    import math
+
     if now is None:
         now = datetime.now(timezone.utc)
 
     ref_time = memory.last_recalled_at or memory.created_at
     days = _days_since(ref_time, now)
     decay = 0.5 ** (days / DECAY_HALF_LIFE_DAYS)
-    return memory.importance * decay
+    recall_boost = 1.0 + math.log(1 + memory.recall_count) if memory.recall_count > 0 else 1.0
+    return memory.importance * decay * recall_boost
 
 
 def _collect_types(store: MemoryStore, refined: RefinedStore) -> List[str]:
