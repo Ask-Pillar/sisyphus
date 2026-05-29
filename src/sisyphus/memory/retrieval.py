@@ -670,7 +670,8 @@ class ContextRetriever:
                  "说明", "哪些", "哪个", "有没有", "是不是", "能否",
                  "有什么", "是什么", "有哪些", "怎么样"}
         has_fuzzy = any(w in fuzzy for w in words)
-        has_cjk_fuzzy = any("\u4e00" <= c <= "\u9fff" for c in query) and len(words) <= 6
+        cjk_count = sum(1 for c in query if "\u4e00" <= c <= "\u9fff")
+        has_cjk_fuzzy = cjk_count >= 4 and len(words) <= 8
         if has_fuzzy or has_cjk_fuzzy:
             return "A"
         return "B"
