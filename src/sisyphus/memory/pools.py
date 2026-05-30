@@ -15,7 +15,7 @@ import subprocess
 from pathlib import Path
 from typing import Optional, List, Dict
 
-from sisyphus.memory.store import MemoryStore
+from sisyphus.memory.sqlite_store import SQLiteMemoryStore
 
 DEFAULT_CONFIG = {
     "pools": {
@@ -48,7 +48,7 @@ class PoolRegistry:
     def get_store(self, pool: str, sub: str = "") -> MemoryStore:
         dir_name = {"project": "projects", "knowledge": "knowledge"}.get(pool, pool)
         pool_dir = self.base_path / dir_name / sub if sub else self.base_path / dir_name
-        return MemoryStore(pool_dir / "memory")
+        return SQLiteMemoryStore(pool_dir / "memory")
 
     def active_pools(self, scope: Optional[List[str]] = None) -> List[str]:
         """Return list of active pool names for given scope."""
