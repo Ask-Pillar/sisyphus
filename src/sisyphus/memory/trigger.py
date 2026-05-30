@@ -16,11 +16,11 @@ SIGNAL_PATTERNS = [
     # English
     (r"\b(remember|recall|memory|memories)\b", "l0_explicit"),
     # Chinese — no \b, Chinese chars don't have word boundaries
-    (r"(回顾|回忆|记住|记下|记一下|存一下|存下来|备忘)", "l0_explicit"),
+    (r"(回顾|回忆|记住|记下|记一下|记录一下|存一下|存下来|备忘)", "l0_explicit"),
     (r"(之前|上次|上次我们|之前说过|前面提到|说过|聊过|讨论过)", "l0_history"),
     (r"根据.{0,5}(记忆|记录)", "l0_memory_ref"),
     (r"记忆.{0,3}(里|中)", "l0_memory_ref"),
-    (r"(你记得|你知道|你了解|你清楚).{0,10}(吗|不|没)", "l0_question"),
+    (r"(你记得|你知道|你了解|你清楚).{0,20}(吗|不|没)", "l0_question"),
     (r"记录.{0,3}(里|中)", "l0_memory_ref"),
     (r"以前.{0,5}(说过|聊过|讨论过)", "l0_history"),
 ]
@@ -120,5 +120,5 @@ def should_retrieve_memory(
     if consecutive_misses >= 3 and consecutive_misses >= turn_count * 0.5:
         return TriggerResult(False, level="L2", reason=f"backoff after {consecutive_misses} misses")
 
-    # Default: trigger on most turns
-    return TriggerResult(True, level="L1", reason="default")
+    # Default: skip retrieval for normal messages
+    return TriggerResult(False, level="L1", reason="no trigger")

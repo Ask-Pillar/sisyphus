@@ -94,8 +94,7 @@ class TestShouldRetrieve:
 
     def test_default_trigger(self):
         r = should_retrieve_memory("any normal message", turn_count=3, consecutive_misses=0)
-        assert r.should_trigger
-        assert r.level == "L1"
+        assert not r.should_trigger
 
 
 class TestTriggerResult:
