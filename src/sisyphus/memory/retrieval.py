@@ -66,7 +66,10 @@ def decay_score(memory: Memory, now: Optional[datetime] = None) -> float:
     days = _days_since(ref_time, now)
     decay = 0.5 ** (days / DECAY_HALF_LIFE_DAYS)
     recall_boost = 1.0 + math.log(1 + memory.recall_count) if memory.recall_count > 0 else 1.0
-    return memory.importance * decay * recall_boost
+    feedback_boost = 1.0 + (memory.feedback_score - 3) * 0.2 if memory.feedback_score > 0 else 1.0
+    if memory.dismissed:
+        return 0.0
+    return memory.importance * decay * recall_boost * feedback_boost
 
 
 def _collect_types(store: MemoryStore, refined: RefinedStore) -> List[str]:

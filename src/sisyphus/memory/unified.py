@@ -45,7 +45,41 @@ class UnifiedRetriever:
                 all_results.append((mem, weighted, pool))
 
         all_results.sort(key=lambda x: x[1], reverse=True)
-        return all_results[:top_k]
+        diversified = self._diversify(all_results, top_k)
+        gems = self._forgotten_gems(top_k)
+        if gems and len(diversified) >= top_k:
+            diversified[-1] = gems[0]
+        return diversified
+
+    def _diversify(self, results: list, top_k: int) -> list:
+        """Ensure diversity: at least 1 result from a minority pool + forgotten gem."""
+        if len(results) <= 2:
+            return results[:top_k]
+        top = list(results[:top_k])
+        seen_pools = {r[2] for r in top}
+        if len(seen_pools) < 2:
+            remaining = [r for r in results[top_k:] if r[2] not in seen_pools]
+            if remaining:
+                top[-1] = remaining[0]
+        return top
+
+    def _forgotten_gems(self, top_k: int) -> list:
+        """10% chance to inject a high-importance forgotten memory."""
+        import random
+        if random.random() > 0.1:
+            return []
+        pool_stores = []
+        for pool in self.registry.active_pools(["personal"]):
+            pool_stores.append(self.registry.get_store(pool, ""))
+        gems = []
+        for store in pool_stores:
+            for mem in store.list():
+                if mem.importance >= 7 and mem.recall_count == 0 and not getattr(mem, "dismissed", False):
+                    gems.append((mem, 0.5, "personal"))
+        if gems:
+            import random
+            return random.sample(gems, min(1, len(gems)))
+        return []
 
     def _recall(self, store, query: str, top_k: int) -> List[Tuple[Memory, float]]:
         """Pool-level recall using FTS5 + keyword scoring."""
