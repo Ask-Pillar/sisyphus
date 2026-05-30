@@ -17,9 +17,12 @@ def before_turn():
     from sisyphus.memory.store import MemoryStore
     from sisyphus.memory.context import AgentMemory
     from sisyphus.memory.trigger import l0_signal_words
+    from sisyphus.memory.pools import PoolRegistry
     from datetime import datetime
 
-    store = MemoryStore(Path.home() / ".omo" / "memory")
+    registry = PoolRegistry()
+    registry.init_structure()
+    store = registry.get_store("personal")
     memory = AgentMemory(store)
     query = sys.stdin.read().strip() if not sys.stdin.isatty() else ""
 
@@ -41,14 +44,11 @@ def before_turn():
 
 
 def after_turn():
-    """Called by OpenCode after each agent response.
-
-    Writes ALL turns to session log. Only stores significant turns
-    to MemoryStore when signal words trigger.
-    """
+    """Called by OpenCode after each agent response."""
     from sisyphus.memory.store import MemoryStore
     from sisyphus.memory.context import AgentMemory
     from sisyphus.memory.trigger import l0_signal_words
+    from sisyphus.memory.pools import PoolRegistry
     from datetime import datetime
 
     turn = sys.stdin.read().strip() if not sys.stdin.isatty() else ""
@@ -68,7 +68,8 @@ def after_turn():
     with open(session_file, "a") as f:
         f.write(entry)
     if trigger.should_trigger:
-        store = MemoryStore(Path.home() / ".omo" / "memory")
+        registry = PoolRegistry()
+        store = registry.get_store("personal")
         store.create_if_new(
             title=f"Conversation {ts.strftime('%Y-%m-%dT%H%M%S')}",
             type="conversation",
