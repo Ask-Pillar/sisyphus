@@ -159,19 +159,27 @@ class KnowledgeBase:
             for r in rows
         ]
 
-    def import_directory(self, dirpath: str, recursive: bool = True) -> Dict:
-        """Import all supported files from a directory."""
+    def import_directory(self, dirpath: str, recursive: bool = True,
+                         progress: Optional[callable] = None) -> Dict:
+        """Import all supported files from a directory.
+
+        Args:
+            dirpath: Directory to scan
+            recursive: Scan subdirectories
+            progress: Optional callback(files_done, total_files, current_file)
+        """
         path = Path(dirpath)
         if not path.is_dir():
             raise NotADirectoryError(f"Not a directory: {dirpath}")
 
         supported = {".md", ".txt", ".jsonl", ".csv"}
-        files = path.rglob("*") if recursive else path.glob("*")
+        all_files = sorted(f for f in (path.rglob("*") if recursive else path.glob("*"))
+                         if f.suffix.lower() in supported)
         results = {"total_files": 0, "total_chunks": 0, "errors": []}
 
-        for f in sorted(files):
-            if f.suffix.lower() not in supported:
-                continue
+        for idx, f in enumerate(all_files, 1):
+            if progress and callable(progress):
+                progress(idx, len(all_files), str(f))
             try:
                 count = self.import_file(str(f))
                 results["total_files"] += 1

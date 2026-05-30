@@ -140,6 +140,20 @@ def _handle_import(args: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
+def _handle_import_knowledge(args: Dict[str, Any]) -> Dict[str, Any]:
+    """Import documents into the knowledge base pool."""
+    from sisyphus.memory.knowledge import KnowledgeBase
+    domain = args.get("domain", "default")
+    source = args.get("path", "")
+    kb = KnowledgeBase(domain=domain)
+    if not source:
+        return {"error": "path is required"}
+    import os
+    if os.path.isdir(source):
+        return kb.import_directory(source, recursive=args.get("recursive", True))
+    return {"chunks": kb.import_file(source)}
+
+
 def _handle_pipeline(args: Dict[str, Any]) -> Dict[str, Any]:
     _setup()
     pipeline = SleepPipeline(STORE_PATH)
@@ -236,6 +250,18 @@ TOOLS: Dict[str, Dict[str, Any]] = {
             "required": ["path"],
         },
     },
+    "import_knowledge": {
+        "description": "导入文档到知识库（.md/.txt/.jsonl/.csv → SQLite FTS5）",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "文件或目录路径"},
+                "domain": {"type": "string", "description": "知识领域（默认 default）"},
+                "recursive": {"type": "boolean", "description": "目录递归导入（默认 true）"},
+            },
+            "required": ["path"],
+        },
+    },
 }
 
 HANDLERS: Dict[str, Callable] = {
@@ -248,6 +274,7 @@ HANDLERS: Dict[str, Callable] = {
     "delete_memory": _handle_delete,
     "run_pipeline": _handle_pipeline,
     "import_memories": _handle_import,
+    "import_knowledge": _handle_import_knowledge,
 }
 
 
