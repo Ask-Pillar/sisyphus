@@ -49,10 +49,13 @@ class UnifiedRetriever:
         gems = self._forgotten_gems(top_k)
         if gems and len(diversified) >= top_k:
             diversified[-1] = gems[0]
-        return diversified
+        opposing = self._opposing_views(diversified, query, top_k)
+        if opposing:
+            diversified.append(opposing[0])
+        self._log_ab_test(diversified)
+        return diversified[:top_k]
 
     def _diversify(self, results: list, top_k: int) -> list:
-        """Ensure diversity: at least 1 result from a minority pool + forgotten gem."""
         if len(results) <= 2:
             return results[:top_k]
         top = list(results[:top_k])
@@ -62,6 +65,41 @@ class UnifiedRetriever:
             if remaining:
                 top[-1] = remaining[0]
         return top
+
+    def _opposing_views(self, top: list, query: str, top_k: int) -> list:
+        """If top-3 all share same type, search for counterpoints."""
+        if len(top) < 3:
+            return []
+        types = {m.types[0] if m.types else "" for m, _, _ in top[:3]}
+        if len(types) > 1:
+            return []
+        excluded_type = list(types)[0]
+        # Search personal pool for memories of different type
+        store = self.registry.get_store("personal")
+        candidates = []
+        for mem in store.list():
+            mem_type = mem.types[0] if mem.types else ""
+            if mem_type and mem_type != excluded_type and not getattr(mem, "dismissed", False):
+                score = self._score(mem, query)
+                if score > 0:
+                    candidates.append((mem, score, "personal"))
+        candidates.sort(key=lambda x: x[1], reverse=True)
+        return candidates[:1]
+
+    def _log_ab_test(self, results: list):
+        """Log retrieval results for A/B testing analysis."""
+        import json
+        from datetime import datetime
+        log_path = self.registry.base_path / "ab_test.jsonl"
+        record = {
+            "ts": datetime.now().isoformat(),
+            "count": len(results),
+            "pools": list({r[2] for r in results}),
+            "types": list({(r[0].types[0] if r[0].types else "") for r in results}),
+            "top_score": results[0][1] if results else 0,
+        }
+        with open(log_path, "a") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
     def _forgotten_gems(self, top_k: int) -> list:
         """10% chance to inject a high-importance forgotten memory."""
