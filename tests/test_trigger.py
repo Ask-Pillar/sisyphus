@@ -88,7 +88,7 @@ class TestShouldRetrieve:
         assert r.level == "L0"
 
     def test_backoff_after_misses(self):
-        r = should_retrieve_memory("some random chat", turn_count=10, consecutive_misses=7)
+        r = should_retrieve_memory("some random chat", turn_count=7, consecutive_misses=7)
         assert not r.should_trigger
         assert r.level == "L2"
 
