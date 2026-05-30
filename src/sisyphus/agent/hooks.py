@@ -16,10 +16,25 @@ def before_turn():
     """Called by OpenCode before each agent turn."""
     from sisyphus.memory.store import MemoryStore
     from sisyphus.memory.context import AgentMemory
+    from sisyphus.memory.trigger import l0_signal_words
+    from datetime import datetime
 
     store = MemoryStore(Path.home() / ".omo" / "memory")
     memory = AgentMemory(store)
     query = sys.stdin.read().strip() if not sys.stdin.isatty() else ""
+
+    # Write user message to session log
+    if query:
+        ts = datetime.now().astimezone()
+        session_dir = Path.home() / ".omo" / "sessions"
+        session_dir.mkdir(parents=True, exist_ok=True)
+        session_file = session_dir / f"{ts.strftime('%Y-%m-%d')}.md"
+        trigger = l0_signal_words(query)
+        trigger_mark = f" [触发: {trigger.reason}]" if trigger.should_trigger else ""
+        entry = f"\n---\n## {ts.strftime('%Y-%m-%d %H:%M:%S')} ← user{trigger_mark}\n\n{query[:2000]}\n"
+        with open(session_file, "a") as f:
+            f.write(entry)
+
     ctx = memory.before_turn(query=query, max_chars=3000)
     if ctx:
         print(ctx)
@@ -44,15 +59,14 @@ def after_turn():
     date_str = ts.strftime("%Y-%m-%d")
 
     # Always write to session log
+    trigger = l0_signal_words(turn)
+    trigger_mark = f" [触发: {trigger.reason}]" if trigger.should_trigger else ""
     session_dir = Path.home() / ".omo" / "sessions"
     session_dir.mkdir(parents=True, exist_ok=True)
     session_file = session_dir / f"{date_str}.md"
-    entry = f"\n---\n## {ts.strftime('%H:%M:%S')}\n\n{turn[:2000]}\n"
+    entry = f"\n---\n## {ts.strftime('%Y-%m-%d %H:%M:%S')} → agent{trigger_mark}\n\n{turn[:2000]}\n"
     with open(session_file, "a") as f:
         f.write(entry)
-
-    # Only store to MemoryStore when signal words trigger
-    trigger = l0_signal_words(turn)
     if trigger.should_trigger:
         store = MemoryStore(Path.home() / ".omo" / "memory")
         store.create_if_new(
