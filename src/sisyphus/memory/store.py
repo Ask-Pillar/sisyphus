@@ -47,6 +47,10 @@ class Memory:
     # Retrieval-layer fields
     recall_count: int = 0
     last_recalled_at: str = ""
+    # Feedback-layer fields
+    feedback_score: int = 0
+    feedback_at: str = ""
+    dismissed: bool = False
 
 
 def _now() -> str:
@@ -223,6 +227,31 @@ class MemoryStore:
         self._log_operation("restore", mem)
         return True
 
+    def rate(self, mem_id: str, score: int) -> bool:
+        """Rate a memory (1-5). Negative feedback scores bias retrieval."""
+        mem = self.get(mem_id)
+        if mem is None:
+            return False
+        mem.feedback_score = max(1, min(5, score))
+        mem.feedback_at = _now()
+        mem.updated_at = _now()
+        self._write_topic(mem)
+        self._dirty = True
+        self._log_operation("rate", mem)
+        return True
+
+    def dismiss(self, mem_id: str) -> bool:
+        """Dismiss a memory. It will be excluded from future retrieval."""
+        mem = self.get(mem_id)
+        if mem is None:
+            return False
+        mem.dismissed = True
+        mem.updated_at = _now()
+        self._write_topic(mem)
+        self._dirty = True
+        self._log_operation("dismiss", mem)
+        return True
+
     def _ensure_index(self):
         index = self.base_path / "INDEX.md"
         if not index.exists():
@@ -269,6 +298,12 @@ class MemoryStore:
             fm["recall_count"] = mem.recall_count
         if mem.last_recalled_at:
             fm["last_recalled_at"] = mem.last_recalled_at
+        if mem.feedback_score:
+            fm["feedback_score"] = mem.feedback_score
+        if mem.feedback_at:
+            fm["feedback_at"] = mem.feedback_at
+        if mem.dismissed:
+            fm["dismissed"] = True
         fm_yaml = yaml.dump(fm, default_flow_style=False, allow_unicode=True).strip()
         lines = [f"---\n{fm_yaml}\n---\n"]
         if mem.content:
@@ -310,6 +345,9 @@ class MemoryStore:
                 resolved=fm.get("resolved", False),
                 recall_count=fm.get("recall_count", 0),
                 last_recalled_at=fm.get("last_recalled_at", ""),
+                feedback_score=fm.get("feedback_score", 0),
+                feedback_at=fm.get("feedback_at", ""),
+                dismissed=fm.get("dismissed", False),
             )
         return self._parse_old_format(text, path.stem)
 

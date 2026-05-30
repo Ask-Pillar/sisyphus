@@ -163,6 +163,21 @@ def _handle_pipeline(args: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
+def _handle_rate(args: Dict[str, Any]) -> Dict[str, Any]:
+    _setup()
+    mem_id = args["id"]
+    score = args["score"]
+    ok = _store.rate(mem_id, score)
+    return {"rated": mem_id, "score": score} if ok else {"error": "memory not found"}
+
+
+def _handle_dismiss(args: Dict[str, Any]) -> Dict[str, Any]:
+    _setup()
+    mem_id = args["id"]
+    ok = _store.dismiss(mem_id)
+    return {"dismissed": mem_id} if ok else {"error": "memory not found"}
+
+
 TOOLS: Dict[str, Dict[str, Any]] = {
     "write_memory": {
         "description": "记录一条新记忆",
@@ -262,6 +277,27 @@ TOOLS: Dict[str, Dict[str, Any]] = {
             "required": ["path"],
         },
     },
+    "rate_memory": {
+        "description": "给记忆打分 (1-5)，影响排序权重",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "string", "description": "记忆 ID"},
+                "score": {"type": "integer", "description": "评分 1-5"},
+            },
+            "required": ["id", "score"],
+        },
+    },
+    "dismiss_memory": {
+        "description": "不再推荐这条记忆",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "string", "description": "要屏蔽的记忆 ID"},
+            },
+            "required": ["id"],
+        },
+    },
 }
 
 HANDLERS: Dict[str, Callable] = {
@@ -275,6 +311,8 @@ HANDLERS: Dict[str, Callable] = {
     "run_pipeline": _handle_pipeline,
     "import_memories": _handle_import,
     "import_knowledge": _handle_import_knowledge,
+    "rate_memory": _handle_rate,
+    "dismiss_memory": _handle_dismiss,
 }
 
 
