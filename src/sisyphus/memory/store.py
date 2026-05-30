@@ -150,6 +150,8 @@ class MemoryStore:
             mem = self._parse_topic(f)
             if not include_deleted and mem.deleted:
                 continue
+            if mem.dismissed:
+                continue
             if type_filter is None or type_filter in mem.types:
                 memories.append(mem)
         return memories
