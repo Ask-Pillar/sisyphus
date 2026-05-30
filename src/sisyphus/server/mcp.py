@@ -178,6 +178,24 @@ def _handle_dismiss(args: Dict[str, Any]) -> Dict[str, Any]:
     return {"dismissed": mem_id} if ok else {"error": "memory not found"}
 
 
+def _handle_switch_scope(args: Dict[str, Any]) -> Dict[str, Any]:
+    from sisyphus.memory.pools import PoolRegistry
+    registry = PoolRegistry()
+    scope = args.get("scope", ["personal", "project"])
+    pools = registry.active_pools(scope)
+    return {"active_pools": pools, "scope": scope}
+
+
+def _handle_list_pools(args: Dict[str, Any]) -> Dict[str, Any]:
+    from sisyphus.memory.pools import PoolRegistry
+    registry = PoolRegistry()
+    all_pools = registry.config.get("pools", {})
+    return {
+        "pools": {k: {"weight": v["weight"], "enabled": v["enabled"]} for k, v in all_pools.items()},
+        "active": registry.active_pools(),
+    }
+
+
 TOOLS: Dict[str, Dict[str, Any]] = {
     "write_memory": {
         "description": "记录一条新记忆",
@@ -298,6 +316,19 @@ TOOLS: Dict[str, Dict[str, Any]] = {
             "required": ["id"],
         },
     },
+    "switch_scope": {
+        "description": "切换检索范围",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "scope": {"type": "array", "items": {"type": "string"}, "description": "激活的池列表"},
+            },
+        },
+    },
+    "list_pools": {
+        "description": "列出所有池及其状态",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
 }
 
 HANDLERS: Dict[str, Callable] = {
@@ -313,6 +344,8 @@ HANDLERS: Dict[str, Callable] = {
     "import_knowledge": _handle_import_knowledge,
     "rate_memory": _handle_rate,
     "dismiss_memory": _handle_dismiss,
+    "switch_scope": _handle_switch_scope,
+    "list_pools": _handle_list_pools,
 }
 
 
