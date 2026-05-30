@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sisyphus 记忆系统 · 交互演示</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #0d1117; color: #e6edf3; overflow-x: hidden; }
+  .header { text-align: center; padding: 40px 20px 20px; max-width: 900px; margin: 0 auto; }
+  .header h1 { font-size: 2em; background: linear-gradient(135deg, #58a6ff, #d2a8ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .header p { color: #8b949e; margin-top: 8px; font-size: 15px; }
+
+  /* ===== 3D Layer Stack ===== */
+  .layers-container { perspective: 1200px; max-width: 800px; margin: 30px auto; position: relative; height: 480px; }
+  .layer { position: absolute; left: 50%; transform-style: preserve-3d; transition: transform 0.8s cubic-bezier(.22,.61,.36,1); cursor: pointer; }
+  .layer-face { border-radius: 12px; padding: 20px 24px; width: 400px; transform: translateX(-50%); backdrop-filter: blur(4px); border: 1px solid; transition: all 0.4s; }
+  .layer-face:hover { transform: translateX(-50%) scale(1.02); }
+  .layer-label { font-size: 13px; font-weight: 700; letter-spacing: 1px; }
+  .layer-desc { font-size: 12px; margin-top: 4px; opacity: 0.7; }
+  .layer-items { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .layer-items span { font-size: 11px; padding: 3px 10px; border-radius: 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); }
+
+  #layer-l1 { top: 20px; z-index: 3; }
+  #layer-l1 .layer-face { background: rgba(31,111,235,0.15); border-color: rgba(88,166,255,0.3); }
+  #layer-l1 .layer-label { color: #58a6ff; }
+  #layer-l1 .layer-items span { border-color: rgba(88,166,255,0.25); color: #58a6ff; }
+
+  #layer-l2 { top: 155px; z-index: 2; }
+  #layer-l2 .layer-face { background: rgba(137,87,229,0.12); border-color: rgba(210,168,255,0.25); width: 360px; }
+  #layer-l2 .layer-label { color: #d2a8ff; }
+  #layer-l2 .layer-items span { border-color: rgba(210,168,255,0.2); color: #d2a8ff; }
+
+  #layer-l3 { top: 290px; z-index: 1; }
+  #layer-l3 .layer-face { background: rgba(35,134,54,0.12); border-color: rgba(63,185,80,0.25); width: 320px; }
+  #layer-l3 .layer-label { color: #3fb950; }
+  #layer-l3 .layer-items span { border-color: rgba(63,185,80,0.2); color: #3fb950; }
+
+  .flow-arrow { position: absolute; left: 50%; transform: translateX(-50%); font-size: 20px; color: #484f58; z-index: 5; pointer-events: none; }
+  #arrow-1 { top: 130px; }
+  #arrow-2 { top: 265px; }
+
+  /* ===== Partition Tabs ===== */
+  .partition-section { max-width: 800px; margin: 40px auto; padding: 0 20px; }
+  .partition-section h2 { font-size: 1.3em; color: #e6edf3; margin-bottom: 16px; }
+  .tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tab { padding: 10px 20px; border-radius: 8px; border: 1px solid #30363d; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.3s; background: #161b22; color: #8b949e; }
+  .tab:hover { border-color: #58a6ff; color: #e6edf3; }
+  .tab.active { background: #1f6feb22; border-color: #58a6ff; color: #58a6ff; }
+  .tab-content { display: none; margin-top: 16px; background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; animation: fadeIn 0.3s; }
+  .tab-content.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .tab-content h3 { font-size: 1em; margin-bottom: 8px; }
+  .tab-content p { font-size: 14px; color: #8b949e; line-height: 1.7; }
+  .tab-content .sql { display: block; background: #0d1117; border: 1px solid #21262d; border-radius: 6px; padding: 10px 14px; font-family: 'SF Mono', Menlo, monospace; font-size: 12px; margin: 10px 0; color: #d2a8ff; }
+
+  /* ===== Pipeline Flow ===== */
+  .pipeline { max-width: 800px; margin: 40px auto; padding: 0 20px; }
+  .pipeline h2 { font-size: 1.3em; margin-bottom: 16px; }
+  .pipeline-flow { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; justify-content: center; }
+  .pipe-stage { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 14px 18px; text-align: center; min-width: 110px; transition: all 0.3s; }
+  .pipe-stage .icon { font-size: 24px; }
+  .pipe-stage .name { font-size: 12px; font-weight: 600; margin-top: 4px; }
+  .pipe-stage .count { font-size: 11px; color: #8b949e; }
+  .pipe-arrow { color: #484f58; font-size: 18px; }
+  .pipe-stage.active-stage { border-color: #d2a8ff; box-shadow: 0 0 20px rgba(210,168,255,0.1); }
+  .pipe-stage.done-stage { border-color: #3fb950; }
+  .pipe-btn { display: block; margin: 20px auto 0; padding: 12px 32px; background: #238636; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.3s; }
+  .pipe-btn:hover { background: #2ea043; }
+  .pipe-btn:disabled { background: #21262d; color: #484f58; cursor: not-allowed; }
+  .pipeline-log { margin-top: 16px; background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 14px; max-height: 120px; overflow-y: auto; font-family: 'SF Mono', Menlo, monospace; font-size: 12px; }
+  .pipeline-log div { padding: 3px 0; border-bottom: 1px solid #21262d; }
+  .pipeline-log div:last-child { border-bottom: none; }
+
+  /* ===== Query Simulator ===== */
+  .query-section { max-width: 800px; margin: 40px auto; padding: 0 20px 60px; }
+  .query-section h2 { font-size: 1.3em; margin-bottom: 16px; }
+  .query-box { display: flex; gap: 10px; }
+  .query-box input { flex: 1; padding: 12px 16px; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; color: #e6edf3; font-size: 14px; outline: none; transition: border-color 0.3s; }
+  .query-box input:focus { border-color: #58a6ff; }
+  .query-box button { padding: 12px 24px; background: #1f6feb; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.3s; }
+  .query-box button:hover { background: #388bfd; }
+  .query-results { margin-top: 16px; display: none; }
+  .query-results.show { display: block; animation: fadeIn 0.3s; }
+  .query-result-item { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 14px 18px; margin-bottom: 8px; }
+  .query-result-item .type { font-size: 11px; padding: 2px 8px; border-radius: 10px; }
+  .query-result-item .title { font-size: 14px; font-weight: 600; margin-top: 4px; }
+  .query-result-item .meta { font-size: 12px; color: #8b949e; margin-top: 4px; display: flex; gap: 12px; }
+  .query-result-item .meta .badge { padding: 1px 8px; border-radius: 8px; background: rgba(255,255,255,0.06); }
+
+  /* ===== Dim Matrix ===== */
+  .matrix-section { max-width: 800px; margin: 0 auto 40px; padding: 0 20px; }
+  .matrix-section h2 { font-size: 1.3em; margin-bottom: 16px; }
+  .matrix-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .matrix-cell { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px; text-align: center; transition: all 0.3s; }
+  .matrix-cell:hover { border-color: #58a6ff; transform: translateY(-2px); }
+  .matrix-cell .axis { font-size: 11px; color: #8b949e; font-weight: 600; }
+  .matrix-cell .values { font-size: 13px; font-weight: 600; margin-top: 6px; line-height: 1.8; }
+  .matrix-cell .values span { display: inline-block; padding: 2px 8px; border-radius: 6px; margin: 2px; font-size: 12px; }
+
+  @media (max-width: 600px) {
+    .layer-face { width: 300px !important; padding: 14px 18px; }
+    #layer-l2 .layer-face { width: 270px !important; }
+    #layer-l3 .layer-face { width: 240px !important; }
+    .layers-container { height: 400px; }
+    .matrix-grid { grid-template-columns: 1fr; }
+    .pipeline-flow { gap: 2px; }
+    .pipe-stage { min-width: 80px; padding: 10px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>♾️ Sisyphus 记忆系统</h1>
+  <p>三层存储架构 · 四维分区 · 九种类型 · 全交互演示</p>
+</div>
+
+<!-- ===== Section 1: Three-Layer Architecture ===== -->
+<div class="layers-container" id="layersContainer">
+  <div class="layer" id="layer-l1">
+    <div class="layer-face">
+      <div class="layer-label">📄 L1 · 原始文件</div>
+      <div class="layer-desc">不可变 .md 明文 · Git 追踪 · 唯一数据源</div>
+      <div class="layer-items">
+        <span>~/.omo/memory/*.md</span>
+        <span>git add &amp;&amp; git commit</span>
+        <span>人类可读</span>
+      </div>
+    </div>
+  </div>
+  <div class="flow-arrow" id="arrow-1">⬇ 增量写入</div>
+  <div class="layer" id="layer-l2">
+    <div class="layer-face">
+      <div class="layer-label">📋 L2 · 操作日志</div>
+      <div class="layer-desc">Append-only JSONL · 时间旅行 · 审计溯源</div>
+      <div class="layer-items">
+        <span>operations.jsonl</span>
+        <span>create/update/delete</span>
+        <span>checkpoint 压缩</span>
+      </div>
+    </div>
+  </div>
+  <div class="flow-arrow" id="arrow-2">⬇ 回放重建</div>
+  <div class="layer" id="layer-l3">
+    <div class="layer-face">
+      <div class="layer-label">🗄️ L3 · 查询索引</div>
+      <div class="layer-desc">SQLite FTS5 · 可丢弃可重建 · 绝非主存储</div>
+      <div class="layer-items">
+        <span>memories 表</span>
+        <span>FTS5 全文索引</span>
+        <span>sqlite-vec (预留)</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Section 2: Three Dimensions Matrix ===== -->
+<div class="matrix-section">
+  <h2>📐 三维标注体系</h2>
+  <p style="color:#8b949e;font-size:14px;margin-bottom:14px;">每条记忆从三个正交维度打标签 → SQLite 列存储 → WHERE 任意组合</p>
+  <div class="matrix-grid">
+    <div class="matrix-cell">
+      <div class="axis">🔤 类型 · 语义分类</div>
+      <div class="values" style="color:#58a6ff">
+        <span style="background:#1f6feb22">decision</span>
+        <span style="background:#1f6feb22">lesson</span>
+        <span style="background:#1f6feb22">pattern</span>
+        <span style="background:#1f6feb22">project_context</span>
+        <span style="background:#1f6feb22">user_preference</span>
+        <span style="background:#1f6feb22">note</span>
+        <span style="background:#1f6feb22">reflection</span>
+        <span style="background:#1f6feb22">compressed</span>
+      </div>
+    </div>
+    <div class="matrix-cell">
+      <div class="axis">⏳ 分区 · 耐久策略</div>
+      <div class="values">
+        <span style="background:#8957e533;color:#d2a8ff;">PERSIST</span>
+        <span style="background:#d2992233;color:#d29922;">HOT</span>
+        <span style="background:#da363333;color:#ff7b72;">CODE</span>
+        <span style="background:#3fb95033;color:#3fb950;">COLD</span>
+      </div>
+    </div>
+    <div class="matrix-cell">
+      <div class="axis">📍 作用域 · 归属范围</div>
+      <div class="values" style="color:#3fb950">
+        <span style="background:#23863622">global</span>
+        <span style="background:#d2992222;color:#d29922">project</span>
+        <span style="background:#da363322;color:#ff7b72">session</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Section 3: Partition Tabs ===== -->
+<div class="partition-section">
+  <h2>⚡ 四分区的 SQLite 查询映射</h2>
+  <div class="tabs">
+    <div class="tab active" data-tab="persist">📌 PERSIST 永不朽</div>
+    <div class="tab" data-tab="hot">🔥 HOT 7天窗</div>
+    <div class="tab" data-tab="cold">❄️ COLD 全文搜</div>
+    <div class="tab" data-tab="code">💻 CODE 代码图</div>
+  </div>
+  <div class="tab-content active" id="tab-persist">
+    <h3>📌 PERSIST — 永不过期，每次 turn 无条件注入</h3>
+    <p>入选: <code>pinned=1</code> 或 <code>importance≥8</code> 且 <code>type∈(project_context,decision,pattern)</code></p>
+    <div class="sql">SELECT * FROM memories<br>WHERE status='active'<br>  AND (pinned=1 OR (importance>=8 AND type IN ('project_context','decision','pattern')))<br>ORDER BY importance DESC;</div>
+    <p>不参与衰减，不占 top_k 配额，始终在 <code>&lt;sisyphus_context&gt;</code> 里。</p>
+  </div>
+  <div class="tab-content" id="tab-hot">
+    <h3>🔥 HOT — 7 天窗口，优先检索</h3>
+    <p>7 天内创建的活跃记忆，按衰减排序，排除 PERSIST 条目</p>
+    <div class="sql">SELECT *, importance * POW(0.5, days/180.0) AS score<br>FROM memories_fts WHERE memories_fts MATCH ?<br>  AND status='active' AND pinned=0<br>  AND created_at >= date('now','-7 days')<br>ORDER BY score DESC LIMIT 5;</div>
+  </div>
+  <div class="tab-content" id="tab-cold">
+    <h3>❄️ COLD — 历史全文检索，衰减排序</h3>
+    <p>超过 7 天的历史记忆，FTS5 全文匹配 + 180 天半衰期衰减</p>
+    <div class="sql">SELECT *, importance * POW(0.5, days/180.0) AS score<br>FROM memories_fts WHERE memories_fts MATCH ?<br>  AND status='active' AND pinned=0<br>  AND created_at < date('now','-7 days')<br>ORDER BY score DESC LIMIT 5;</div>
+  </div>
+  <div class="tab-content" id="tab-code">
+    <h3>💻 CODE — 独立代码索引</h3>
+    <p>CodeGraphContext (KùzuDB 图数据库) 管理，不走 SQLite。MCP 统一暴露。</p>
+    <div class="sql"># 独立 CLI / MCP<br>$ cgc analyze callers retrieve<br># → [context.py:87, mcp.py:67, ...]</div>
+  </div>
+</div>
+
+<!-- ===== Section 4: Pipeline Simulator ===== -->
+<div class="pipeline">
+  <h2>🔄 Pipeline 自进化流程</h2>
+  <p style="color:#8b949e;font-size:14px;margin-bottom:14px;">点击"跑一次 Pipeline"模拟 RAW → REFINED → MOC → 注入的完整链路</p>
+  <div class="pipeline-flow">
+    <div class="pipe-stage" id="stage-write" data-stage="0">
+      <div class="icon">✏️</div>
+      <div class="name">写入</div>
+      <div class="count" id="write-count">3 条 RAW</div>
+    </div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-stage" id="stage-dream" data-stage="1">
+      <div class="icon">🌙</div>
+      <div class="name">Dream</div>
+      <div class="count" id="dream-count">⟳ 等待</div>
+    </div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-stage" id="stage-compress" data-stage="2">
+      <div class="icon">🗜️</div>
+      <div class="name">Compress</div>
+      <div class="count" id="compress-count">⟳ 等待</div>
+    </div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-stage" id="stage-refined" data-stage="3">
+      <div class="icon">💎</div>
+      <div class="name">REFINED</div>
+      <div class="count" id="refined-count">1 条</div>
+    </div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-stage" id="stage-inject" data-stage="4">
+      <div class="icon">🧠</div>
+      <div class="name">before_turn 注入</div>
+      <div class="count" id="inject-count">&lt;context&gt;</div>
+    </div>
+  </div>
+  <button class="pipe-btn" id="runPipeline">▶ 跑一次 Pipeline</button>
+  <div class="pipeline-log" id="pipelineLog">
+    <div>⟳ 就绪，等待触发...</div>
+  </div>
+</div>
+
+<!-- ===== Section 5: Query Simulator ===== -->
+<div class="query-section">
+  <h2>🔍 交互查询模拟器</h2>
+  <p style="color:#8b949e;font-size:14px;margin-bottom:14px;">输入任意关键词，模拟 FTS5 + 分区 + 类型 + 作用域的联合检索</p>
+  <div class="query-box">
+    <input type="text" id="queryInput" placeholder="例如：架构、检索、SQLite、分区、记忆类型..." value="架构" onkeydown="if(event.key==='Enter') doQuery()">
+    <button onclick="doQuery()">搜索</button>
+  </div>
+  <div class="query-results show" id="queryResults"></div>
+</div>
+
+<script>
+// ============================================================
+// 1. Layer Stack — tilt on mouse move
+// ============================================================
+const container = document.getElementById('layersContainer');
+if (container) {
+  document.addEventListener('mousemove', e => {
+    const rect = container.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    const rx = y * -6;
+    const ry = x * 8;
+    document.getElementById('layer-l1').style.transform = `rotateX(${rx}deg) rotateY(${ry}deg) translateZ(20px)`;
+    document.getElementById('layer-l2').style.transform = `rotateX(${rx*0.7}deg) rotateY(${ry*0.7}deg) translateZ(0px)`;
+    document.getElementById('layer-l3').style.transform = `rotateX(${rx*0.4}deg) rotateY(${ry*0.4}deg) translateZ(-10px)`;
+  });
+}
+
+// ============================================================
+// 2. Partition Tabs
+// ============================================================
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+// ============================================================
+// 3. Pipeline Simulator
+// ============================================================
+const RAW_MEMORIES = [
+  { title: "发现 BM25 @1 从 56% 提升到 83%", type: "lesson", imp: 8 },
+  { title: "Qwen3-Embedding 负收益，已移除", type: "decision", imp: 7 },
+  { title: "半衰期从 30 改为 180 天", type: "decision", imp: 9 },
+  { title: "store.py 和 moc.py 写同一个 INDEX.md", type: "bug", imp: 8 },
+  { title: "MCP 工具无系统提示注入", type: "defect", imp: 6 },
+  { title: "引入三层架构：.md → .jsonl → SQLite", type: "decision", imp: 10 },
+  { title: "PERSIST 层设计：pinned + project_context", type: "pattern", imp: 8 },
+  { title: "遗忘曲线 SQL 实现：POW(0.5, days/180)", type: "pattern", imp: 7 },
+  { title: "CodeGraphContext 做代码索引", type: "decision", imp: 6 },
+];
+let rawWritten = 0;
+let dreamDone = false;
+let compressDone = false;
+let refinedCount = 1;
+const pipelineLog = document.getElementById('pipelineLog');
+let running = false;
+
+function log(msg) {
+  const d = document.createElement('div');
+  const now = new Date();
+  d.textContent = `[${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}] ${msg}`;
+  pipelineLog.appendChild(d);
+  pipelineLog.scrollTop = pipelineLog.scrollHeight;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function setStage(stageIdx, status) {
+  const stages = ['stage-write', 'stage-dream', 'stage-compress', 'stage-refined', 'stage-inject'];
+  stages.forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.classList.remove('active-stage', 'done-stage');
+    if (i < stageIdx) el.classList.add('done-stage');
+    else if (i === stageIdx && status === 'active') el.classList.add('active-stage');
+  });
+}
+
+async function runPipeline() {
+  if (running) return;
+  running = true;
+  const btn = document.getElementById('runPipeline');
+  btn.disabled = true;
+  btn.textContent = '⏳ 运行中...';
+
+  // Step 0: write 3 RAW
+  setStage(0, 'active');
+  log(`📝 写入 3 条新记忆...`);
+  await sleep(600);
+  rawWritten += 3;
+  document.getElementById('write-count').textContent = `${RAW_MEMORIES.length + rawWritten} 条 RAW`;
+  log(`✅ 已写入: "${RAW_MEMORIES[(rawWritten-3) % RAW_MEMORIES.length].title}"`);
+  log(`✅ 已写入: "${RAW_MEMORIES[(rawWritten-2) % RAW_MEMORIES.length].title}"`);
+  log(`✅ 已写入: "${RAW_MEMORIES[(rawWritten-1) % RAW_MEMORIES.length].title}"`);
+  setStage(0, 'done');
+  await sleep(400);
+
+  // Step 1: Dream — call LLM to reflect
+  setStage(1, 'active');
+  document.getElementById('dream-count').textContent = '⟳ 处理中';
+  log(`🌙 Dream 引擎启动... (threshold: 5 RAW)`);
+  await sleep(800);
+  log(`🌙 分析 3 条新记忆，识别关联主题: "检索优化", "存储架构"`);
+  log(`🌙 调用 LLM 生成反思...`);
+  await sleep(600);
+  dreamDone = true;
+  document.getElementById('dream-count').textContent = '✅ 完成';
+  setStage(1, 'done');
+  await sleep(300);
+
+  // Step 2: Compress
+  setStage(2, 'active');
+  document.getElementById('compress-count').textContent = '⟳ 压缩中';
+  log(`🗜️ Compressor 扫描同 topic 记忆...`);
+  await sleep(500);
+  log(`🗜️ 发现 2 条"存储架构"相关 → 合并为 1 条压缩记忆`);
+  await sleep(400);
+  compressDone = true;
+  document.getElementById('compress-count').textContent = '✅ 完成';
+  setStage(2, 'done');
+  await sleep(300);
+
+  // Step 3: REFINED output
+  setStage(3, 'active');
+  refinedCount += 2;
+  document.getElementById('refined-count').textContent = `${refinedCount} 条`;
+  log(`💎 新 REFINED: "检索优化经验总结 (importance=8, pinned=true)"`);
+  log(`💎 新 REFINED: "存储架构演进决策记录 (importance=9, category=decision)"`);
+  setStage(3, 'done');
+  await sleep(300);
+
+  // Step 4: before_turn injection
+  setStage(4, 'active');
+  log(`🧠 before_turn 注入 <sisyphus_context>...`);
+  await sleep(500);
+  log(`🧠 PERSIST 层 4 条 + HOT 层 2 条 + COLD 层 3 条 = 共 9 条注入 context`);
+  log(`✅ Pipeline 完成 (${new Date().toLocaleTimeString()})`);
+  setStage(4, 'done');
+
+  btn.disabled = false;
+  btn.textContent = '▶ 再跑一次 Pipeline';
+  running = false;
+}
+
+document.getElementById('runPipeline').addEventListener('click', runPipeline);
+
+// ============================================================
+// 4. Query Simulator
+// ============================================================
+const MEMORY_DB = [
+  { id: "mem_001", type: "decision", title: "引入三层存储架构", content: "确定 L1 .md + L2 operations.jsonl + L3 SQLite 的三层架构，SQLite 只做查询索引，不做主存储。", tags: ["架构","存储"], importance: 10, pinned: true, scope: "global", project: "sisyphus", created_at: "2026-05-24" },
+  { id: "mem_002", type: "lesson", title: "BM25 @1 56% → 83%", content: "jieba 分词优化后 BM25 命中率从 56% 提升到 83%。CJK 单字 fallback 保证中文覆盖率。", tags: ["检索","优化"], importance: 8, pinned: true, scope: "global", project: "", created_at: "2026-05-23" },
+  { id: "mem_003", type: "decision", title: "Qwen3-Embedding 负收益", content: "向量检索在小规模 (<50条) 下不如 BM25，且增加延迟。移除嵌入层，留 sqlite-vec 接口等生态成熟。", tags: ["检索","向量"], importance: 7, pinned: false, scope: "global", project: "", created_at: "2026-05-22" },
+  { id: "mem_004", type: "decision", title: "半衰期 30→180 天", content: "用户确认 30 天太短，180 天更适合长期记忆衰减。SQL 实现: importance * POW(0.5, days/180.0)", tags: ["衰减","配置"], importance: 9, pinned: true, scope: "global", project: "", created_at: "2026-05-24" },
+  { id: "mem_005", type: "pattern", title: "PERSIST 分区规则", content: "pinned=true 或 importance>=8 且 type∈(project_context,decision,pattern) 自动进入 PERSIST 层，不参与衰减。", tags: ["分区","PERSIST"], importance: 8, pinned: true, scope: "global", project: "", created_at: "2026-05-24" },
+  { id: "mem_006", type: "project_context", title: "Sisyphus 项目概述", content: "Python 记忆系统，四层架构 (RAW→REFINED→MOC→AGENT)，P5 已完成 MCP 升级。路径 ~/.omo/memory/，28 个 .py 文件。", tags: ["项目","概述"], importance: 10, pinned: true, scope: "project", project: "sisyphus", created_at: "2026-05-20" },
+  { id: "mem_007", type: "note", title: "遗忘曲线 SQL 设计", content: "POW(0.5, (JULIANDAY('now') - JULIANDAY(COALESCE(last_recalled_at, created_at))) / 180.0) — 半衰期 180 天。", tags: ["SQL","衰减"], importance: 7, pinned: false, scope: "project", project: "sisyphus", created_at: "2026-05-24" },
+  { id: "mem_008", type: "decision", title: "FTS5 tokenizer 选型", content: "保留 jieba + CJK 单字 fallback。unicode61 不够细粒度，中文必须走 jieba 分词。", tags: ["检索","中文"], importance: 7, pinned: false, scope: "global", project: "", created_at: "2026-05-23" },
+  { id: "mem_009", type: "lesson", title: "store/moc 写冲突", content: "store.py._rebuild_index() 和 moc.py.generate() 都写 INDEX.md。方案：moc 写到 MOC.md，store 只维护 INDEX.md。", tags: ["缺陷","文件"], importance: 8, pinned: false, scope: "project", project: "sisyphus", created_at: "2026-05-24" },
+  { id: "mem_010", type: "user_preference", title: "喜欢 HTML 文档交流", content: "用户偏好通过 HTML 文档推演设计决策，微信发送。适合发完整设计文档，小讨论直接聊天。", tags: ["偏好","沟通"], importance: 6, pinned: false, scope: "global", project: "", created_at: "2026-05-24" },
+  { id: "mem_011", type: "reflection", title: "SQLite 不是主存储", content: "L3 SQLite 可丢弃可重建。删了 index.db 也不丢数据，从 L1 .md 或 L2 operations.jsonl 重放即可恢复。", tags: ["架构","SQLite"], importance: 9, pinned: true, scope: "global", project: "", created_at: "2026-05-24" },
+  { id: "mem_012", type: "decision", title: "CodeGraphContext 做代码索引", content: "用现成 CodeGraphContext (KùzuDB) 做代码索引，不自研 AST 解析器。MCP 统一暴露。", tags: ["代码","MCP"], importance: 6, pinned: false, scope: "project", project: "sisyphus", created_at: "2026-05-23" },
+];
+
+// Simulated FTS5 + partition + type + scope query
+function doQuery() {
+  const q = document.getElementById('queryInput').value.trim().toLowerCase();
+  if (!q) return;
+
+  // Break query into terms
+  const terms = q.split(/[\s,，、]+/).filter(t => t.length > 0);
+
+  function scoreMemory(m, queryTerms) {
+    let score = 0;
+    const searchText = (m.title + ' ' + m.content + ' ' + m.tags.join(' ') + ' ' + m.type + ' ' + m.scope + ' ' + m.project).toLowerCase();
+    for (const t of queryTerms) {
+      if (searchText.includes(t)) {
+        score += 10;
+        // Bonus for title match
+        if (m.title.toLowerCase().includes(t)) score += 20;
+        // Bonus for exact type match
+        if (m.type.toLowerCase() === t) score += 15;
+      }
+    }
+    // Apply decay factor (simulated)
+    const daysSinceCreated = Math.floor((Date.now() - new Date(m.created_at).getTime()) / 86400000);
+    const decay = Math.pow(0.5, daysSinceCreated / 180);
+    score = score * decay * (m.importance / 5);
+
+    // PERSIST bonus (always relevant)
+    if (m.pinned) score *= 1.3;
+
+    return score;
+  }
+
+  const scored = MEMORY_DB.map(m => ({
+    ...m,
+    _score: scoreMemory(m, terms)
+  }))
+  .filter(m => m._score > 0)
+  .sort((a, b) => b._score - a._score)
+  .slice(0, 8);
+
+  const resultsDiv = document.getElementById('queryResults');
+  resultsDiv.classList.add('show');
+
+  if (scored.length === 0) {
+    resultsDiv.innerHTML = `<div style="color:#8b949e;text-align:center;padding:20px;">没有匹配结果。试试：架构、检索、SQLite、分区</div>`;
+    return;
+  }
+
+  // Show SQL equivalent
+  let sql = `<div class="tab-content active" style="display:block;margin-bottom:12px;"><div class="sql">`;
+  sql += `-- FTS5 + 分区 + 类型 + 作用域 联合检索\n`;
+  sql += `SELECT title, type, importance * POW(0.5, days/180.0) AS score\n`;
+  sql += `FROM memories_fts WHERE memories_fts MATCH '${terms.join(' OR ')}'\n`;
+  sql += `  AND status='active'\n`;
+  sql += `  AND (pinned=1 OR scope IN ('global','project'))\n`;
+  sql += `ORDER BY score DESC LIMIT ${scored.length};`;
+  sql += `</div></div>`;
+
+  let html = sql;
+  scored.forEach(m => {
+    const pClass = m.pinned ? 'PERSIST' : (m.scope === 'session' ? 'session' : (m.project ? 'project' : 'global'));
+    const pColor = m.pinned ? '#d2a8ff' : (m.scope === 'session' ? '#ff7b72' : (m.project ? '#d29922' : '#3fb950'));
+    const typeColors = { decision: '#58a6ff', lesson: '#3fb950', pattern: '#d2a8ff', project_context: '#ff7b72', note: '#8b949e', reflection: '#d29922', user_preference: '#f0883e', bug: '#da3633', defect: '#da3633' };
+    html += `<div class="query-result-item">
+      <div>
+        <span class="type" style="background:${typeColors[m.type]||'#484f58'}22;color:${typeColors[m.type]||'#8b949e'}">${m.type}</span>
+        <span class="type" style="background:${pColor}22;color:${pColor}">${pClass}</span>
+        <span style="float:right;font-size:12px;color:#8b949e">score: ${m._score.toFixed(1)}</span>
+      </div>
+      <div class="title">${m.title}</div>
+      <div class="meta">
+        <span class="badge">⭐ ${m.importance}/10</span>
+        <span class="badge">${m.created_at}</span>
+        ${m.project ? `<span class="badge">📁 ${m.project}</span>` : ''}
+        <span class="badge">${m.tags.map(t => '#'+t).join(' ')}</span>
+      </div>
+    </div>`;
+  });
+
+  // Show counts
+  const persistCount = MEMORY_DB.filter(m => m.pinned).length;
+  const hotCount = MEMORY_DB.filter(m => !m.pinned && (Date.now() - new Date(m.created_at).getTime()) < 7*86400000).length;
+  const coldCount = MEMORY_DB.filter(m => !m.pinned && (Date.now() - new Date(m.created_at).getTime()) >= 7*86400000).length;
+  html = `<div style="display:flex;gap:12px;margin-bottom:12px;font-size:12px;">
+    <span style="color:#d2a8ff">📌 PERSIST ${persistCount}</span>
+    <span style="color:#d29922">🔥 HOT ${hotCount}</span>
+    <span style="color:#3fb950">❄️ COLD ${coldCount}</span>
+    <span style="color:#8b949e">匹配 ${scored.length} / ${MEMORY_DB.length} 条</span>
+  </div>` + html;
+
+  resultsDiv.innerHTML = html;
+}
+
+// Initial query
+doQuery();
+</script>
+
+</body>
+</html>

@@ -140,6 +140,8 @@ class AgentMemory:
         self._last_pipeline_turn = 0
         self._pipeline_cooldown = 3
         self._consecutive_misses = 0
+        self._backoff_until = 0
+        self._last_message = ""
 
     def _load_persist(self) -> str:
         if self._persist_cache is not None:
@@ -178,13 +180,26 @@ class AgentMemory:
         self._turn += 1
 
         from sisyphus.memory.trigger import should_retrieve_memory
-        trigger = should_retrieve_memory(query, self._turn, self._consecutive_misses)
+
+        in_backoff = self._backoff_until > 0 and self._turn < self._backoff_until
+        if in_backoff:
+            return ""
+
+        trigger = should_retrieve_memory(query, self._turn, self._consecutive_misses,
+                                         last_message=self._last_message)
+        self._last_message = query
 
         if not trigger.should_trigger and self._turn > 1:
             self._consecutive_misses += 1
+            if self._consecutive_misses >= 4:
+                skip = 2 ** (self._consecutive_misses - 3)
+                self._backoff_until = self._turn + skip
             return ""
 
-        self._consecutive_misses = 0 if trigger.should_trigger else self._consecutive_misses
+        if trigger.should_trigger:
+            self._consecutive_misses = 0
+            self._backoff_until = 0
+
         ctx = self.context.build(query=query, turn_count=self._turn, max_chars=max_chars)
 
         persist = self._load_persist()

@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sisyphus · 数据流转演示</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #0d1117; color: #e6edf3; overflow-x: hidden; padding: 20px; }
+  .header { text-align: center; padding: 20px 0 10px; }
+  .header h1 { font-size: 1.6em; }
+  .header h1 span:nth-child(1) { color: #58a6ff; }
+  .header h1 span:nth-child(2) { color: #d2a8ff; }
+  .header h1 span:nth-child(3) { color: #3fb950; }
+  .header p { color: #8b949e; font-size: 14px; margin-top: 4px; }
+
+  /* ===== Data Flow Canvas ===== */
+  .flow-canvas { max-width: 960px; margin: 20px auto; position: relative; }
+  .layer-row { display: flex; align-items: stretch; gap: 0; margin-bottom: 0; position: relative; min-height: 220px; }
+  .layer-label-col { width: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; letter-spacing: 1px; flex-shrink: 0; }
+  .layer-content { flex: 1; border-radius: 10px; border: 1px solid; padding: 14px; min-height: 200px; position: relative; overflow: hidden; transition: all 0.3s; }
+  .layer-content .layer-title { font-size: 13px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .layer-content .layer-title .badge { font-size: 10px; font-weight: 400; border-radius: 8px; padding: 1px 10px; }
+  .layer-content .layer-desc { font-size: 11px; opacity: 0.6; margin-bottom: 10px; }
+
+  /* L1 */
+  #l1-col { color: #58a6ff; }
+  #l1-content { background: rgba(31,111,235,0.08); border-color: rgba(88,166,255,0.25); }
+  #l1-content .layer-title { color: #58a6ff; }
+  #l1-content .badge { background: rgba(88,166,255,0.15); color: #58a6ff; }
+
+  /* L2 */
+  #l2-col { color: #d2a8ff; }
+  #l2-content { background: rgba(137,87,229,0.07); border-color: rgba(210,168,255,0.2); margin-top: 6px; }
+  #l2-content .layer-title { color: #d2a8ff; }
+  #l2-content .badge { background: rgba(210,168,255,0.12); color: #d2a8ff; }
+
+  /* L3 */
+  #l3-col { color: #3fb950; }
+  #l3-content { background: rgba(35,134,54,0.07); border-color: rgba(63,185,80,0.2); margin-top: 6px; }
+  #l3-content .layer-title { color: #3fb950; }
+  #l3-content .badge { background: rgba(63,185,80,0.12); color: #3fb950; }
+
+  /* flow arrows between layers */
+  .flow-connector { text-align: center; padding: 2px 0; font-size: 13px; color: #484f58; position: relative; z-index: 2; max-width: 960px; margin: 0 auto; }
+
+  /* ===== File Preview ===== */
+  .file-preview { background: #0d1117; border: 1px solid #21262d; border-radius: 6px; font-family: 'SF Mono', 'Menlo', monospace; font-size: 11px; line-height: 1.6; padding: 10px 12px; overflow-x: auto; white-space: pre; position: relative; transition: all 0.5s; max-height: 130px; overflow-y: auto; }
+  .file-preview .hl { color: #d2a8ff; }
+  .file-preview .hl2 { color: #58a6ff; }
+  .file-preview .hl3 { color: #3fb950; }
+  .file-preview .hl4 { color: #d29922; }
+  .file-preview .cursor-line { background: rgba(210,168,255,0.08); border-left: 2px solid #d2a8ff; padding-left: 8px; }
+
+  /* ===== Memory Card (the data) ===== */
+  .memory-card { display: inline-block; background: linear-gradient(135deg, #1f6feb33, #8957e533); border: 1px solid rgba(210,168,255,0.3); border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600; position: absolute; z-index: 10; transition: all 1.2s cubic-bezier(.22,.61,.36,1); opacity: 0; pointer-events: none; white-space: nowrap; max-width: 90%; }
+  .memory-card .sub { font-weight: 400; font-size: 11px; opacity: 0.7; }
+  .memory-card.show { opacity: 1; }
+  .memory-card.at-l1 { top: 20px; left: 20px; }
+  .memory-card.at-l2 { top: 20px; left: 20px; }
+  .memory-card.at-l3 { top: 20px; left: 20px; }
+  .memory-card.at-l2-2 { top: 60px; left: 30px; }
+  .memory-card.at-l3-2 { top: 60px; left: 30px; }
+  .memory-card.flying { top: 50%; left: 50%; transform: translate(-50%, -50%) scale(1.1); }
+  .memory-card.at-l1-mid { top: 30px; left: 30%; }
+  .memory-card.at-l2-mid { top: 30px; left: 30%; }
+  .memory-card.at-l3-mid { top: 30px; left: 30%; }
+
+  /* ===== Controls ===== */
+  .controls { max-width: 960px; margin: 16px auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .controls button { padding: 10px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
+  .btn-primary { background: #1f6feb; color: #fff; }
+  .btn-primary:hover { background: #388bfd; }
+  .btn-primary:disabled { background: #21262d; color: #484f58; cursor: not-allowed; }
+  .btn-secondary { background: #21262d; color: #8b949e; border: 1px solid #30363d; }
+  .btn-secondary:hover { background: #30363d; color: #e6edf3; }
+  .step-indicator { color: #8b949e; font-size: 13px; margin-left: auto; }
+  .step-indicator .curr { color: #d2a8ff; font-weight: 700; }
+
+  /* ===== Log ===== */
+  .log-panel { max-width: 960px; margin: 12px auto; background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 12px 16px; max-height: 140px; overflow-y: auto; font-family: 'SF Mono', 'Menlo', monospace; font-size: 12px; }
+  .log-panel div { padding: 2px 0; color: #8b949e; }
+  .log-panel div.active { color: #e6edf3; }
+  .log-panel div.done { color: #3fb950; }
+  .log-panel .highlight { color: #d2a8ff; }
+
+  /* ===== Query Result ===== */
+  .query-result { max-width: 960px; margin: 12px auto; display: none; }
+  .query-result.show { display: block; animation: fadeIn 0.5s; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .qr-item { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; }
+  .qr-item .qr-type { display: inline-block; font-size: 11px; padding: 2px 10px; border-radius: 10px; background: rgba(88,166,255,0.15); color: #58a6ff; }
+  .qr-item .qr-title { font-size: 14px; font-weight: 600; margin-top: 4px; }
+  .qr-item .qr-meta { font-size: 12px; color: #8b949e; margin-top: 4px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .qr-item .qr-meta .tag { padding: 1px 8px; border-radius: 8px; background: rgba(255,255,255,0.06); }
+
+  /* special arrow characters */
+  .arrow-line { position: relative; }
+  .arrow-line::after { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: #30363d; transform: translateX(-50%); }
+
+  @media (max-width: 640px) {
+    .layer-label-col { width: 40px; font-size: 11px; }
+    .file-preview { font-size: 10px; padding: 8px; max-height: 100px; }
+    .memory-card { font-size: 11px; padding: 6px 10px; }
+    .layer-content { padding: 10px; min-height: 160px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>
+    <span>♾️</span> Sisyphus · <span>L1</span> → <span>L2</span> → <span>L3</span>
+  </h1>
+  <p>看一条记忆如何从 .md 文件流经操作日志，最终被 SQLite FTS5 检索到</p>
+</div>
+
+<!-- ===== Controls ===== -->
+<div class="controls">
+  <button class="btn-primary" id="btnNext">▶ 下一步</button>
+  <button class="btn-secondary" id="btnReset">⟲ 重置</button>
+  <button class="btn-secondary" id="btnAuto">▶▶ 自动演示</button>
+  <div class="step-indicator">步骤 <span class="curr" id="stepNum">0</span> / <span id="stepTotal">6</span></div>
+</div>
+
+<!-- ===== Flow Canvas ===== -->
+<div class="flow-canvas">
+  <!-- L1 -->
+  <div class="layer-row">
+    <div class="layer-label-col" id="l1-col">L1<br>.md</div>
+    <div class="layer-content" id="l1-content">
+      <div class="layer-title">
+        📄 原始文件
+        <span class="badge">// ~/.omo/memory/</span>
+      </div>
+      <div class="layer-desc">明文 .md · git 追踪 · 不可变源</div>
+      <div class="file-preview" id="l1-preview">
+<span class="hl4">---</span>
+<span class="hl">type</span>: <span class="hl2">decision</span>
+<span class="hl">title</span>: <span class="hl3">引入三层存储架构</span>
+<span class="hl">importance</span>: <span class="hl2">10</span>
+<span class="hl">pinned</span>: <span class="hl2">true</span>
+<span class="hl">scope</span>: <span class="hl2">global</span>
+<span class="hl4">---</span>
+确定 L1 .md + L2 operations.jsonl + L3 SQLite 的三层架构，
+SQLite 只做查询索引，不做主存储。
+      </div>
+      <div class="memory-card" id="card-l1">📝 写入 .md 文件 <span class="sub">decision</span></div>
+    </div>
+  </div>
+
+  <div class="flow-connector" id="connector-l1-l2">⬇ 同步写入操作日志</div>
+
+  <!-- L2 -->
+  <div class="layer-row">
+    <div class="layer-label-col" id="l2-col">L2<br>.jsonl</div>
+    <div class="layer-content" id="l2-content">
+      <div class="layer-title">
+        📋 操作日志
+        <span class="badge">append-only · 审计 · 时间旅行</span>
+      </div>
+      <div class="layer-desc">operations.jsonl — 每行一个操作，create/update/delete/checkpoint</div>
+      <div class="file-preview" id="l2-preview">
+{<span class="hl">"seq"</span>: 1, <span class="hl">"ts"</span>: "2026-05-24T10:00:00", <span class="hl">"type"</span>: "<span class="hl2">create</span>", <span class="hl">"mem_id"</span>: "mem_001"  }
+{<span class="hl">"seq"</span>: 2, <span class="hl">"ts"</span>: "2026-05-24T10:00:05", <span class="hl">"type"</span>: "<span class="hl2">create</span>", <span class="hl">"mem_id"</span>: "mem_002"  }
+{<span class="hl">"seq"</span>: 3, <span class="hl">"ts"</span>: "2026-05-24T10:01:00", <span class="hl">"type"</span>: "<span class="hl2">create</span>", <span class="hl">"mem_id"</span>: "mem_003"  }
+      </div>
+      <div class="memory-card" id="card-l2">📋 append → operations.jsonl <span class="sub">seq:4</span></div>
+    </div>
+  </div>
+
+  <div class="flow-connector" id="connector-l2-l3">⬇ 回放 → 重建索引</div>
+
+  <!-- L3 -->
+  <div class="layer-row">
+    <div class="layer-label-col" id="l3-col">L3<br>SQLite</div>
+    <div class="layer-content" id="l3-content">
+      <div class="layer-title">
+        🗄️ 查询索引
+        <span class="badge">index.db · FTS5 · 可丢弃可重建</span>
+      </div>
+      <div class="layer-desc">memories 表 + memories_fts 全文索引。删库不丢数据。</div>
+      <div class="file-preview" id="l3-preview">
+<span class="hl4">-- memories 表</span>
+ id          | type     | title                     | pinned | scope
+ mem_001     | decision | 引入三层存储架构           | 1      | global
+ mem_002     | lesson   | BM25 @1 56% → 83%         | 1      | global
+ mem_003     | decision | Qwen3-Embedding 负收益     | 0      | global
+
+<span class="hl4">-- memories_fts FTS5 索引</span>
+ '三层' '存储' '架构' 'SQLite' '查询' '索引'
+ 'BM25' 'jieba' '分词' '命中率' '中文'
+      </div>
+      <div class="memory-card" id="card-l3">🔍 FTS5 索引就绪 <span class="sub">可检索</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Query Result ===== -->
+<div class="query-result" id="queryResult">
+  <div style="font-size:13px;color:#8b949e;margin-bottom:8px;">🔍 用户查询: <strong id="queryText" style="color:#e6edf3;">三层架构 存储</strong></div>
+  <div id="queryItems"></div>
+</div>
+
+<!-- ===== Log ===== -->
+<div class="log-panel" id="logPanel">
+  <div>⟳ 等待开始...</div>
+</div>
+
+<script>
+const LOG = document.getElementById('logPanel');
+const STEP_NUM = document.getElementById('stepNum');
+const STEP_TOTAL = document.getElementById('stepTotal');
+const BTN_NEXT = document.getElementById('btnNext');
+const BTN_RESET = document.getElementById('btnReset');
+const BTN_AUTO = document.getElementById('btnAuto');
+
+const CARD_L1 = document.getElementById('card-l1');
+const CARD_L2 = document.getElementById('card-l2');
+const CARD_L3 = document.getElementById('card-l3');
+const CONN_1 = document.getElementById('connector-l1-l2');
+const CONN_2 = document.getElementById('connector-l2-l3');
+const L1_PREVIEW = document.getElementById('l1-preview');
+const L2_PREVIEW = document.getElementById('l2-preview');
+const L3_PREVIEW = document.getElementById('l3-preview');
+const QR = document.getElementById('queryResult');
+const QI = document.getElementById('queryItems');
+const QT = document.getElementById('queryText');
+
+let step = 0;
+const TOTAL = 6;
+let autoTimer = null;
+let autoRunning = false;
+
+function log(msg, cls = '') {
+  const d = document.createElement('div');
+  const now = new Date();
+  const t = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+  d.innerHTML = `<span style="color:#484f58">[${t}]</span> ${msg}`;
+  if (cls) d.classList.add(cls);
+  LOG.appendChild(d);
+  LOG.scrollTop = LOG.scrollHeight;
+}
+
+function resetAll() {
+  clearTimeout(autoTimer);
+  autoRunning = false;
+  BTN_AUTO.textContent = '▶▶ 自动演示';
+  step = 0;
+  STEP_NUM.textContent = '0';
+  BTN_NEXT.disabled = false;
+
+  // Hide all cards
+  [CARD_L1, CARD_L2, CARD_L3].forEach(c => { c.classList.remove('show'); c.className = 'memory-card'; });
+
+  // Reset previews to initial
+  L1_PREVIEW.innerHTML = `<span class="hl4">---</span>
+<span class="hl">type</span>: <span class="hl2">decision</span>
+<span class="hl">title</span>: <span class="hl3">引入三层存储架构</span>
+<span class="hl">importance</span>: <span class="hl2">10</span>
+<span class="hl">pinned</span>: <span class="hl2">true</span>
+<span class="hl">scope</span>: <span class="hl2">global</span>
+<span class="hl4">---</span>
+确定 L1 .md + L2 operations.jsonl + L3 SQLite 的三层架构，
+SQLite 只做查询索引，不做主存储。`;
+
+  L2_PREVIEW.innerHTML = `{<span class="hl">"seq"</span>: 1, <span class="hl">"ts"</span>: "2026-05-24T10:00:00", <span class="hl">"type"</span>: "<span class="hl2">create</span>", <span class="hl">"mem_id"</span>: "mem_001"}
+{<span class="hl">"seq"</span>: 2, <span class="hl">"ts"</span>: "2026-05-24T10:00:05", <span class="hl">"type"</span>: "<span class="hl2">create</span>", <span class="hl">"mem_id"</span>: "mem_002"}
+{<span class="hl">"seq"</span>: 3, <span class="hl">"ts"</span>: "2026-05-24T10:01:00", <span class="hl">"type"</span>: "<span class="hl2">create</span>", <span class="hl">"mem_id"</span>: "mem_003"}`;
+
+  L3_PREVIEW.innerHTML = `<span class="hl4">-- memories 表</span>
+ id          | type     | title                     | pinned | scope
+ mem_001     | decision | 引入三层存储架构           | 1      | global
+ mem_002     | lesson   | BM25 @1 56% → 83%         | 1      | global
+ mem_003     | decision | Qwen3-Embedding 负收益     | 0      | global
+
+<span class="hl4">-- memories_fts FTS5 索引</span>
+ '三层' '存储' '架构' 'SQLite' '查询' '索引'
+ 'BM25' 'jieba' '分词' '命中率' '中文'`;
+
+  CONN_1.innerHTML = '⬇ 同步写入操作日志';
+  CONN_2.innerHTML = '⬇ 回放 → 重建索引';
+  QR.classList.remove('show');
+  LOG.innerHTML = '<div>⟳ 重置完成，点击"下一步"开始</div>';
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function goToStep(s) {
+  step = s;
+  STEP_NUM.textContent = s;
+
+  switch(s) {
+    case 0: // Reset state (already done)
+      break;
+
+    case 1: // Show data being written to L1 .md
+      CARD_L1.className = 'memory-card show at-l1';
+      CARD_L1.innerHTML = '✍️ 写入 mem_004 → 新 .md 文件 <span class="sub">引入三层存储架构</span>';
+      CONN_1.innerHTML = '⏳ 等待写入完成...';
+      log('✍️ agent 调用 <strong style="color:#58a6ff">write_memory()</strong>：新建一条决策记忆', 'active');
+      await sleep(300);
+      log('📄 写入 <strong style="color:#58a6ff">mem_004.md</strong> 到 ~/.omo/memory/', 'active');
+      await sleep(300);
+      log('✅ L1 文件已保存，git 可追踪', 'done');
+      CONN_1.innerHTML = '⬇️ 同步 → L2 操作日志';
+      break;
+
+    case 2: // Data flows to L2 operations.jsonl
+      CARD_L1.className = 'memory-card show at-l1-mid';
+      CARD_L2.className = 'memory-card show at-l2';
+      CARD_L2.innerHTML = '📋 append → operations.jsonl <span class="sub">{"type":"create","mem_id":"mem_004"}</span>';
+      CONN_1.innerHTML = '⬇️ 同步完成 → L2 已接收';
+      await sleep(200);
+      // Update L2 preview to show new line
+      L2_PREVIEW.innerHTML = `{<span class="hl">"seq"</span>: 1, <span class="hl">"ts"</span>: "2026-05-24T10:00:00", <span class="hl">"type"</span>: "<span class="hl2">create</span>", <span class="hl">"mem_id"</span>: "mem_001"}
+{<span class="hl">"seq"</span>: 2, <span class="hl">"ts"</span>: "2026-05-24T10:00:05", <span class="hl">"type"</span>: "<span class="hl2">create</span>", <span class="hl">"mem_id"</span>: "mem_002"}
+{<span class="hl">"seq"</span>: 3, <span class="hl">"ts"</span>: "2026-05-24T10:01:00", <span class="hl">"type"</span>: "<span class="hl2">create</span>", <span class="hl">"mem_id"</span>: "mem_003"}
+<span style="background:rgba(210,168,255,0.12);display:block">{<span class="hl">"seq"</span>: <span class="hl2">4</span>, <span class="hl">"ts"</span>: "<span class="hl2">2026-05-24T22:00:00</span>", <span class="hl">"type"</span>: "<span class="hl2">create</span>", <span class="hl">"mem_id"</span>: "<span class="hl3">mem_004</span>", <span class="hl">"payload"</span>: {<span class="hl">"title"</span>: <span class="hl3">"引入三层存储架构"</span>, <span class="hl">"type"</span>: <span class="hl3">"decision"</span>, <span class="hl">"importance"</span>: <span class="hl2">10</span>, <span class="hl">"pinned"</span>: <span class="hl2">true</span>}}</span>`;
+      log('📋 同步写入 <strong style="color:#d2a8ff">operations.jsonl</strong> seq:4', 'active');
+      await sleep(300);
+      log('✅ append-only 日志已写入，支持时间旅行回放', 'done');
+      CONN_2.innerHTML = '⬇️ 触发回放 → 更新 L3 索引';
+      break;
+
+    case 3: // L2 replay → L3 rebuild
+      CARD_L1.className = 'memory-card show at-l1-mid';
+      CARD_L2.className = 'memory-card show at-l2-mid';
+      CARD_L2.innerHTML = '📋 操作已持久化 <span class="sub">L2 安全</span>';
+      CARD_L3.className = 'memory-card show at-l3';
+      CARD_L3.innerHTML = '🔄 回放中... <span class="sub">从 L2 读取 seq:1-4</span>';
+      CONN_2.innerHTML = '🔄 回放进行中...';
+      log('🔄 <strong style="color:#3fb950">indexer.replay()</strong> 启动：读取 operations.jsonl seq:1-4', 'active');
+      await sleep(400);
+      log('🔄 插入 memories 表: mem_001 ~ mem_004', 'active');
+      await sleep(300);
+      log('🔄 重建 FTS5 索引: 中文分词 + unicode61', 'active');
+      await sleep(300);
+      log('✅ L3 index.db 已更新，mem_004 可检索', 'done');
+      CONN_2.innerHTML = '⬇️ 回放完成 → L3 索引就绪';
+      break;
+
+    case 4: // Update L3 preview with new data
+      CARD_L1.className = 'memory-card show at-l1-mid';
+      CARD_L2.className = 'memory-card show at-l2-mid';
+      CARD_L3.className = 'memory-card show at-l3-mid';
+      CARD_L3.innerHTML = '✅ FTS5 索引已包含 mem_004 <span class="sub">可检索</span>';
+      L3_PREVIEW.innerHTML = `<span class="hl4">-- memories 表</span>
+ id          | type     | title                     | pinned | scope
+ mem_001     | decision | 引入三层存储架构           | 1      | global
+ mem_002     | lesson   | BM25 @1 56% → 83%         | 1      | global
+ mem_003     | decision | Qwen3-Embedding 负收益     | 0      | global
+ <span style="background:rgba(63,185,80,0.12);display:block">mem_004     | decision | 引入三层存储架构           | 1      | global</span>
+
+<span class="hl4">-- memories_fts FTS5</span>
+ '三层' '存储' '架构' 'SQLite' '查询' '索引' '<span style="color:#3fb950">索引层</span>' '<span style="color:#3fb950">操作日志</span>'
+ 'BM25' 'jieba' '分词' '命中率' '中文'`;
+      log('🗄️ L3 index.db 数据已更新，mem_004 行已插入', 'done');
+      await sleep(200);
+      log('📊 PERSIST 层 3 条 · HOT 层 0 条 · COLD 层 1 条', 'done');
+      break;
+
+    case 5: // User query → FTS5
+      CARD_L3.innerHTML = '🔍 收到查询 "三层架构 存储"<span class="sub">FTS5 匹配中</span>';
+      log('🔍 用户提问: "<strong style="color:#e6edf3">什么是三层架构？存储层怎么设计？</strong>"', 'active');
+      await sleep(400);
+      log('🔍 before_turn 触发检索: PERSIST + HOT + COLD 三层注入', 'active');
+      await sleep(300);
+      log('🔍 FTS5 MATCH 匹配到 3 条记忆 (mem_001, mem_004, mem_011)', 'active');
+      await sleep(200);
+      log('🧠 按衰减分排序: mem_004 (10.0) > mem_001 (9.3) > mem_011 (8.1)', 'done');
+
+      // Show query result panel
+      QT.textContent = '三层架构 存储';
+      QI.innerHTML = `
+        <div class="qr-item">
+          <span class="qr-type" style="background:rgba(88,166,255,0.15);color:#58a6ff">decision</span>
+          <span class="qr-type" style="background:rgba(210,168,255,0.15);color:#d2a8ff">PERSIST</span>
+          <div class="qr-title">引入三层存储架构</div>
+          <div class="qr-meta">
+            <span class="tag">⭐ 10/10</span>
+            <span class="tag">#架构 #存储</span>
+            <span class="tag">L1 .md → L2 .jsonl → L3 SQLite</span>
+          </div>
+        </div>
+        <div class="qr-item">
+          <span class="qr-type" style="background:rgba(210,168,255,0.15);color:#d2a8ff">reflection</span>
+          <span class="qr-type" style="background:rgba(210,168,255,0.15);color:#d2a8ff">PERSIST</span>
+          <div class="qr-title">SQLite 不是主存储</div>
+          <div class="qr-meta">
+            <span class="tag">⭐ 9/10</span>
+            <span class="tag">#架构 #SQLite</span>
+            <span class="tag">可丢弃可重建，删除 index.db 不丢数据</span>
+          </div>
+        </div>
+        <div class="qr-item">
+          <span class="qr-type" style="background:rgba(88,166,255,0.15);color:#58a6ff">decision</span>
+          <span class="qr-type" style="background:rgba(56,58,137,0.15);color:#8b949e;">COLD</span>
+          <div class="qr-title">FTS5 tokenizer 选型</div>
+          <div class="qr-meta">
+            <span class="tag">⭐ 7/10</span>
+            <span class="tag">#检索 #中文</span>
+            <span class="tag">jieba + CJK fallback</span>
+          </div>
+        </div>`;
+      QR.classList.add('show');
+      CARD_L3.innerHTML = '✅ 3 条结果注入 context <span class="sub">&lt;sisyphus_context&gt;</span>';
+      break;
+
+    case 6: // Full cycle complete
+      CARD_L1.innerHTML = '📄 L1 源文件安全 <span class="sub">git tracked</span>';
+      CARD_L2.innerHTML = '📋 L2 操作日志完整 <span class="sub">审计可用</span>';
+      CARD_L3.innerHTML = '🗄️ L3 索引就绪 <span class="sub">FTS5 ready</span>';
+      CONN_1.innerHTML = '✅ 写路径完成';
+      CONN_2.innerHTML = '✅ 读路径完成';
+      log('🎉 <strong style="color:#d2a8ff">完整数据流转演示结束</strong>', 'done');
+      log('📄 L1 .md 不可变源 → 📋 L2 operations.jsonl 审计日志 → 🗄️ L3 SQLite 查询索引', 'done');
+      log('🔁 删除 index.db → 从 L2 回放 → L3 恢复。数据零丢失。', 'done');
+      BTN_NEXT.disabled = true;
+      if (autoRunning) {
+        autoRunning = false;
+        BTN_AUTO.textContent = '▶▶ 自动演示';
+      }
+      break;
+  }
+}
+
+async function nextStep() {
+  if (step < TOTAL) {
+    await goToStep(step + 1);
+  }
+}
+
+BTN_NEXT.addEventListener('click', nextStep);
+
+BTN_RESET.addEventListener('click', () => {
+  resetAll();
+});
+
+BTN_AUTO.addEventListener('click', async () => {
+  if (autoRunning) {
+    autoRunning = false;
+    BTN_AUTO.textContent = '▶▶ 自动演示';
+    clearTimeout(autoTimer);
+    return;
+  }
+  autoRunning = true;
+  BTN_AUTO.textContent = '⏹ 停止';
+  resetAll();
+  await sleep(400);
+  for (let i = 1; i <= TOTAL && autoRunning; i++) {
+    await goToStep(i);
+    await sleep(1000);
+  }
+  if (autoRunning) {
+    autoRunning = false;
+    BTN_AUTO.textContent = '▶▶ 自动演示';
+  }
+});
+
+// Init
+resetAll();
+STEP_TOTAL.textContent = TOTAL;
+</script>
+
+</body>
+</html>

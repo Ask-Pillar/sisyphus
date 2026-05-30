@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>操作日志方案：增量重建 SQLite 索引</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap');
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Inter',-apple-system,sans-serif; background:#09090e; color:#e1e1e8; line-height:1.7; padding:36px 16px; }
+.container { max-width:1000px; margin:0 auto; }
+
+h1 { font-size:2rem; font-weight:700; background:linear-gradient(135deg,#a78bfa,#60a5fa); -webkit-background-clip:text;-webkit-text-fill-color:transparent; text-align:center; margin-bottom:6px; }
+.sub { text-align:center; color:#8888a0; font-size:.92rem; margin-bottom:36px; }
+
+.sec { font-size:1.1rem; font-weight:600; color:#c4b5fd; margin:32px 0 14px; }
+
+.card { background:#12121a; border:1px solid #1e1e2a; border-radius:12px; padding:22px; margin-bottom:16px; }
+.card h3 { font-size:.92rem; font-weight:600; color:#c4b5fd; margin-bottom:6px; }
+.card p, .card li { font-size:.83rem; color:#8888a0; line-height:1.6; }
+.card ul { padding-left:18px; margin:6px 0; }
+.card li { margin-bottom:3px; }
+
+pre { background:#0a0a12; border-radius:6px; padding:12px; font-size:.78rem; color:#b0b0c0; overflow-x:auto; margin:10px 0; line-height:1.5; }
+code { background:#0a0a12; border-radius:4px; padding:2px 5px; font-size:.8rem; color:#b0b0c0; }
+
+.highlight { background:linear-gradient(135deg,#1a1a28,#12121a); border:1px solid #a78bfa40; border-radius:12px; padding:22px; margin:20px 0; }
+
+table { width:100%; border-collapse:separate; border-spacing:0; border-radius:10px; overflow:hidden; border:1px solid #1e1e2a; margin-bottom:28px; }
+th { background:#12121a; padding:12px 14px; text-align:left; font-weight:600; font-size:.8rem; text-transform:uppercase; letter-spacing:.04em; color:#8888a0; border-bottom:1px solid #1e1e2a; }
+td { padding:11px 14px; font-size:.84rem; border-bottom:1px solid #111118; }
+tr:last-child td { border:none; }
+.dim { font-weight:600; color:#a78bfa; }
+
+.tag { display:inline-block; padding:2px 7px; border-radius:4px; font-size:.7rem; font-weight:600; }
+.grn { background:#065f4620; color:#34d399; }
+.yel { background:#5c4a0a20; color:#fbbf24; }
+.red { background:#5f0a0a20; color:#f87171; }
+.prp { background:#2d1b6920; color:#a78bfa; }
+.blu { background:#1a3a5c20; color:#60a5fa; }
+
+.flow-box { background:#12121a; border:1px solid #2a2a3a; border-radius:10px; padding:18px; margin:12px 0; }
+.flow-step { display:flex; align-items:flex-start; gap:12px; padding:5px 0; }
+.flow-num { background:#2d1b69; color:#a78bfa; width:24px; height:24px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:.75rem; font-weight:700; flex-shrink:0; margin-top:2px; }
+.flow-step p { font-size:.82rem; color:#8888a0; margin:0; }
+
+.verdict-box { background:#12121a; border:1px solid #2a2a3a; border-radius:16px; padding:28px; margin:32px 0; }
+
+.footer { text-align:center; padding:28px 0; color:#4a4a5a; font-size:.78rem; }
+
+@media (max-width:640px) { h1 { font-size:1.4rem; } }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>📋 操作日志方案</h1>
+<p class="sub">以 record-oriented log 增量重建 SQLite，替代全量 dump</p>
+
+<!-- IDEA -->
+<div class="highlight">
+  <p style="font-size:.95rem; color:#e1e1e8; font-weight:500;">
+    既然 .md 文件是<strong style="color:#a78bfa;">不可变的追加存储</strong>（只增不改），<br>
+    那就<strong>把操作记录成 JSON 日志</strong>，SQLite 从日志回放重建，而不是从文件全量扫描。
+  </p>
+</div>
+
+<!-- HOW -->
+<h2 class="sec">⚙️ 怎么运作</h2>
+
+<div class="card">
+  <h3>写入路径：操作日志 + 文件 双写</h3>
+  <div class="flow-box">
+    <div class="flow-step"><div class="flow-num">1</div><p>写一条记忆 → 写 .md 文件（跟现在一样）</p></div>
+    <div class="flow-step"><div class="flow-num">2</div><p>同时<strong>追加一行 JSON</strong> 到 <code>operations.jsonl</code>：</p></div>
+  </div>
+  <pre>{"op":"create","id":"mem_xxx","type":"decision","importance":7,"ts":"2026-05-24T12:00:00","path":"mem_xxx.md"}
+
+{"op":"update","id":"mem_xxx","field":"importance","old":7,"new":8,"ts":"2026-05-24T12:30:00"}
+
+{"op":"delete","id":"mem_xxx","ts":"2026-05-24T13:00:00"}</pre>
+  <p>每次操作就一行 JSON，append-only，不会改之前的内容。</p>
+</div>
+
+<div class="card">
+  <h3>重建路径：回放日志 → 更新 SQLite</h3>
+  <div class="flow-box">
+    <div class="flow-step"><div class="flow-num">1</div><p>进程启动时，加载 SQLite（如果存在）</p></div>
+    <div class="flow-step"><div class="flow-num">2</div><p>读 <code>operations.jsonl</code> 的 <strong>checkpoint 标记</strong>（上次回放到哪一行）</p></div>
+    <div class="flow-step"><div class="flow-num">3</div><p>回放 checkpoint 之后的全部操作 → 更新 FTS5 索引</p></div>
+    <div class="flow-step"><div class="flow-num">4</div><p>SQLite 始终保持最新状态</p></div>
+  </div>
+  <p style="margin-top:8px;">
+    回放速度：一行 JSON parse → 一条 SQL INSERT/UPDATE，千条耗时 &lt;10ms。
+  </p>
+</div>
+
+<div class="card">
+  <h3>完全恢复（从头重建）</h3>
+  <div class="flow-box">
+    <div class="flow-step"><div class="flow-num">1</div><p>SQLite 文件丢失或被删</p></div>
+    <div class="flow-step"><div class="flow-num">2</div><p>从 <code>operations.jsonl</code> 第一行开始<strong>完整回放</strong></p></div>
+    <div class="flow-step"><div class="flow-num">3</div><p>SQLite = 所有日志回放的结果</p></div>
+    <div class="flow-step"><div class="flow-num">4</div><p>验证：日志中的 id 对应 .md 文件存在</p></div>
+  </div>
+</div>
+
+<!-- CHECKPOINT -->
+<h2 class="sec">🧹 日志压缩（Checkpoint）</h2>
+
+<div class="card">
+  <p>
+    日志会无限增长。需要定期 checkpoint——就是 SQLite 自身的 WAL 机制：
+  </p>
+  <div class="flow-box">
+    <div class="flow-step"><div class="flow-num">1</div><p>操作日志积累到 N 行（比如 10000）或 M 天（比如 7 天）</p></div>
+    <div class="flow-step"><div class="flow-num">2</div><p>回放全部日志到 SQLite，完成最终状态</p></div>
+    <div class="flow-step"><div class="flow-num">3</div><p>截断 <code>operations.jsonl</code>，只保留最后一条 "snapshot" 标记</p></div>
+    <div class="flow-step"><div class="flow-num">4</div><p>新的操作从这里继续 append</p></div>
+  </div>
+
+  <pre style="margin-top:12px;"># checkpoint 前的日志
+{"op":"snapshot","at":10000,"ts":"2026-05-24T12:00:00"}
+# 新的操作从这里开始
+{"op":"create","id":"mem_xxx",...}</pre>
+
+  <p style="margin-top:8px;">
+    checkpoint 后，重建速度跟日志长度无关，始终等于最后一段的操作数。
+  </p>
+</div>
+
+<!-- COMPARISON WITH DUMP -->
+<h2 class="sec">⚖️ 对比 Auto Dump</h2>
+
+<table>
+  <tr><th>维度</th><th>Auto Dump</th><th>操作日志</th></tr>
+  <tr><td class="dim">每次操作写入量</td><td>全库（340KB / 27条）</td><td><span class="tag grn">✅ 1 行 JSON（~150B）</span></td></tr>
+  <tr><td class="dim">git diff</td><td><span class="tag yel">⚠️ 全库噪音</span></td><td><span class="tag grn">✅ 只有新增那行</span></td></tr>
+  <tr><td class="dim">重建速度</td><td>全量 INSERT</td><td><span class="tag prp">✅ 增量回放（<10ms）</span></td></tr>
+  <tr><td class="dim">时间旅行</td><td>只能回到某个 commit</td><td><span class="tag grn">✅ 可回放到任意操作点</span></td></tr>
+  <tr><td class="dim">审计追踪</td><td>看 diff 猜</td><td><span class="tag grn">✅ 精确记录每次操作</span></td></tr>
+  <tr><td class="dim">日志膨胀</td><td>每次都是完整快照</td><td><span class="tag yel">⚠️ 需要 checkpoint</span></td></tr>
+  <tr><td class="dim">实现复杂度</td><td>加一行命令</td><td><span class="tag yel">⚠️ 中等（回放器 + checkpoint）</span></td></tr>
+</table>
+
+<!-- TIME TRAVEL -->
+<h2 class="sec">⏳ 有趣的时间旅行能力</h2>
+
+<div class="card">
+  <p>
+    因为日志记录了<strong>每次操作的 <code>old</code> / <code>new</code></strong>，你可以回放日志到任意点：
+  </p>
+  <pre>
+# 回放到第 500 条操作时的状态
+python replay.py --to-line 500
+
+# 查看某个 id 的历史变更
+grep "mem_6e0bb92e04b0" operations.jsonl
+# → 看到它从 importance 5 → 7 → 8 的完整演变
+
+# 回滚某个字段
+# 直接找到对应行，反转 old/new 回放</pre>
+  <p>
+    这其实就是一个<strong>事件溯源（Event Sourcing）</strong>架构——状态是事件的推导结果，不是写入的瞬态。
+  </p>
+</div>
+
+<!-- THREE-LAYER -->
+<h2 class="sec">🏗️ 完整架构三层</h2>
+
+<div class="card">
+  <div style="display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:0; margin:16px 0;">
+    <div style="background:#1a1a28; border:1px solid #2a2a3a; border-radius:8px; padding:12px 20px; text-align:center;">
+      <div style="font-size:.65rem; text-transform:uppercase; letter-spacing:.04em; color:#8888a0;">L1 源</div>
+      <div style="font-size:.88rem; font-weight:600; color:#34d399;">.md 文件</div>
+      <div style="font-size:.65rem; color:#666;">不可变 · git 追踪</div>
+    </div>
+    <div style="color:#4a4a5a; padding:0 8px; font-size:1.2rem;">+</div>
+    <div style="background:#1a1a28; border:1px solid #2a2a3a; border-radius:8px; padding:12px 20px; text-align:center;">
+      <div style="font-size:.65rem; text-transform:uppercase; letter-spacing:.04em; color:#8888a0;">L2 操作日志</div>
+      <div style="font-size:.88rem; font-weight:600; color:#fbbf24;">operations.jsonl</div>
+      <div style="font-size:.65rem; color:#666;">增量 · 可审计</div>
+    </div>
+    <div style="color:#4a4a5a; padding:0 8px; font-size:1.2rem;">=</div>
+    <div style="background:#1a1a28; border:2px solid #a78bfa; border-radius:8px; padding:12px 20px; text-align:center;">
+      <div style="font-size:.65rem; text-transform:uppercase; letter-spacing:.04em; color:#8888a0;">L3 查询</div>
+      <div style="font-size:.88rem; font-weight:600; color:#a78bfa;">SQLite FTS5</div>
+      <div style="font-size:.65rem; color:#666;">可丢弃 · 可重建</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>各层职责</h3>
+  <table>
+    <tr><td class="dim">L1 .md 文件</td><td>你的<strong>审计级源数据</strong>。永远不可变，git 追踪，删了 .db 也不丢。</td></tr>
+    <tr><td class="dim">L2 operations.jsonl</td><td><strong>增量操作记录</strong>。append-only，每次操作 1 行 JSON，git 可追踪，时间旅行能力。</td></tr>
+    <tr><td class="dim">L3 SQLite FTS5</td><td><strong>只读查询索引</strong>。从 L2 回放构建，丢了从 L2 重建，不需要和 L1 实时同步。</td></tr>
+  </table>
+</div>
+
+<!-- REALITY CHECK -->
+<h2 class="sec">🎯 现实检查</h2>
+
+<table>
+  <tr><th></th><th>必要性</th><th>备注</th></tr>
+  <tr><td class="dim">27 条记忆</td><td><span class="tag blu">💤 不需要</span></td><td>BM25 直接扫 md 文件已经 10ms</td></tr>
+  <tr><td class="dim">100 条</td><td><span class="tag yel">🧐 可以考虑</span></td><td>文件扫描开始感觉到延迟（~30ms）</td></tr>
+  <tr><td class="dim">500 条</td><td><span class="tag prp">✅ 建议加</span></td><td>这个规模开始值得建 FTS5</td></tr>
+  <tr><td class="dim">1000 条</td><td><span class="tag red">⚠️ 必须加</span></td><td>BM25 扫描 > 300ms，影响体验</td></tr>
+</table>
+
+<div class="verdict-box">
+  <p style="font-size:.95rem; color:#e1e1e8;">
+    <strong>这个方案最大的价值不是"存"，是"审计 + 时间旅行"。</strong><br><br>
+    即使 FTS5 你现在用不上，<strong>操作的变更记录本身就有价值</strong>——你知道每条记忆是怎么演化的，importance 从 5 变到 8 是谁改的、什么场景下改的。<br><br>
+    但实话说：你现在 27 条记忆，先把<strong>自动触发接上</strong>，让 Pipeline 跑起来。<br>
+    日志 + FTS5 是几百条以后的事。
+  </p>
+</div>
+
+<hr style="border:none;border-top:1px solid #1e1e2a;margin:36px 0;">
+
+<div class="footer">
+  推演自 Sisyphus 记忆系统 · 事件溯源模式 · 2026-05-24
+</div>
+
+</div>
+</body>
+</html>

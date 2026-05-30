@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>论文机制拆解 · Sisyphus 补充方案</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #0d1117; color: #e6edf3; line-height: 1.7; max-width: 960px; margin: 0 auto; padding: 20px; }
+  h1 { font-size: 1.5em; border-bottom: 2px solid #30363d; padding-bottom: 10px; }
+  .subtitle { color: #8b949e; font-size: 13px; margin: 4px 0 16px; }
+
+  .mech { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 18px; margin-bottom: 14px; }
+  .mech h3 { font-size: 14px; color: #e6edf3; display: flex; align-items: center; gap: 8px; }
+  .mech h3 .src { font-size: 11px; color: #8b949e; font-weight: 400; }
+  .mech .body { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+  .mech .paper-detail { font-size: 13px; color: #8b949e; }
+  .mech .paper-detail strong { color: #e6edf3; }
+  .mech .sisyphus-map { background: rgba(88,166,255,0.06); border-left: 3px solid #58a6ff; border-radius: 0 6px 6px 0; padding: 10px 14px; font-size: 13px; }
+  .mech .sisyphus-map strong { color: #58a6ff; }
+  .mech .code-block { background: #0d1117; border: 1px solid #21262d; border-radius: 6px; padding: 10px; font-family: 'SF Mono', monospace; font-size: 11px; margin: 8px 0; overflow-x: auto; }
+  .mech .tag { display: inline-block; padding: 1px 8px; border-radius: 4px; font-size: 10px; margin: 1px; font-weight: 600; }
+  .tag-yellow { background: #d2992222; color: #d29922; border: 1px solid #d2992244; }
+  .tag-green { background: #23863622; color: #3fb950; border: 1px solid #23863644; }
+  .tag-blue { background: #1f6feb22; color: #58a6ff; border: 1px solid #1f6feb44; }
+  .tag-purple { background: #8957e522; color: #d2a8ff; border: 1px solid #8957e544; }
+  .tag-red { background: #da363322; color: #ff7b72; border: 1px solid #da363344; }
+
+  .summary-box { background: linear-gradient(135deg, #1f6feb08, #8957e508); border: 1px solid rgba(210,168,255,0.15); border-radius: 12px; padding: 20px; margin: 20px 0; }
+  .summary-box h3 { color: #d2a8ff; margin-bottom: 8px; font-size: 14px; }
+
+  @media (max-width: 640px) {
+    .mech .body { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<h1>🔧 论文机制拆解 · 可直接补入 Sisyphus 的补充方案</h1>
+<p class="subtitle">从 21 篇论文中提取 10 个可落地的具体机制，标注优先级和实现路径</p>
+
+<!-- ============================================================ -->
+<div class="summary-box">
+  <h3>📋 十项补充总览</h3>
+  <table style="font-size:13px;width:100%;border-collapse:collapse;">
+    <tr><th>#</th><th>机制</th><th>来源论文</th><th>Sisyphus 对齐组件</th><th>优先级</th></tr>
+    <tr><td>1</td><td>Sufficiency Router（充分性路由）</td><td>TierMem</td><td>Verification Gate 前置</td><td><span class="tag tag-yellow">P0</span></td></tr>
+    <tr><td>2</td><td>Recurrence-based 触发</td><td>RecMem</td><td>Dream Engine 触发条件</td><td><span class="tag tag-yellow">P0</span></td></tr>
+    <tr><td>3</td><td>Semantic Shift 检测</td><td>GAM</td><td>task_family 隔离补充</td><td><span class="tag tag-yellow">P0</span></td></tr>
+    <tr><td>4</td><td>Meta-Cognitive 置信度门控</td><td>Synapse</td><td>检索置信度标记</td><td><span class="tag tag-green">P1</span></td></tr>
+    <tr><td>5</td><td>Engram Maturation（沉默→激活）</td><td>Human-Inspired</td><td>draft→active 升级路径</td><td><span class="tag tag-green">P1</span></td></tr>
+    <tr><td>6</td><td>Non-Destructive SPLIT/MERGE</td><td>All-Mem</td><td>consolidation 执行策略</td><td><span class="tag tag-green">P1</span></td></tr>
+    <tr><td>7</td><td>Reverse Provenance Expansion</td><td>SEEM</td><td>L3→L1 反向追溯</td><td><span class="tag tag-green">P1</span></td></tr>
+    <tr><td>8</td><td>Pre-Compression Sanitization</td><td>State Contamination</td><td>Gate 前置消毒</td><td><span class="tag tag-blue">P2</span></td></tr>
+    <tr><td>9</td><td>Decision-Centric 效用排序</td><td>DeMem</td><td>检索第二排序因子</td><td><span class="tag tag-blue">P2</span></td></tr>
+    <tr><td>10</td><td>Synthetic Calibration 免数据调参</td><td>Human-Inspired</td><td>Gate 阈值标定</td><td><span class="tag tag-purple">P3</span></td></tr>
+  </table>
+</div>
+
+<!-- ============================================================ -->
+<div class="mech">
+  <h3>1️⃣ Sufficiency Router <span class="src">— TierMem (2026-02)</span></h3>
+  <div class="body">
+    <div class="paper-detail">
+      <strong>论文原文</strong><br>
+      TierMem 在检索时先查 Tier-1 摘要索引，然后一个<strong>轻量级 router</strong> 判断摘要证据是否足够回答当前查询。<br>
+      <strong>Hit</strong>：摘要足够 → 直接回答，不碰原始日志。<br>
+      <strong>Miss</strong>：摘要不够 → <strong>escalate</strong> 到 provenance 指针指向的原始日志页（Tier-2）获取深度证据。<br>
+      <strong>Verified Write-Back</strong>：escalation 后只把验证过的信息写回 Tier-1，保持可审计性。<br><br>
+      <strong>结果</strong>：54.1% token 减少，60.7% 延迟降低，准确率仅降 2.2%（0.873→0.851）。
+    </div>
+    <div class="sisyphus-map">
+      <strong>📌 Sisyphus 对应</strong><br>
+      Tier-1 ≈ L3 SQLite 索引<br>
+      Tier-2 ≈ L1 .md 原始文件<br>
+      Router ≈ before_turn 中的 PERSIST/hot/cold 分层判断<br>
+      <div class="code-block">
+# 当前 Sisyphus（分层注入，但没有 escalate）
+def before_turn(query):
+    persist = query_persist()  # 固定
+    hot = query_hot(query)     # 7天
+    cold = query_cold(query)   # 全文 fallback
+    return persist + hot + cold
+
+# 加入 Sufficiency Router 后
+def before_turn(query):
+    # 先查 L3 SQLite（摘要/索引层）
+    l3_results = query_l3(query)
+    router = sufficiency_check(l3_results, query)
+    if router.verdict == "sufficient":
+        return l3_results
+    # 不够 → escalate 到 L1 .md（原始证据）
+    raw = escalate_to_l1(router.provenance_pointers)
+    # 验证后写回 L3
+    verified = verify_and_write_back(raw)
+    return l3_results + verified
+      </div>
+      <strong>改造点</strong>：before_turn 中加 router 判断，SQLite 索引表加 provenance 列（指向 source .md）
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<div class="mech">
+  <h3>2️⃣ Recurrence-Based Consolidation Trigger <span class="src">— RecMem (2026-05)</span></h3>
+  <div class="body">
+    <div class="paper-detail">
+      <strong>论文原文</strong><br>
+      现有系统每个交互都调 LLM 做 extraction，消耗巨大。RecMem 发现：<strong>不是每个交互都需要 consolidation</strong>。<br><br>
+      设计方案：<br>
+      1. 所有新交互先进入 <strong>subconscious memory</strong>（潜意识层）— 只做 embedding，不调 LLM<br>
+      2. 当检测到 <strong>语义相似的交互重复出现（recurrence）</strong> → 说明这是个重要话题 → 才调 LLM consolidation<br>
+      3. Consolidation 后做 <strong>semantic refinement</strong> — 从原始交互中恢复被摘要遗漏的细粒度事实<br><br>
+      <strong>结果</strong>：token 减少 <strong>87%</strong>，准确率反而超过 SOTA（因为减少了噪声 consolidation）
+    </div>
+    <div class="sisyphus-map">
+      <strong>📌 Sisyphus 对应</strong><br>
+      当前 Dream 触发条件：RAW 超过阈值（count > N）<br>
+      升级后：<strong>语义簇密度检测</strong><br>
+      <div class="code-block">
+# 当前：数量阈值
+def should_dream():
+    return count_new_raw() >= 5
+
+# 升级：recurrence 检测
+subconscious = EmbeddingStore()  # 只存 embedding，不调 LLM
+
+def should_dream():
+    new = get_new_raws()
+    for item in new:
+        # 在 subconscious 中找语义近邻
+        neighbors = subconscious.query(item.embedding, top_k=5)
+        if len(neighbors) >= 3:  # recurrence 检测
+            return True
+    return False
+
+# Dream 时只处理有 recurrence 的簇
+def dream():
+    clusters = cluster_by_recurrence(get_new_raws())
+    for cluster in clusters:
+        if cluster.density >= threshold:
+            result = llm_consolidate(cluster)
+            # semantic refinement：从原始交互恢复遗漏细节
+            refined = semantic_refinement(result, cluster.raws)
+            write_to_l3(refined)
+      </div>
+      <strong>改造点</strong>：加一个轻量级 subconscious 层（sqlite-vec 或 numpy embedding 缓存），Dream 触发从 count→recurrence
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<div class="mech">
+  <h3>3️⃣ Semantic Shift Detection <span class="src">— GAM (2026-04)</span></h3>
+  <div class="body">
+    <div class="paper-detail">
+      <strong>论文原文</strong><br>
+      GAM 将记忆编码与 consolidation 解耦。关键观察：<strong>consolidation 只在语义完整边界触发时才安全</strong>。<br><br>
+      方法：<br>
+      1. <strong>Episodic Buffering Phase</strong>：新交互进入本地事件图（local Event Progression Graph），与全局知识隔离<br>
+      2. 持续检测 <strong>semantic divergence</strong>（语义偏离）— 当前话题是否已经结束、新话题是否开始<br>
+      3. 检测到语义转移 → 触发 <strong>Semantic Consolidation Phase</strong>：将已完成的叙述单元整合到全局话题网络<br><br>
+      <strong>vs 固定 N 步触发</strong>：固定触发会在话题中间打断，把不完整的信息抽象进去。
+    </div>
+    <div class="sisyphus-map">
+      <strong>📌 Sisyphus 对应</strong><br>
+      这里的 semantic shift 和我们 task_family 隔离是互补的：<br>
+      <strong>task_family</strong> = 静态分类（这段经历属于哪个任务族）<br>
+      <strong>semantic shift</strong> = 动态检测（当前话题是否结束了）<br>
+      <div class="code-block">
+# 在 Dream 触发前加语义完整性检查
+def is_semantically_complete(episodes):
+    """检查这批 episodes 是否形成了完整的叙述单元"""
+    # 1. 所有 episodes 的 task_family 一致（静态）
+    families = set(ep.task_family for ep in episodes)
+    if len(families) > 1:
+        return False  # 跨族，不合并
+    
+    # 2. 检测语义偏离（动态）
+    for i in range(1, len(episodes)):
+        shift = semantic_similarity(episodes[i-1], episodes[i])
+        if shift < threshold:
+            # 语义断裂，应该在这里切分
+            return False, i  # 返回切分点
+    
+    return True, None
+
+# before_turn 注入时也考虑语义完整性
+def before_turn(query):
+    # 如果当前话题未完成，优先加载最新的 buffer
+    if in_episodic_buffer(query):
+        return load_buffer_only(query)
+    else:
+        return standard_retrieval(query)
+      </div>
+      <strong>改造点</strong>：在 Dream 触发前加 semantic completeness 检查，不完整时等待或切分
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<div class="mech">
+  <h3>4️⃣ Meta-Cognitive Confidence Gating <span class="src">— Synapse (2026-01)</span></h3>
+  <div class="body">
+    <div class="paper-detail">
+      <strong>论文原文</strong><br>
+      Synapse 模拟人类的 "Feeling of Knowing"（知晓感）：<br>
+      检索结果置信度低于阈值时，<strong>主动拒绝回答</strong>，而不是有幻觉风险地硬答。<br><br>
+      双阶段门控：<br>
+      1. <strong>Activation Gate</strong>：检索置信度 C_ret < τ_gate（0.12）→ 直接拒绝，输出"Not mentioned"<br>
+      2. <strong>Verification Prompt</strong>：对边缘 case 强制"严格证据"约束（"Is this EXPLICITLY mentioned?"）<br><br>
+      <strong>效果</strong>：Adversarial F1 96.6%（对抗性查询下的鲁棒性）
+    </div>
+    <div class="sisyphus-map">
+      <strong>📌 Sisyphus 对应</strong><br>
+      当前的 FTS5 检索没有置信度标记。搜索出来的结果一律同等对待。<br>
+      <div class="code-block">
+# 当前：所有结果平等
+def retrieve(query):
+    results = fts5_query(query)
+    return format_context(results)
+
+# 加入置信度门控后
+def retrieve(query):
+    results = fts5_query(query)
+    for r in results:
+        # 衰减分 + 重要性 = 置信度
+        r.confidence = r.score * (r.importance / 10)
+    
+    # 过滤低置信度
+    confident = [r for r in results if r.confidence >= 0.12]
+    
+    if not confident:
+        return "<sisyphus_context>暂无高置信度匹配</sisyphus_context>"
+    
+    # 标记边缘 case
+    for r in confident:
+        if r.confidence < 0.3:
+            r.tag = "low_confidence"
+    
+    return format_context(confident)
+      </div>
+      <strong>改造点</strong>：retrieval.py 加置信度计算 + 阈值过滤 + 低置信度标记。在 context 注入时区分"确定"和"仅供参考"
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<div class="mech">
+  <h3>5️⃣ Engram Maturation（沉默→激活） <span class="src">— Human-Inspired Architecture (2026-05)</span></h3>
+  <div class="body">
+    <div class="paper-detail">
+      <strong>论文原文</strong><br>
+      受神经科学 engram 研究启发：记忆痕迹（engram）在大脑中立即形成，但 <strong>最初处于"沉默"状态</strong>，经过多次 replay 后才变为可检索。<br><br>
+      工程实现：<strong>Dual-Trace Design</strong><br>
+      1. 全保真 episodic 记录 → 立即可检索（短期）<br>
+      2. 语义摘要 → 初始 <strong>activation_strength = 0.0</strong>（沉默）<br>
+      3. 每次成功检索 → activation_strength 增加<br>
+      4. 低于阈值时语义摘要不参与检索，只保真记录参与<br><br>
+      <strong>效果</strong>：97.2% 保留精度 + 58% 存储压缩
+    </div>
+    <div class="sisyphus-map">
+      <strong>📌 Sisyphus 对应</strong><br>
+      这正是我们需要的 draft→active 升级机制！<br>
+      <div class="code-block">
+# SQLite 加 activation 字段
+ALTER TABLE semantics ADD COLUMN activation REAL DEFAULT 0.0;
+ALTER TABLE semantics ADD COLUMN access_count INTEGER DEFAULT 0;
+
+# 写入时：初始沉默
+def write_semantic(sem):
+    sem.activation = 0.0
+    sem.status = "draft"  # 沉默期
+    db.insert(sem)
+
+# 每次被检索命中时：激活度增加
+def on_retrieval_hit(sem_id):
+    db.execute("""
+        UPDATE semantics 
+        SET activation = MIN(1.0, activation + 0.1),
+            access_count = access_count + 1
+        WHERE id = ?
+    """, [sem_id])
+    
+    # 激活度超过阈值 → 升级为 active（参与 PERSIST 注入）
+    db.execute("""
+        UPDATE semantics 
+        SET status = 'active' 
+        WHERE id = ? AND activation >= 0.5
+    """, [sem_id])
+
+# 检索时：只返回激活度足够的
+def retrieve(query):
+    results = db.execute("""
+        SELECT * FROM semantics 
+        WHERE status IN ('active', 'draft')
+          AND (status = 'active' OR activation >= 0.3)
+          AND memories_fts MATCH ?
+    """, [query])
+    return results
+      </div>
+      <strong>改造点</strong>：semantics 表加 activation + access_count，写入时沉默，检索命中后逐步激活
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<div class="mech">
+  <h3>6️⃣ Non-Destructive SPLIT / MERGE / UPDATE <span class="src">— All-Mem (2026-03)</span></h3>
+  <div class="body">
+    <div class="paper-detail">
+      <strong>论文原文</strong><br>
+      All-Mem 提出记忆拓扑编辑的三个<strong>非破坏性算子</strong>，所有操作保留版本化可追溯性：<br><br>
+      <strong>SPLIT</strong>：一条记忆包含太多混杂信息 → 拆成多条<br>
+      <strong>MERGE</strong>：多条冗余记忆 → 合并成一条<br>
+      <strong>UPDATE</strong>：信息过时/错误 → 版本化更新，旧版本保留<br><br>
+      门控：LLM diagnoser 提出编辑 → confidence-gating → planner 重新生成描述 → 确定性执行<br><br>
+      <strong>关键</strong>：所有操作是 <strong>non-destructive</strong> 的，原始证据不可变。
+    </div>
+    <div class="sisyphus-map">
+      <strong>📌 Sisyphus 对应</strong><br>
+      这正是 L3 索引需要支持的操作：<br>
+      <div class="code-block">
+# L3 非破坏性操作（记录到 L2 日志）
+def split_memory(sem_id, split_points):
+    # 记录旧版本
+    old = db.get_semantic(sem_id)
+    log_operation("split", sem_id, {"before": old.to_dict()})
+    
+    # 拆分
+    new_ids = []
+    for i, point in enumerate(split_points):
+        new = old.split_at(point)
+        new.id = f"{sem_id}_part_{i}"
+        new.provenance = old.provenance + [f"split_from_{sem_id}"]
+        db.insert(new)
+        new_ids.append(new.id)
+    
+    # 旧版标记为 replaced
+    db.execute("UPDATE semantics SET status='replaced' WHERE id=?", [sem_id])
+    
+    return new_ids
+
+def merge_memory(sem_ids):
+    items = [db.get_semantic(id) for id in sem_ids]
+    log_operation("merge", "+".join(sem_ids), {
+        "before": [item.to_dict() for item in items]
+    })
+    
+    merged = merge_semantics(items)
+    merged.provenance = [f"merged_from_{id}" for id in sem_ids]
+    merged.id = generate_id()
+    db.insert(merged)
+    
+    for id in sem_ids:
+        db.execute("UPDATE semantics SET status='replaced' WHERE id=?", [id])
+    
+    return merged.id
+      </div>
+      <strong>改造点</strong>：L3 加 status='replaced' 支持 + L2 记录 split/merge 操作日志
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<div class="mech">
+  <h3>7️⃣ Reverse Provenance Expansion（反向追溯） <span class="src">— SEEM (2026-01)</span></h3>
+  <div class="body">
+    <div class="paper-detail">
+      <strong>论文原文</strong><br>
+      SEEM 将交互流转化为 <strong>Episodic Event Frames（EEF）</strong>，每个 frame 锚定 provenance 指针指向原始段落。<br><br>
+      核心机制 <strong>Reverse Provenance Expansion（RPE）</strong>：<br>
+      1. 用户查询命中某个抽象记忆<br>
+      2. 不是只返回该抽象，而是通过 provenance 指针<strong>反向展开到所有相关原始段落</strong><br>
+      3. 最终 context = 原始段落 + 事件帧 + 关系事实 → 完整叙事<br><br>
+      <strong>关键</strong>：如果事件的任何片段被激活，它的所有构成文本支持都被包含进来。
+    </div>
+    <div class="sisyphus-map">
+      <strong>📌 Sisyphus 对应</strong><br>
+      这正是我们的 L3→L1 追溯！<br>
+      <div class="code-block">
+# 当前：只返回 L3 抽象
+def retrieve(query):
+    return query_l3_fts5(query)
+
+# 加入 RPE 后
+def retrieve(query):
+    # 1. L3 检索
+    l3_results = query_l3_fts5(query)
+    
+    # 2. 对每条结果，追溯 L1 原始 .md
+    for r in l3_results:
+        source_ids = json.loads(r.provenance)  # ["ep_001", "ep_002"]
+        raw_episodes = []
+        for sid in source_ids:
+            # 读 L1 .md 文件
+            md = read_l1_file(sid)
+            raw_episodes.append(md)
+        
+        # 3. 用原始段落补充抽象（RPE）
+        r.supplementary = raw_episodes
+    
+    # 4. 最终 context = L3 抽象 + L1 原文
+    return format_context(l3_results, include_raw=True)
+      </div>
+      <strong>改造点</strong>：L3 semantics 表 provenance 列存来源 ID 列表 + before_turn 可选项展开到原文
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<div class="mech">
+  <h3>8️⃣ Pre-Compression Sanitization（预消毒） <span class="src">— State Contamination (2026-05)</span></h3>
+  <div class="body">
+    <div class="paper-detail">
+      <strong>论文原文</strong><br>
+      <strong>Memory Laundering（记忆洗钱）</strong>：有毒内容被压缩到摘要后，毒性检测器检测不到，但仍然影响行为。<br><br>
+      关键实验：<br>
+      - <strong>事后消毒</strong>（清洗完成后的摘要）→ SPG（隐藏传播差）仍高达 <strong>0.086</strong><br>
+      - <strong>事前消毒</strong>（在 compression 之前清洗原始转录）→ SPG 降至 <strong>0.0004</strong>，几乎消除<br><br>
+      结论：问题不在"消毒没做好"，在"消毒时机错了"。必须在 <strong>summarization 之前</strong>消毒。
+    </div>
+    <div class="sisyphus-map">
+      <strong>📌 Sisyphus 对应</strong><br>
+      我们的 Verification Gate 目前检查的是 consolidation 的<strong>结果</strong>（门控检查），但没检查原材料。<br>
+      <div class="code-block">
+# 当前 Gate：只检查 consolidation 结果
+def verification_gate(semantic_memory):
+    check_provenance(semantic_memory)
+    check_conditions(semantic_memory)
+    check_regression(semantic_memory)
+    # ← 没有检查原始 episode 是否被污染
+
+# 升级 Gate：先消毒，再 consolidation
+def gate_with_sanitization(raw_episodes):
+    # Step 1: 预消毒 — 在 compression 之前
+    for ep in raw_episodes:
+        toxicity = toxicity_check(ep.content)
+        if toxicity > threshold:
+            # 不是简单删除，而是重新整理
+            ep.content = sanitize(ep.content)
+            ep.tags.append("sanitized")
+            log_operation("sanitize", ep.id, {"original_toxicity": toxicity})
+    
+    # Step 2: 然后才做 consolidation
+    if passes_verification_gate(raw_episodes):
+        return dream(raw_episodes)
+    else:
+        return None
+      </div>
+      <strong>改造点</strong>：Gate 中加 sanitization step（可用轻量规则或开源检测器），在 episode→semantic 之前执行
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<div class="mech">
+  <h3>9️⃣ Decision-Centric Utility Sorting <span class="src">— DeMem (2026-05)</span></h3>
+  <div class="body">
+    <div class="paper-detail">
+      <strong>论文原文</strong><br>
+      核心命题：记忆的价值不由"描述保真度"定义，由<strong>"对决策质量的影响"</strong>定义。<br><br>
+      数学框架 <strong>Rate-Distortion</strong>：<br>
+      - 记忆压缩 = rate（存储成本）<br>
+      - 决策质量下降 = distortion（信息损失代价）<br>
+      - 目标：在 rate 约束下最小化 distortion<br><br>
+      关键数据：<br>
+      - 描述相似性 & 证据支持度的相关性：Spearman ρ = <strong>0.103</strong>（几乎无关）<br>
+      - 描述检索找到金证据：66%<br>
+      - DeMem 找到金证据：<strong>83%</strong><br><br>
+      遗忘边界：数学推导了"什么可以安全遗忘"的精确条件。
+    </div>
+    <div class="sisyphus-map">
+      <strong>📌 Sisyphus 对应</strong><br>
+      当前排序：FTS5 相关度 × 衰减（时间 + 重要性）<br>
+      加入决策效用后：<br>
+      <div class="code-block">
+# 当前排序
+def rank(results, query):
+    for r in results:
+        r.score = r.fts5_score * r.decay  # 相关度 × 衰减
+    
+    return sorted(results, key=lambda r: -r.score)
+
+# 加入决策效用
+def rank_with_utility(results, query, task_type):
+    for r in results:
+        # 基础分 = 相关度 × 衰减 × 重要性
+        base = r.fts5_score * r.decay * (r.importance / 10)
+        
+        # 效用加成 = 历史有用性
+        utility = get_utility_score(r.id, task_type)
+        # utility 来自：该记忆在此类任务中被成功使用的次数
+        
+        r.score = base * (1 + utility)
+    
+    return sorted(results, key=lambda r: -r.score)
+
+# utility tracking 表
+CREATE TABLE memory_utility (
+    mem_id      TEXT,
+    task_type   TEXT,        -- 'retrieval', 'reasoning', 'planning'
+    use_count   INTEGER DEFAULT 0,
+    success_count INTEGER DEFAULT 0,
+    last_used_at TEXT,
+    PRIMARY KEY (mem_id, task_type)
+);
+      </div>
+      <strong>改造点</strong>：加 utility tracking 表，在每次检索命中时记录 task_type + 是否成功，排序时加权
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<div class="mech">
+  <h3>🔟 Synthetic Calibration（免数据调参） <span class="src">— Human-Inspired Architecture (2026-05)</span></h3>
+  <div class="body">
+    <div class="paper-detail">
+      <strong>论文原文</strong><br>
+      提出了一个<strong>合成校准方法论</strong>，在不接触 benchmark 数据的情况下推导所有 pipeline 阈值。<br><br>
+      解决的问题：<br>
+      大部分系统调参直接跑 benchmark → 无意中过拟合到 benchmark → 评估泄露<br><br>
+      方法：<br>
+      1. 构造合成数据（已知 ground truth 的模拟交互）<br>
+      2. 在合成数据上扫描参数空间<br>
+      3. 选择在合成数据上最优的参数<br>
+      4. 在真实 benchmark 上<strong>只测一次</strong>（不做迭代调参）<br><br>
+      <strong>效果</strong>：dedup consolidation 97.2% 保留精度 + 58% 压缩。
+    </div>
+    <div class="sisyphus-map">
+      <strong>📌 Sisyphus 对应</strong><br>
+      我们的 Gate 有很多阈值需要确定：<br>
+      - 置信度阈值（当前 0.6）<br>
+      - recurrence 密度阈值（N 个近邻触发）<br>
+      - activation 升级阈值（0.5 还是 0.3？）<br>
+      - 衰减半衰期（当前 180 天）<br><br>
+      <div class="code-block">
+# 合成校准脚本
+def synthetic_calibration():
+    # 构造已知 ground truth 的模拟记忆
+    synthetic = []
+    for i in range(100):
+        syn = SyntheticEpisode(
+            task_family=random.choice(["retrieval", "coding", "reasoning"]),
+            content=generate_fake_content(),
+            ground_truth_utility=random.uniform(0, 1)
+        )
+        synthetic.append(syn)
+    
+    # 扫描参数空间
+    best_params = None
+    best_score = 0
+    for confidence_threshold in [0.1, 0.2, 0.3, 0.5, 0.7]:
+        for activation_threshold in [0.3, 0.5, 0.7]:
+            params = {
+                "confidence_threshold": confidence_threshold,
+                "activation_threshold": activation_threshold,
+            }
+            score = evaluate_on_synthetic(synthetic, params)
+            if score > best_score:
+                best_score = score
+                best_params = params
+    
+    # 在真实数据上只跑一次
+    assert best_params is not None
+    final_score = evaluate_on_real(best_params)
+    return best_params, final_score
+      </div>
+      <strong>改造点</strong>：加一个 calibration.py，用合成数据标定所有阈值，避免 benchmark 泄露
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<div class="summary-box" style="margin-top:24px;">
+  <h3>🎯 总结：十项补充的实施路线</h3>
+  <table style="font-size:13px;width:100%;border-collapse:collapse;">
+    <tr><th>阶段</th><th>工作</th><th>对应机制</th><th>预估</th></tr>
+    <tr><td><strong>Phase 0</strong></td><td>三层基础（indexer + FTS5 + jsonl）</td><td>—</td><td>1 周</td></tr>
+    <tr><td rowspan="4"><strong>Phase 0.5</strong><br>门控增强</td><td>Verification Gate 实现</td><td>#1 Sufficiency Router</td><td rowspan="4">1 周</td></tr>
+    <tr><td>Semantic Shift 检测 + task_family 隔离</td><td>#3 GAM</td></tr>
+    <tr><td>Recurrence-based Dream 触发</td><td>#2 RecMem</td></tr>
+    <tr><td>Pre-compression sanitization</td><td>#8 State Contamination</td></tr>
+    <tr><td rowspan="3"><strong>Phase 1</strong><br>检索增强</td><td>置信度门控 + 低置信标记</td><td>#4 Synapse</td><td rowspan="3">1 周</td></tr>
+    <tr><td>Engram maturation（draft→active）</td><td>#5 Human-Inspired</td></tr>
+    <tr><td>Reverse Provenance Expansion（L3→L1）</td><td>#7 SEEM</td></tr>
+    <tr><td rowspan="2"><strong>Phase 2</strong><br>高级</td><td>SPLIT/MERGE/UPDATE 操作</td><td>#6 All-Mem</td><td rowspan="2">1 周</td></tr>
+    <tr><td>Decision-centric utility + Synthetic calibration</td><td>#9 DeMem + #10 Human-Inspired</td></tr>
+  </table>
+</div>
+
+</body>
+</html>

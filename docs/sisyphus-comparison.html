@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sisyphus 记忆系统 vs 开源方案对比</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: #0a0a0f; color: #e1e1e8; line-height: 1.6; padding: 40px 20px; }
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  /* Header */
+  .header { text-align: center; margin-bottom: 48px; }
+  .header h1 { font-size: 2.4rem; font-weight: 700; background: linear-gradient(135deg, #a78bfa, #60a5fa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .header .subtitle { color: #8888a0; margin-top: 8px; font-size: 1rem; }
+
+  /* Score Cards */
+  .score-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 48px; }
+  .score-card { background: #12121a; border: 1px solid #1e1e2a; border-radius: 16px; padding: 24px; text-align: center; transition: all .2s; }
+  .score-card:hover { border-color: #a78bfa40; transform: translateY(-2px); }
+  .score-card .name { font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #8888a0; margin-bottom: 4px; }
+  .score-card .score { font-size: 2.6rem; font-weight: 700; }
+  .score-card .s1 { color: #a78bfa; }
+  .score-card .s2 { color: #f472b6; }
+  .score-card .s3 { color: #34d399; }
+  .score-card .s4 { color: #fbbf24; }
+  .score-card .s5 { color: #f87171; }
+  .score-card .stars { font-size: .75rem; color: #666; margin-top: 4px; }
+
+  /* Main comparison table */
+  .section-title { font-size: 1.3rem; font-weight: 600; margin: 40px 0 20px; color: #c4b5fd; }
+  .comparison-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #1e1e2a; }
+  .comparison-table th { background: #12121a; padding: 14px 16px; text-align: left; font-weight: 600; font-size: .85rem; text-transform: uppercase; letter-spacing: 0.04em; color: #8888a0; border-bottom: 1px solid #1e1e2a; }
+  .comparison-table th:first-child { width: 180px; }
+  .comparison-table td { padding: 12px 16px; font-size: .88rem; border-bottom: 1px solid #111118; }
+  .comparison-table tr:last-child td { border-bottom: none; }
+  .comparison-table tr:hover td { background: #12121a; }
+  .comparison-table .dimension { font-weight: 600; color: #a78bfa; }
+  .highlight { background: #2d1b69 !important; }
+  .check { color: #34d399; }
+  .cross { color: #f87171; }
+  .partial { color: #fbbf24; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: .72rem; font-weight: 600; margin: 1px; }
+  .tag-green { background: #065f4620; color: #34d399; }
+  .tag-purple { background: #2d1b6920; color: #a78bfa; }
+  .tag-yellow { background: #5c4a0a20; color: #fbbf24; }
+  .tag-red { background: #5f0a0a20; color: #f87171; }
+
+  /* Architecture diagram */
+  .arch-box { background: #12121a; border: 1px solid #1e1e2a; border-radius: 16px; padding: 32px; margin-bottom: 32px; }
+  .arch-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 20px; color: #c4b5fd; }
+  .arch-flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 0; }
+  .arch-node { background: #1a1a28; border: 1px solid #2a2a3a; border-radius: 10px; padding: 14px 20px; text-align: center; min-width: 90px; }
+  .arch-node .label { font-size: .7rem; text-transform: uppercase; letter-spacing: 0.04em; color: #8888a0; }
+  .arch-node .value { font-size: .88rem; font-weight: 600; color: #e1e1e8; margin-top: 2px; }
+  .arch-arrow { color: #4a4a5a; padding: 0 8px; font-size: 1.2rem; }
+  .arch-node.highlight { border-color: #a78bfa; }
+  .arch-node .pill { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: .65rem; font-weight: 600; margin-top: 6px; }
+  .pill-green { background: #065f4630; color: #34d399; }
+  .pill-purple { background: #2d1b6930; color: #a78bfa; }
+
+  /* Feature comparison detail */
+  .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 32px; }
+  .feature-card { background: #12121a; border: 1px solid #1e1e2a; border-radius: 12px; padding: 20px; }
+  .feature-card h4 { font-size: .9rem; font-weight: 600; color: #c4b5fd; margin-bottom: 8px; }
+  .feature-card p { font-size: .82rem; color: #8888a0; line-height: 1.5; }
+
+  .divider { border: none; border-top: 1px solid #1e1e2a; margin: 40px 0; }
+
+  .footer { text-align: center; padding: 32px 0; color: #4a4a5a; font-size: .8rem; }
+
+  @media (max-width: 640px) { .header h1 { font-size: 1.6rem; } .score-grid { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>🗿 Sisyphus vs 开源记忆系统</h1>
+  <div class="subtitle">你的自研记忆系统 vs opencode 生态 4 大开源方案 · 2026-05</div>
+</div>
+
+<!-- Score Overview -->
+<div class="score-grid">
+  <div class="score-card">
+    <div class="name">Sisyphus（你）</div>
+    <div class="score s1">7.5</div>
+    <div class="stars">零依赖 · 中文原生 · 架构深度</div>
+  </div>
+  <div class="score-card">
+    <div class="name">opencode-mem</div>
+    <div class="score s2">8.5</div>
+    <div class="stars">684⭐ · 最成熟 · 生态完善</div>
+  </div>
+  <div class="score-card">
+    <div class="name">open-mem</div>
+    <div class="score s3">7.0</div>
+    <div class="stars">FTS5+向量+知识图谱</div>
+  </div>
+  <div class="score-card">
+    <div class="name">codemem</div>
+    <div class="score s4">7.5</div>
+    <div class="stars">混合检索 · P2P 同步</div>
+  </div>
+  <div class="score-card">
+    <div class="name">opencode-lcm</div>
+    <div class="score s5">6.5</div>
+    <div class="stars">无损上下文 · 会话谱系</div>
+  </div>
+</div>
+
+<!-- === SISYPHUS ARCHITECTURE === -->
+<div class="arch-box">
+  <div class="arch-title">⚙️ Sisyphus 架构（核心链路）</div>
+  <div class="arch-flow">
+    <div class="arch-node"><div class="label">Layer 1</div><div class="value">RAW</div><div class="pill pill-green">原始提取</div></div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-node"><div class="label">Layer 2</div><div class="value">REFINED</div><div class="pill pill-green">Dream 加工</div></div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-node"><div class="label">Layer 3</div><div class="value">MOC</div><div class="pill pill-yellow">MOC 索引</div></div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-node highlight"><div class="label">Layer 4</div><div class="value">AGENT</div><div class="pill pill-purple">上下文注入</div></div>
+  </div>
+  <div style="display:flex; flex-wrap:wrap; gap:12px; margin-top:24px; justify-content:center; font-size:.82rem; color:#8888a0;">
+    <span>🧠 <strong>Pipeline:</strong> Extract → Dream → Compress → Retrieve</span>
+    <span>⏱ <strong>半衰期:</strong> 180 天衰减曲线</span>
+    <span>📁 <strong>存储:</strong> 纯文件 (零依赖)</span>
+    <span>🇨🇳 <strong>分词:</strong> jieba + CJK 原生</span>
+    <span>📐 <strong>耐久度:</strong> PERSIST/HOT/CODE/COLD</span>
+  </div>
+  <div style="margin-top:16px; padding-top:16px; border-top:1px solid #1e1e2a; font-size:.82rem; color:#8888a0;">
+    <strong style="color:#c4b5fd;">升级方向:</strong> ContextAssembler 多 Source 配额制 · Skill 自动生成 · CodeGraphContext 代码索引
+  </div>
+</div>
+
+<!-- === COMPARISON TABLE === -->
+<h2 class="section-title">📊 全面对比</h2>
+<table class="comparison-table">
+  <thead>
+    <tr>
+      <th>维度</th>
+      <th>Sisyphus</th>
+      <th>opencode-mem</th>
+      <th>open-mem</th>
+      <th>codemem</th>
+      <th>opencode-lcm</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="dimension">⭐ Stars</td>
+      <td>—</td>
+      <td><strong>684</strong></td>
+      <td>17</td>
+      <td>39</td>
+      <td>41</td>
+    </tr>
+    <tr>
+      <td class="dimension">安装方式</td>
+      <td><span class="tag tag-yellow">自研 Python</span></td>
+      <td><span class="tag tag-green">npm 插件</span></td>
+      <td><span class="tag tag-green">npm 插件</span></td>
+      <td><span class="tag tag-green">npm 插件</span></td>
+      <td><span class="tag tag-green">npm 插件</span></td>
+    </tr>
+    <tr>
+      <td class="dimension">存储引擎</td>
+      <td><span class="tag tag-green">纯文件 Markdown</span></td>
+      <td>SQLite + USearch</td>
+      <td>SQLite + sqlite-vec</td>
+      <td>SQLite + sqlite-vec</td>
+      <td>SQLite FTS5</td>
+    </tr>
+    <tr>
+      <td class="dimension">中文支持</td>
+      <td><span class="tag tag-purple">✅ 原生 jieba</span></td>
+      <td>❌ 英文优先</td>
+      <td>❌ 英文优先</td>
+      <td>❌ 英文优先</td>
+      <td>❌ 英文优先</td>
+    </tr>
+    <tr>
+      <td class="dimension">记忆分层</td>
+      <td><span class="tag tag-purple">4 层耐久度</span></td>
+      <td>project/global 作用域</td>
+      <td>hot/cold 两层</td>
+      <td>hot/cold 两层</td>
+      <td>session archive</td>
+    </tr>
+    <tr>
+      <td class="dimension">检索方式</td>
+      <td>BM25 + 衰减排序</td>
+      <td>向量 + ExactScan</td>
+      <td>FTS5 + 向量 + 知识图谱</td>
+      <td>FTS5 BM25 + 向量</td>
+      <td>FTS5 + TF-IDF</td>
+    </tr>
+    <tr>
+      <td class="dimension">自动提取</td>
+      <td>Extractor 写完未接入</td>
+      <td><span class="tag tag-green">✅ 自动捕捉</span></td>
+      <td><span class="tag tag-green">✅ 自动捕捉</span></td>
+      <td><span class="tag tag-green">✅ 自动捕捉</span></td>
+      <td><span class="tag tag-green">✅ 自动捕捉</span></td>
+    </tr>
+    <tr>
+      <td class="dimension">遗忘曲线</td>
+      <td><span class="tag tag-purple">✅ 半衰期 180 天</span></td>
+      <td>❌ 无</td>
+      <td>❌ 无</td>
+      <td>recency boost</td>
+      <td>recency rank</td>
+    </tr>
+    <tr>
+      <td class="dimension">代码记忆</td>
+      <td><span class="tag tag-purple">✅ CodeGraphContext</span></td>
+      <td>❌ 通用记忆</td>
+      <td>❌ 通用记忆</td>
+      <td>❌ 通用记忆</td>
+      <td>❌ 通用记忆</td>
+    </tr>
+    <tr>
+      <td class="dimension">Skill 生成</td>
+      <td><span class="tag tag-yellow">P6 规划中</span></td>
+      <td>❌ 无</td>
+      <td>❌ 无</td>
+      <td>❌ 无</td>
+      <td>❌ 无</td>
+    </tr>
+    <tr>
+      <td class="dimension">自动触发</td>
+      <td><span class="tag tag-yellow">代码就绪未 hook</span></td>
+      <td><span class="tag tag-green">✅ 自动</span></td>
+      <td><span class="tag tag-green">✅ 自动</span></td>
+      <td><span class="tag tag-green">✅ 自动</span></td>
+      <td><span class="tag tag-green">✅ 自动</span></td>
+    </tr>
+    <tr>
+      <td class="dimension">P2P 同步</td>
+      <td>❌ 无</td>
+      <td>❌ 无</td>
+      <td>❌ 无</td>
+      <td><span class="tag tag-green">✅ 支持</span></td>
+      <td>❌ 无</td>
+    </tr>
+    <tr>
+      <td class="dimension">Web UI</td>
+      <td>❌ 无</td>
+      <td><span class="tag tag-green">✅ 内置</span></td>
+      <td>❌ 无</td>
+      <td><span class="tag tag-green">✅ 内置</span></td>
+      <td>❌ 无</td>
+    </tr>
+    <tr>
+      <td class="dimension">许可证</td>
+      <td>MIT</td>
+      <td>MIT</td>
+      <td>MIT</td>
+      <td>MIT</td>
+      <td>MIT</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- === DETAILED FEATURE COMPARISON === -->
+<h2 class="section-title">🔬 核心差异深度分析</h2>
+
+<div class="feature-grid">
+  <div class="feature-card">
+    <h4>🏆 Sisyphus 独有优势</h4>
+    <p>
+      <strong>中文原生分词</strong>（jieba + CJK 单字 fallback）—— 所有开源方案都面向英文；<br><br>
+      <strong>耐久度分层</strong>（PERSIST/HOT/CODE/COLD）—— 不是简单的时间分层，是按记忆的"品质"决定存活策略；<br><br>
+      <strong>遗忘曲线</strong>—— 180 天半衰期衰减，更接近人类记忆模型，而非简单的"最近优先"；<br><br>
+      <strong>零依赖</strong>—— 纯文件 Markdown，不绑 SQLite/向量库，可读可审计。
+    </p>
+  </div>
+  <div class="feature-card">
+    <h4>⚠️ Sisyphus 短板</h4>
+    <p>
+      <strong>无自动触发</strong>—— 代码写好了但没 hook 进流程，别人装了即用，你需要手动调 Pipeline；<br><br>
+      <strong>无向量检索</strong>—— BM25 无法语义匹配，类似场景无法关联；<br><br>
+      <strong>无网页界面</strong>—— 全靠 CLI + 文件查看，debug 不方便；<br><br>
+      <strong>代码量过大（35 文件）</strong>—— Tree/MOC/LoopDetector/LinkCleaner/BM25 等组件并没有真正派上用场。
+    </p>
+  </div>
+  <div class="feature-card">
+    <h4>🔄 opencode-mem 强在哪</h4>
+    <p>
+      684⭐，30 贡献者，20 个 release。安装即用：<br><br>
+      auto-capture 自动捕捉对话 + 向量化 + 检索 + 注入 prompt，完全自动化；<br><br>
+      Web UI 可视化浏览所有记忆；<br><br>
+      User Profile 自动学习用户偏好；<br><br>
+      <strong>但它不解决中文、代码索引、遗忘曲线、Skill 生成等你的核心关注点。</strong>
+    </p>
+  </div>
+  <div class="feature-card">
+    <h4>🧩 open-mem 设计最像你</h4>
+    <p>
+      也有"压缩链路"：raw tool output → AI compression → structured observations；<br><br>
+      FTS5 + 向量 + 知识图谱 三重检索；<br><br>
+      渐进式上下文注入；<br><br>
+      <strong>和你思路最接近：但它不绑 opencode，也支持 Claude Code/Cursor。</strong>
+    </p>
+  </div>
+</div>
+
+<!-- === STRATEGY === -->
+<div class="arch-box">
+  <div class="arch-title">🧭 战略定位：你该怎么做？</div>
+  <div style="margin-bottom:20px;">
+
+  <div style="background:#1a1a28; border-left: 3px solid #a78bfa; padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 16px;">
+    <div style="font-weight:600; color:#c4b5fd; margin-bottom:4px;">结论：不用重写，聚焦差异化</div>
+    <div style="font-size:.85rem; color:#8888a0;">
+      开源方案解决的是"通用记忆"——装了就有的通用层。<br>
+      Sisyphus 解决的是"开发者专有记忆"——中文代码上下文 + 遗忘曲线 + 自动化学习。<br>
+      两者是互补关系，不是替代关系。
+    </div>
+  </div>
+
+  <table style="width:100%; border-collapse:separate; border-spacing:0; font-size:.85rem;">
+    <tr style="background:#12121a;">
+      <td style="padding:12px 16px; font-weight:600; color:#a78bfa; border-bottom:1px solid #1e1e2a;">你的护城河</td>
+      <td style="padding:12px 16px; color:#8888a0; border-bottom:1px solid #1e1e2a;">中文代码语境 · 遗忘曲线 · 代码索引 · Skill 自进化 · 零依赖</td>
+    </tr>
+    <tr style="background:#12121a;">
+      <td style="padding:12px 16px; font-weight:600; color:#f472b6; border-bottom:1px solid #1e1e2a;">可以抄的</td>
+      <td style="padding:12px 16px; color:#8888a0; border-bottom:1px solid #1e1e2a;">auto-capture 自动触发（抄 opencode-mem） · Web UI 可视化（抄 codemem） · 渐进式注入（抄 open-mem）</td>
+    </tr>
+    <tr style="background:#12121a;">
+      <td style="padding:12px 16px; font-weight:600; color:#34d399; border-bottom:1px solid #1e1e2a;">需要砍的</td>
+      <td style="padding:12px 16px; color:#8888a0; border-bottom:1px solid #1e1e2a;">Tree/MOC/LoopDetector/LinkCleaner/BM25 独立类/Cache —— 35 文件砍到 10 个以内</td>
+    </tr>
+    <tr style="background:#12121a;">
+      <td style="padding:12px 16px; font-weight:600; color:#fbbf24;">优先级</td>
+      <td style="padding:12px 16px; color:#8888a0;">① 自动触发（差最后一个 hook） → ② 砍冗余 → ③ Web UI → ④ Skill 生成</td>
+    </tr>
+  </table>
+  </div>
+</div>
+
+<!-- === PIPELINE DETAIL === -->
+<h2 class="section-title">🔧 你的 Pipeline 与开源方案对应关系</h2>
+<table class="comparison-table">
+  <thead>
+    <tr>
+      <th style="width:120px;">Sisyphus</th>
+      <th>opencode-mem</th>
+      <th>open-mem</th>
+      <th>codemem</th>
+      <th>opencode-lcm</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="dimension">Extract</td>
+      <td>auto-capture (内置 LLM)</td>
+      <td>capture + AI compression</td>
+      <td>observer pipeline</td>
+      <td>session event capture</td>
+    </tr>
+    <tr>
+      <td class="dimension">Dream</td>
+      <td>—</td>
+      <td>compress → observations</td>
+      <td>memory types (bugfix/feature...)</td>
+      <td>summary nodes</td>
+    </tr>
+    <tr>
+      <td class="dimension">Compress</td>
+      <td>compaction 压缩</td>
+      <td>token-budgeted index</td>
+      <td>memory pack assembly</td>
+      <td>lossless archive</td>
+    </tr>
+    <tr>
+      <td class="dimension">Retrieve</td>
+      <td>向量 + ExactScan</td>
+      <td>FTS5 + 向量 + 知识图谱 + RRF</td>
+      <td>FTS5 BM25 + sqlite-vec</td>
+      <td>FTS5 + TF-IDF + scope</td>
+    </tr>
+    <tr>
+      <td class="dimension">Decay</td>
+      <td>❌ 无</td>
+      <td>recency 排序</td>
+      <td>recency + kind 加权</td>
+      <td>recency + scope</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr class="divider">
+
+<div style="background:linear-gradient(135deg, #1a1a28, #12121a); border:1px solid #2a2a3a; border-radius:12px; padding:24px; margin:32px 0;">
+  <div style="font-size:.9rem; color:#c4b5fd; font-weight:600; margin-bottom:8px;">💡 一句话总结</div>
+  <div style="font-size:.95rem; color:#e1e1e8;">
+    开源方案解决 <strong>"让 opencode 记住东西"</strong>（通用记忆层），Sisyphus 解决 <strong>"让 opencode 记住开发者真正关心的东西"</strong>（中文代码上下文 + 遗忘曲线 + 自进化）。<br><br>
+    现在最缺的不是功能，是 <strong>接上自动触发</strong>，让 Pipeline 自己跑起来。
+  </div>
+</div>
+
+<div class="footer">
+  Generated from Sisyphus memory system · 2026-05-24
+</div>
+
+</div>
+</body>
+</html>

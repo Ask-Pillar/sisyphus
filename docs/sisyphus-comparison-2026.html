@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sisyphus 定位 · 2026 记忆系统全景对比</title>
+<style>
+  body { font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #0d1117; color: #e6edf3; line-height: 1.7; max-width: 1000px; margin: 0 auto; padding: 20px; }
+  h1 { font-size: 1.6em; border-bottom: 2px solid #30363d; padding-bottom: 10px; }
+  h2 { font-size: 1.3em; margin-top: 30px; color: #58a6ff; }
+  h3 { font-size: 1.1em; margin-top: 22px; color: #d2a8ff; }
+  .subtitle { color: #8b949e; font-size: 14px; margin-top: 4px; }
+
+  table { border-collapse: collapse; width: 100%; margin: 14px 0; font-size: 13px; }
+  th, td { border: 1px solid #30363d; padding: 6px 10px; text-align: left; }
+  th { background: #161b22; color: #8b949e; font-weight: 600; position: sticky; top: 0; }
+  tr:hover td { background: #161b2233; }
+  .highlight-row td { background: rgba(88,166,255,0.06); }
+  .highlight-row td:first-child { border-left: 3px solid #58a6ff; font-weight: 600; color: #58a6ff; }
+
+  .tag { display: inline-block; padding: 1px 8px; border-radius: 4px; font-size: 11px; }
+  .tag-blue { background: #1f6feb22; color: #58a6ff; border: 1px solid #1f6feb44; }
+  .tag-purple { background: #8957e522; color: #d2a8ff; border: 1px solid #8957e544; }
+  .tag-green { background: #23863622; color: #3fb950; border: 1px solid #23863644; }
+  .tag-yellow { background: #d2992222; color: #d29922; border: 1px solid #d2992244; }
+  .tag-red { background: #da363322; color: #ff7b72; border: 1px solid #da363344; }
+
+  .callout { background: #161b22; border-left: 4px solid #58a6ff; border-radius: 6px; padding: 14px 18px; margin: 16px 0; }
+  .callout.warn { border-left-color: #d29922; }
+  .callout.green { border-left-color: #3fb950; }
+
+  /* Radar-style positioning */
+  .pos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+  .pos-card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 14px; }
+  .pos-card h4 { font-size: 13px; margin-bottom: 6px; }
+  .pos-card ul { font-size: 12px; color: #8b949e; padding-left: 16px; margin: 0; }
+  .pos-card ul li { margin: 3px 0; }
+
+  .verdict { background: linear-gradient(135deg, #1f6feb11, #8957e511); border: 1px solid rgba(210,168,255,0.2); border-radius: 12px; padding: 20px 24px; margin: 20px 0; }
+
+  @media (max-width: 640px) {
+    table { font-size: 11px; }
+    th, td { padding: 4px 6px; }
+    .pos-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<h1>♾️ Sisyphus 定位报告 · 2026 记忆系统全景对比</h1>
+<p class="subtitle">数据来源: GitHub, 官网, 评测报告, 截至 2026-05-24</p>
+
+<!-- ============================================================ -->
+<h2>一、参战选手</h2>
+
+<table>
+  <tr><th>系统</th><th>类型</th><th>⭐ stars</th><th>定位</th><th>代表用户</th></tr>
+  <tr><td><strong>Mem0</strong></td><td>商业/开源</td><td>48K</td><td>Memory Layer API（向量+图谱）</td><td>YC, $24M Series A</td></tr>
+  <tr><td><strong>Letta</strong></td><td>商业/开源</td><td>22K</td><td>Agent Runtime（OS 级内存管理）</td><td>Felicis, $10M</td></tr>
+  <tr><td><strong>Zep</strong></td><td>商业/开源</td><td>~5K</td><td>Temporal Knowledge Graph</td><td>企业客户</td></tr>
+  <tr><td><strong>agentmemory</strong></td><td>开源</td><td>9.3K 🚀</td><td>Memory Engine + MCP（本地优先）</td><td>npm 生态, #1 trending</td></tr>
+  <tr><td><strong>Hermes</strong></td><td>开源</td><td>—</td><td>Self-improving Agent</td><td>研究项目</td></tr>
+  <tr><td><strong>OpenHuman</strong></td><td>开源</td><td>—</td><td>AI Desktop Companion</td><td>研究项目</td></tr>
+  <tr><td><strong>opencode-mem</strong></td><td>开源</td><td>684</td><td>OpenCode 插件 (SQLite+USearch)</td><td>OpenCode 用户</td></tr>
+  <tr><td><strong>@mathew-cf/memory</strong></td><td>开源</td><td>—</td><td>OpenCode 插件 (rg+rag)</td><td>OpenCode 用户</td></tr>
+  <tr><td><strong>Claude Code</strong></td><td>商业</td><td>—</td><td>静态 MEMORY.md + 后台提取</td><td>Anthropic 用户</td></tr>
+  <tr class="highlight-row"><td><strong>Sisyphus</strong></td><td>开源</td><td>—</td><td>三层架构记忆系统</td><td>你和我</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2>二、核心维度横向对比</h2>
+
+<table>
+  <tr><th>维度</th><th>Mem0</th><th>Letta</th><th>agentmemory</th><th>opencode-mem</th><th style="color:#58a6ff">Sisyphus</th></tr>
+  <tr><td>存储引擎</td><td>向量 DB + 图 DB</td><td>Postgres + 向量</td><td>SQLite + iii-engine</td><td>SQLite + USearch</td><td><span class="tag tag-blue">L1 .md → L2 .jsonl → L3 SQLite</span></td></tr>
+  <tr><td>主存储</td><td>向量 DB</td><td>Postgres</td><td>SQLite</td><td>SQLite</td><td><span class="tag tag-green">明文 .md 文件</span></td></tr>
+  <tr><td>Git 追踪</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td><span class="tag tag-green">✅ L1 原生 git</span></td></tr>
+  <tr><td>操作审计/时间旅行</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td><span class="tag tag-green">✅ L2 operations.jsonl</span></td></tr>
+  <tr><td>可丢弃索引</td><td>❌（主存储）</td><td>❌（主存储）</td><td>❌（主存储）</td><td>❌（主存储）</td><td><span class="tag tag-green">✅ L3 删了也不丢数据</span></td></tr>
+  <tr><td>检索方式</td><td>向量 + 图谱</td><td>向量 + tool call</td><td>BM25+向量+图(RRF)</td><td>向量(USearch)</td><td><span class="tag tag-blue">FTS5 + BM25 + 衰减排序</span></td></tr>
+  <tr><td>检索精度 R@5</td><td>68.5%</td><td>83.2%</td><td><strong>95.2%</strong></td><td>—</td><td>—（暂未测）</td></tr>
+  <tr><td>记忆分层</td><td>user/session/agent</td><td>Core/Recall/Archival</td><td>流 + 语义 + 图</td><td>project/all-projects</td><td><span class="tag tag-purple">PERSIST/HOT/CODE/COLD</span></td></tr>
+  <tr><td>始终加载的记忆</td><td>❌</td><td>✅ Core</td><td>❌</td><td>❌</td><td><span class="tag tag-purple">✅ PERSIST 无条件注入</span></td></tr>
+  <tr><td>中文支持</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td><span class="tag tag-green">✅ jieba + CJK</span></td></tr>
+  <tr><td>自动捕获</td><td>手动 add()</td><td>Agent 自编辑</td><td>✅ 12 hooks</td><td>✅ autoCapture</td><td>📋 after_turn (规划中)</td></tr>
+  <tr><td>后台反思</td><td>❌</td><td>✅ sleep-time</td><td>✅ hourly sweep</td><td>✅ compaction</td><td>📋 Dream (规划中)</td></tr>
+  <tr><td>代码索引</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td><span class="tag tag-blue">✅ CodeGraphContext 预留</span></td></tr>
+  <tr><td>MCP</td><td>✅</td><td>❌</td><td>✅ 51 工具</td><td>✅</td><td>✅ 自建 MCP</td></tr>
+  <tr><td>可视化</td><td>✅ Dashboard</td><td>✅ ADE</td><td>✅ :3113 Viewer</td><td>✅ :4747 WebUI</td><td>📋 CSV/HTML 导出</td></tr>
+  <tr><td>外部依赖</td><td>Qdrant/Neo4j</td><td>Postgres + 向量</td><td>零（内置 SQLite）</td><td>USearch(可选)</td><td><span class="tag tag-green">零依赖（纯 Python）</span></td></tr>
+  <tr><td>部署复杂度</td><td>中（DB 基础设施）</td><td>高（完整运行时）</td><td>极低（npm install）</td><td>低（插件安装）</td><td><span class="tag tag-green">极低（python3 即跑）</span></td></tr>
+  <tr><td>License</td><td>Apache 2.0</td><td>Apache 2.0</td><td>MIT</td><td>MIT</td><td>私有</td></tr>
+  <tr><td>定价</td><td>免费 ~ $249/mo</td><td>$20-200/mo</td><td>免费</td><td>免费</td><td>免费</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2>三、差异化定位分析</h2>
+
+<div class="pos-grid">
+  <div class="pos-card">
+    <h4>🔵 Sisyphus 独有的</h4>
+    <ul>
+      <li><strong>三层架构</strong>（L1 .md → L2 .jsonl → L3 SQLite）— 全网唯一</li>
+      <li><strong>明文主存储 + SQLite 仅做索引</strong> — git 可追踪，删库不丢数据</li>
+      <li><strong>operations.jsonl 操作日志</strong> — 审计溯源 + 时间旅行恢复</li>
+      <li><strong>四分区的注入策略</strong>（PERSIST 必加载 / HOT 优先 / COLD 衰减 / CODE 按需）</li>
+      <li><strong>中文原生支持</strong>（jieba 分词 + CJK 单字 fallback）</li>
+      <li><strong>代码索引集成</strong>（CodeGraphContext 图查询）</li>
+    </ul>
+  </div>
+  <div class="pos-card">
+    <h4>🟢 Sisyphus 追平主流</h4>
+    <ul>
+      <li>MCP Server 集成（所有对手都有）</li>
+      <li>跨 session 持久化（行业标配）</li>
+      <li>零依赖 / 本地优先 / 可自部署</li>
+      <li>FTS5 全文检索（open-mem 也有）</li>
+    </ul>
+  </div>
+  <div class="pos-card">
+    <h4>🟡 Sisyphus 落后 / 规划中</h4>
+    <ul>
+      <li><strong>自动捕获</strong>— agentmemory 12 hooks vs Sisyphus 未接入 Extractor</li>
+      <li><strong>后台反思</strong>— agentmemory hourly sweep vs Sisyphus Dream 未自动触发</li>
+      <li><strong>检索精度基准</strong>— agentmemory 95.2% R@5 有硬数据，Sisyphus 未测</li>
+      <li><strong>可视化</strong>— agentmemory :3113 Viewer / opencode-mem :4747 WebUI</li>
+      <li><strong>生态成熟度</strong>— Mem0 48K⭐ / agentmemory 9.3K⭐ / 文档社区</li>
+      <li><strong>去重 / 老化清扫</strong>— agentmemory 有 hourly sweep</li>
+    </ul>
+  </div>
+  <div class="pos-card">
+    <h4>🔴 Sisyphus 不需要的</h4>
+    <ul>
+      <li><strong>向量 DB 依赖</strong>— Qdrant/Neo4j/PGVector 等都是额外基础设施</li>
+      <li><strong>Agent Runtime</strong>— Sisyphus 只做记忆，不做 agent 框架</li>
+      <li><strong>Hard memory cap</strong>— Claude Code 200 行 / Hermes 2200 字符硬上限</li>
+      <li><strong>商业定价</strong>— Mem0 $249/mo Pro / Letta $200/mo</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2>四、对照 agentmemory（最强竞品）深度拆解</h2>
+
+<p>agentmemory 是目前最接近 Sisyphus 的竞品——都做本地优先、零依赖、MCP 协议。但它俩的底层哲学完全不同：</p>
+
+<table>
+  <tr><th>维度</th><th>agentmemory (9.3K⭐)</th><th>Sisyphus</th></tr>
+  <tr>
+    <td><strong>设计哲学</strong></td>
+    <td>Memory Engine —"捕获一切，按需检索"<br>自动 hooks 抓取全量 agent 行为</td>
+    <td>Context Assembler —"所有记忆 = 上下文组装"<br>.md 文件是源，SQLite 只是加速查询</td>
+  </tr>
+  <tr>
+    <td><strong>存储架构</strong></td>
+    <td>SQLite 主存储 + iii-engine 混合索引<br>数据只有一份，存在 SQLite 里</td>
+    <td>L1 .md（源）→ L2 .jsonl（日志）→ L3 SQLite（索引）<br>数据三层冗余，各司其职</td>
+  </tr>
+  <tr>
+    <td><strong>Git 友好</strong></td>
+    <td>❌ SQLite 二进制的，不能 diff</td>
+    <td>✅ L1 .md 明文，git diff/merge/blame 全部可用</td>
+  </tr>
+  <tr>
+    <td><strong>审计 / 恢复</strong></td>
+    <td>❌ 无操作日志。删库 = 丢所有记忆</td>
+    <td>✅ L2 operations.jsonl。删 L3 → 回放重建</td>
+  </tr>
+  <tr>
+    <td><strong>始终加载</strong></td>
+    <td>❌ 无 PERSIST 层概念，全部检索召回</td>
+    <td>✅ PERSIST 层每次 turn 无条件注入</td>
+  </tr>
+  <tr>
+    <td><strong>自动捕获</strong></td>
+    <td>✅ 12 hooks 零手动调用。这是它最大优势</td>
+    <td>📋 Extractor 已写完但未接入。这是最大差距</td>
+  </tr>
+  <tr>
+    <td><strong>检索精度</strong></td>
+    <td>✅ 95.2% R@5 有 benchmark 背书</td>
+    <td>— 未跑 benchmark（但三层机制理论上不差）</td>
+  </tr>
+  <tr>
+    <td><strong>中文</strong></td>
+    <td>❌ 英文生态，无中文分词</td>
+    <td>✅ jieba + CJK 单字</td>
+  </tr>
+  <tr>
+    <td><strong>代码索引</strong></td>
+    <td>❌ 纯记忆，不碰代码结构</td>
+    <td>✅ CodeGraphContext 图索引（MCP 统一暴露）</td>
+  </tr>
+  <tr>
+    <td><strong>部署成本</strong></td>
+    <td>npm install + 12MB 下载</td>
+    <td>python3 直接跑，零安装</td>
+  </tr>
+</table>
+
+<div class="callout warn">
+  <strong>agentmemory 的核心优势是自动捕获 + benchmark 背书</strong>。它通过 12 个 hook 零手动调用地捕获 agent 行为，R@5 达到 95.2%。
+  <br><br>
+  <strong>Sisyphus 的核心优势是三层架构 + 明文可审计 + 中文原生。</strong>如果 agentmemory 是"记忆力最好的 agent 助手"，Sisyphus 更像是"适合严肃团队的记忆基础设施"——适合那些需要 git 追踪、审计、时间旅行、数据主权的中文团队。
+</div>
+
+<!-- ============================================================ -->
+<h2>五、Sisyphus 的差异化价值</h2>
+
+<div class="callout green">
+  <strong>Sisyphus 的不可替代性在于三层架构。</strong>
+  没有任何一个竞品同时做到这三件事：
+</div>
+
+<table>
+  <tr><th>能力</th><th>谁有</th><th>为什么重要</th></tr>
+  <tr>
+    <td><strong>L1 明文 .md git 追踪</strong></td>
+    <td>Hermes（部分）、@mathew-cf/memory（部分）</td>
+    <td>数据主权。不依赖专有格式，git diff/merge 全兼容，团队协作基础</td>
+  </tr>
+  <tr>
+    <td><strong>L2 操作日志 + 时间旅行</strong></td>
+    <td>❌ 没有竞品</td>
+    <td>审计合规。能追溯到每个操作是谁在什么时候做的，能回滚到任意历史状态</td>
+  </tr>
+  <tr>
+    <td><strong>L3 可丢弃的 SQLite 索引</strong></td>
+    <td>❌ 所有竞品用 SQLite 做主存储</td>
+    <td>索引层可以任意重建、切换、实验，不影响数据安全。删库不丢数据</td>
+  </tr>
+</table>
+
+<!-- ============================================================ -->
+<h2>六、Sisyphus 定位总结</h2>
+
+<div class="verdict">
+  <h3 style="margin:0 0 10px;color:#d2a8ff;">📊 Sisyphus = 记忆系统的"三层架构"</h3>
+  <table>
+    <tr><th>对标类比</th><th>说明</th></tr>
+    <tr><td>vs Mem0 (48K⭐)</td><td><strong>Sisyphus 更轻</strong>。不要向量 DB、不要图 DB、不要 API key。但 Mem0 的生态和成熟度碾压</td></tr>
+    <tr><td>vs Letta (22K⭐)</td><td><strong>Sisyphus 更专注</strong>。只做记忆，不做 agent runtime。Letta 锁入其运行时，Sisyphus 可配任何框架</td></tr>
+    <tr><td>vs agentmemory (9.3K⭐)</td><td><strong>Sisyphus 数据模型更丰富</strong>。三层架构 + 审计 + 分区策略是 agentmemory 没有的。但 agentmemory 的自动捕获 + benchmark 领先</td></tr>
+    <tr><td>vs opencode-mem (684⭐)</td><td><strong>Sisyphus 架构更彻底</strong>。不是插件级别的记忆系统，是自成体系的记忆基础设施</td></tr>
+    <tr><td>vs Claude Code</td><td><strong>Sisyphus 无硬上限</strong>。200 行 / 25KB 的限制不适合大规模，且闭源</td></tr>
+  </table>
+
+  <h3 style="margin:16px 0 8px;color:#58a6ff;">一句话定位</h3>
+  <p style="font-size:15px;color:#e6edf3;">
+    Sisyphus 是<strong>目前唯一一个将"明文文件 git 追踪 + 操作日志审计 + SQLite 索引"三层拆开的记忆系统</strong>。
+    它不适合追求"开箱即用自动捕获"的场景（agentmemory 更适合），
+    但适合那些<strong>需要数据主权、审计合规、中文原生、从第一天设计好大规模存储</strong>的场景。
+  </p>
+
+  <h3 style="margin:16px 0 8px;color:#3fb950;">如果要一句话说服别人用 Sisyphus</h3>
+  <p style="font-size:15px;color:#e6edf3;">
+    "你的 .md 文件就是数据库，SQLite 只是查询缓存——删了缓存，数据还在，git 还在，审计日志还在。"
+  </p>
+</div>
+
+<!-- ============================================================ -->
+<h2>七、追平差距所需的工作量</h2>
+
+<table>
+  <tr><th>短板</th><th>差距大小</th><th>Sisyphus 所需工作</th></tr>
+  <tr>
+    <td>自动捕获（vs agentmemory）</td>
+    <td><span class="tag tag-red">大</span></td>
+    <td>Extractor 已写完，只需接入 after_turn + MCP hook。约 2-3 天</td>
+  </tr>
+  <tr>
+    <td>后台反思（vs agentmemory）</td>
+    <td><span class="tag tag-yellow">中</span></td>
+    <td>Dream Engine 已写完，只需自动触发逻辑。约 1-2 天</td>
+  </tr>
+  <tr>
+    <td>检索 benchmark</td>
+    <td><span class="tag tag-yellow">中</span></td>
+    <td>跑 LongMemEval 或自建评测集。约 3-5 天</td>
+  </tr>
+  <tr>
+    <td>可视化</td>
+    <td><span class="tag tag-yellow">中</span></td>
+    <td>已会生成 HTML，做静态 dashboard。约 2-3 天</td>
+  </tr>
+  <tr>
+    <td>去重 / 清扫</td>
+    <td><span class="tag tag-green">小</span></td>
+    <td>SQL 级去重 + 定时删除 archived。约 1 天</td>
+  </tr>
+  <tr>
+    <td>社区 / 文档</td>
+    <td><span class="tag tag-yellow">中</span></td>
+    <td>开源发布 + README + 使用示例。约 2 天</td>
+  </tr>
+</table>
+
+<div class="callout">
+  <strong>结论</strong>：Sisyphus 的架构设计属于第一梯队——三层架构是独有的创新。主要落后在"工程完成度"（自动捕获、后台反思、可视化、benchmark）。补齐大约需要 2 周专注开发。
+</div>
+
+<hr style="border-color: #30363d; margin: 30px 0;">
+<p style="color: #8b949e; font-size: 13px;">生成: 2026-05-24 | 参考: Mem0 48K⭐ / Letta 22K⭐ / agentmemory 9.3K⭐ / opencode-mem 684⭐ / Zep / Hermes / OpenHuman / Claude Code</p>
+
+</body>
+</html>

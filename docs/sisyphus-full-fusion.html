@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sisyphus 三层架构 × 全维度融合方案</title>
+<style>
+  body { font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #0d1117; color: #e6edf3; line-height: 1.8; max-width: 900px; margin: 0 auto; padding: 20px; }
+  h1 { font-size: 1.8em; border-bottom: 2px solid #30363d; padding-bottom: 12px; }
+  h2 { font-size: 1.4em; margin-top: 32px; color: #58a6ff; }
+  h3 { font-size: 1.1em; margin-top: 24px; color: #d2a8ff; }
+  .diagram { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px 20px; margin: 16px 0; font-family: 'SF Mono', 'Menlo', monospace; white-space: pre; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid #30363d; padding: 8px 12px; text-align: left; }
+  th { background: #21262d; color: #8b949e; font-weight: 600; }
+  .tag { display: inline-block; background: #1f6feb33; color: #58a6ff; border: 1px solid #1f6feb66; border-radius: 4px; padding: 0 8px; font-size: 12px; margin: 2px; }
+  .tag-purple { background: #8957e533; color: #d2a8ff; border-color: #8957e566; }
+  .tag-green { background: #23863633; color: #3fb950; border-color: #23863666; }
+  .tag-yellow { background: #d2992233; color: #d29922; border-color: #d2992266; }
+  .tag-red { background: #da363333; color: #ff7b72; border-color: #da363366; }
+  callout { display: block; background: #1c2128; border-left: 4px solid #58a6ff; border-radius: 6px; padding: 12px 16px; margin: 12px 0; }
+  callout.warn { border-left-color: #d29922; }
+  callout.done { border-left-color: #3fb950; }
+</style>
+</head>
+<body>
+
+<h1>🧠 Sisyphus 三层存储 × 全维度融合方案</h1>
+<p style="color: #8b949e;">把记忆类型 · 耐久分区 · 作用域全部嵌入三层架构，一次设计到位</p>
+
+<!-- ============================================================ -->
+<h2>一、现状：三种维度属于不同切片</h2>
+
+<p>你之前设计的三种维度不是平替关系，是从不同角度标注同一条记忆：</p>
+
+<table>
+  <tr><th>维度</th><th>含义</th><th>枚举值</th><th>用在哪儿</th></tr>
+  <tr>
+    <td><strong>类型</strong></td>
+    <td>语义分类 — "这条记忆是什么"</td>
+    <td><span class="tag">decision</span> <span class="tag">lesson</span> <span class="tag">pattern</span> <span class="tag">project_context</span> <span class="tag">user_preference</span> <span class="tag">note</span> <span class="tag">reflection</span> <span class="tag">compressed</span></td>
+    <td>检索过滤、可视化着色、Dream 优先级</td>
+  </tr>
+  <tr>
+    <td><strong>分区</strong></td>
+    <td>耐久策略 — "这条记忆能活多久"</td>
+    <td><span class="tag tag-purple">PERSIST</span> <span class="tag tag-yellow">HOT</span> <span class="tag tag-purple">CODE</span> <span class="tag tag-green">COLD</span></td>
+    <td>每次 turn 的注入策略（必加载/优先/按需/衰减）</td>
+  </tr>
+  <tr>
+    <td><strong>作用域</strong></td>
+    <td>归属范围 — "这条记忆属于谁"</td>
+    <td><span class="tag tag-green">global</span> <span class="tag tag-yellow">project</span> <span class="tag tag-red">session</span></td>
+    <td>跨项目隔离、session 自动清理</td>
+  </tr>
+</table>
+
+<callout>
+<strong>关键设计</strong>：这三者是正交的。一条记忆可以是 <span class="tag">decision</span> <span class="tag tag-purple">PERSIST</span> <span class="tag tag-green">global</span>（全局架构决策），也可以是 <span class="tag">note</span> <span class="tag tag-yellow">HOT</span> <span class="tag tag-yellow">project</span>（当前项目的临时笔记）。
+</callout>
+
+<!-- ============================================================ -->
+<h2>二、三层架构不改变任何维度，只是换了底层引擎</h2>
+
+<div class="diagram">
+# 无论存成什么引擎，这三种维度都是 `Memory` 对象本身的属性
+
+# 当前（纯文件）
+Memory {
+  id, type, title, content, tags[], importance,
+  created_at, last_recalled_at, status  ← 现有
+  pinned, scope, project                ← 已设计未实现
+}
+  ↓ 读写 .md 文件
+  ↓ 检索: 扫全量 → 内存 BM25 → 按衰减排序
+
+# 融合 SQLite 后（三层架构）
+Memory {  ← 字段不变！还是同一组字段
+  id, type, title, content, tags[], importance,
+  created_at, last_recalled_at, status,
+  pinned, scope, project                ← 照样在这里
+}
+  ↓ 写: .md (L1) → operations.jsonl (L2) → SQLite index.db (L3)
+  ↓ 检索: SQL 查询 index.db → FTS5 + 任意维度过滤 → 按衰减排序
+</div>
+
+<p><strong>变化不在于"有什么字段"，而在于"怎么查更快"。</strong>类型/分区/作用域这些字段在 SQLite 里就是 column，可以自由组合查询。</p>
+
+<!-- ============================================================ -->
+<h2>三、SQLite schema：一个字段都不落</h2>
+
+<div class="diagram">
+-- memories 表（主表）
+CREATE TABLE memories (
+    id              TEXT PRIMARY KEY,          -- mem_xxx
+    type            TEXT NOT NULL,             -- lesson|decision|pattern|project_context|...
+    title           TEXT NOT NULL,
+    content         TEXT NOT NULL,
+    tags            TEXT NOT NULL DEFAULT '[]',  -- JSON array
+    importance      INTEGER NOT NULL DEFAULT 5, -- 1-10
+    created_at      TEXT NOT NULL,               -- ISO 8601
+    last_recalled_at TEXT,                       -- ISO 8601
+    status          TEXT NOT NULL DEFAULT 'active', -- active|archived|deleted
+
+    -- 你之前设计的三个维度 👇
+    pinned          INTEGER NOT NULL DEFAULT 0,  -- 0/1，PERSIST 层标记
+    scope           TEXT NOT NULL DEFAULT 'global',  -- global|project|session
+    project         TEXT NOT NULL DEFAULT ''     -- 项目名称（scope=project 时使用）
+);
+
+-- FTS5 全文索引
+CREATE VIRTUAL TABLE memories_fts USING fts5(
+    title, content, tags,
+    content='memories',
+    content_rowid='rowid',
+    tokenize='unicode61 token_chars ""'  -- 中文走 unicode61 + jieba 预处理
+);
+
+-- 向量列（预留，Phase 2）
+-- sqlite-vec 用 VECTOR 列，等生态成熟再补
+
+-- 操作日志（L2）
+-- type: create|update|delete|checkpoint
+CREATE TABLE operations (
+    seq     INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts      TEXT NOT NULL,       -- ISO 8601
+    type    TEXT NOT NULL,       -- create|update|delete|checkpoint
+    mem_id  TEXT,
+    payload TEXT                -- JSON, 变更前的完整 Memory 快照（delete 时保留）
+);
+</div>
+
+<callout class="done">
+<strong>结论</strong>：类型（type）、分区（pinned）、作用域（scope/project），一个字段都没丢。它们从 .md 文件的 frontmatter 变成了 index.db 的 column，语义不变，查询更快。
+</callout>
+
+<!-- ============================================================ -->
+<h2>四、分区在 SQLite 中的查询映射</h2>
+
+<table>
+  <tr><th>分区</th><th>入选条件</th><th>在 SQLite 中的查询</th></tr>
+  <tr>
+    <td><span class="tag tag-purple">PERSIST</span></td>
+    <td><code>pinned=1</code> 或 <code>importance≥8</code> 且 <code>type in (project_context,decision,pattern)</code></td>
+    <td><pre style="margin:0">SELECT * FROM memories
+WHERE status='active'
+  AND (pinned=1 OR (importance>=8 AND type IN ('project_context','decision','pattern')))
+ORDER BY importance DESC;</pre></td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-yellow">HOT</span></td>
+    <td>7 天内创建的活跃记忆（排除 PERSIST）</td>
+    <td><pre style="margin:0">SELECT *, importance * POW(0.5, JULIANDAY('now')-JULIANDAY(created_at)/180.0) AS score
+FROM memories_fts
+WHERE memories_fts MATCH ?
+  AND status='active' AND pinned=0
+  AND created_at >= date('now','-7 days')
+ORDER BY score DESC;</pre></td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-green">COLD</span></td>
+    <td>其余活跃记忆（FTS5 全文检索 + 衰减排序）</td>
+    <td><pre style="margin:0">SELECT *, importance * POW(0.5, JULIANDAY('now')-JULIANDAY(created_at)/180.0) AS score
+FROM memories_fts
+WHERE memories_fts MATCH ?
+  AND status='active' AND pinned=0
+  AND created_at < date('now','-7 days')
+ORDER BY score DESC;</pre></td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-purple">CODE</span></td>
+    <td>独立索引（CodeGraphContext 图数据库，不走 SQLite）</td>
+    <td><pre style="margin:0">-- 不走 SQLite，走 CodeGraphContext MCP
+cgc analyze callers &lt;func&gt;</pre></td>
+  </tr>
+</table>
+
+<callout>
+<strong>精妙之处</strong>：纯文件时代分区是靠"读哪个文件"来实现（PERSIST.md vs HOT.md vs INDEX.md），SQLite 时代靠"查询条件"来实现。后者灵活得多——你随时可以加新的分区策略，不涉及文件拆分。
+</callout>
+
+<!-- ============================================================ -->
+<h2>五、类型和分区怎么组合检索</h2>
+
+<p>SQLite 可以同时用 type + pinned + scope 做任意维度过滤：</p>
+
+<table>
+  <tr><th>场景</th><th>SQL 查询</th></tr>
+  <tr>
+    <td>"当前项目有哪些架构决策"</td>
+    <td><pre style="margin:0">SELECT * FROM memories
+WHERE type='decision' AND status='active' AND project='disk-demo'
+ORDER BY importance DESC;</pre></td>
+  </tr>
+  <tr>
+    <td>"所有 PERSIST 层的 lessons"</td>
+    <td><pre style="margin:0">SELECT * FROM memories
+WHERE type='lesson' AND status='active'
+  AND (pinned=1 OR (importance>=8))
+ORDER BY created_at DESC;</pre></td>
+  </tr>
+  <tr>
+    <td>"全局的 project_context（跨项目）"</td>
+    <td><pre style="margin:0">SELECT * FROM memories
+WHERE type='project_context' AND scope='global' AND status='active';</pre></td>
+  </tr>
+  <tr>
+    <td>"本 session 刚记的笔记"</td>
+    <td><pre style="margin:0">SELECT * FROM memories
+WHERE scope='session' AND status='active'
+  AND created_at >= datetime('now','-24 hours')
+ORDER BY created_at DESC;</pre></td>
+  </tr>
+  <tr>
+    <td>"全文检索 + 排除 session 临时数据"</td>
+    <td><pre style="margin:0">SELECT *, importance * POW(0.5, ...) AS score
+FROM memories_fts WHERE memories_fts MATCH ?
+  AND status='active' AND scope != 'session'
+ORDER BY score DESC;</pre></td>
+  </tr>
+</table>
+
+<!-- ============================================================ -->
+<h2>六、before_turn 注入流程（三层架构版）</h2>
+
+<div class="diagram">
+def before_turn(query: str, project: str) -> str:
+    # 第一步：PERSIST 层 — 无条件注入，不占配额
+    persist = db.execute("""
+        SELECT * FROM memories
+        WHERE status='active'
+          AND (pinned=1 OR (importance>=8 AND type IN ('project_context','decision','pattern')))
+        ORDER BY importance DESC
+    """)
+
+    # 第二步：HOT 层 — 7天内优先
+    hot = db.execute("""
+        SELECT *, importance*POW(0.5, ...) AS score
+        FROM memories_fts WHERE memories_fts MATCH ?
+          AND status='active' AND pinned=0
+          AND created_at >= date('now','-7 days')
+        ORDER BY score DESC LIMIT ?
+    """, [query, top_k - len(persist)])
+
+    # 第三步：COLD 层 — fallback 全文检索
+    cold = db.execute("""
+        SELECT *, importance*POW(0.5, ...) AS score
+        FROM memories_fts WHERE memories_fts MATCH ?
+          AND status='active' AND pinned=0
+          AND created_at < date('now','-7 days')
+        ORDER BY score DESC LIMIT ?
+    """, [query, top_k - len(persist) - len(hot)])
+
+    # 合并 → 格式化为 &lt;sisyphus_context&gt;
+    return format_context(persist + hot + cold)
+</div>
+
+<p><strong>对比纯文件时代</strong>：</p>
+
+<table>
+  <tr><th>维度</th><th>纯文件（当前）</th><th>三层架构（SQLite）</th></tr>
+  <tr><td>PERSIST 加载</td><td>读 PERSIST.md 文件</td><td><code>WHERE pinned=1</code></td></tr>
+  <tr><td>HOT 检索</td><td>读 HOT.md → 过滤 7 天内</td><td><code>WHERE created_at >= date('now','-7 days')</code></td></tr>
+  <tr><td>全文检索</td><td>扫 90 个 .md → BM25 → 排序</td><td>FTS5 索引直接匹配</td></tr>
+  <tr><td>分区调整</td><td>改文件拆分结构</td><td>改 SQL WHERE 条件</td></tr>
+  <tr><td>作用域过滤</td><td>需额外实现</td><td><code>WHERE scope='project' AND project='xxx'</code></td></tr>
+  <tr><td>类型过滤</td><td>需读 frontmatter</td><td><code>WHERE type='decision'</code></td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2>七、Migration：存量记忆怎么迁移</h2>
+
+<p>你当前 90 条 RAW 记忆的 type 字段需要一步映射到 SQLite：</p>
+
+<table>
+  <tr><th>当前 type</th><th>SQLite type</th><th>pinned</th><th>scope</th></tr>
+  <tr><td>lesson</td><td>lesson</td><td>0</td><td>global</td></tr>
+  <tr><td>decision</td><td>decision</td><td>if imp≥8 → 1</td><td>global</td></tr>
+  <tr><td>pattern</td><td>pattern</td><td>if imp≥8 → 1</td><td>global</td></tr>
+  <tr><td>project_context</td><td>project_context</td><td>1</td><td>project == sisyphus</td></tr>
+  <tr><td>user_preference</td><td>user_preference</td><td>0</td><td>global</td></tr>
+  <tr><td>note</td><td>note</td><td>0</td><td>project（自动）</td></tr>
+  <tr><td>reflection</td><td>reflection</td><td>0</td><td>global</td></tr>
+  <tr><td>compressed</td><td>compressed</td><td>1</td><td>global</td></tr>
+  <tr><td>loop_record</td><td>loop_record</td><td>0</td><td>session</td></tr>
+  <tr><td>test（待清理）</td><td>—</td><td>—</td><td>—</td></tr>
+</table>
+
+<callout class="warn">
+<strong>迁移脚本一次跑</strong>：扫描所有 .md → 解析 frontmatter → 写入 operations.jsonl → 回放建 index.db。类型/分区/作用域在 parsing 阶段自动赋值，存量记忆零丢失。
+</callout>
+
+<!-- ============================================================ -->
+<h2>八、总结：三层架构没有丢掉任何你已有的设计</h2>
+
+<div class="diagram">
+                     ┌─ 类型 (type) ─────────────────────────────┐
+                     │   lesson · decision · pattern · project_context │
+  Memory 对象         │   user_preference · note · reflection · compressed │
+  ──────────          ├─ 分区 (pinned) ───────────────────────────┤
+  id                  │   PERSIST · HOT · COLD · (CODE 独立)       │
+  type                ├─ 作用域 (scope + project) ────────────────┤
+  title               │   global · project:"sisyphus" · session   │
+  content             └──────────────────────────────────────────┘
+  importance                    ↓  ↓  ↓
+  created_at              全部存入 SQLite column
+  pinned         ──→      WHERE 任意组合查询
+  scope
+  project
+                        ┌─── 三层引擎 ─────────────────┐
+                        │ L1 .md  (git 追踪，不可变)    │
+                        │ L2 .jsonl (操作日志，审计)     │
+                        │ L3 SQLite (index.db，FTS5)   │
+                        └──────────────────────────────┘
+</div>
+
+<p><strong>一句话结论</strong>：类型是"这条记忆讲什么"，分区是"这条记忆存多久"，作用域是"这条记忆属于谁"——三个轴互不冲突。SQLite 只是让三个轴都能被同一个引擎高效检索，而不是各自靠不同的文件/索引去实现。</p>
+
+<hr style="border-color: #30363d; margin: 32px 0;">
+<p style="color: #8b949e; font-size: 14px;">生成: 2026-05-24 | 基于 workspace/sisyphus/docs/ 56 份设计文档 + 代码库审查</p>
+
+</body>
+</html>
