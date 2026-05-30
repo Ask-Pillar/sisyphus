@@ -72,6 +72,33 @@ class PoolRegistry:
         h = self.current_project_hash()
         return self.get_store("projects", h)
 
+    def detect_and_switch(self, cwd: Optional[str] = None) -> str:
+        """Detect current project from cwd/git and return its hash.
+
+        Stores the hash so subsequent calls are fast.
+        """
+        import os
+        prev_cwd = getattr(self, "_last_cwd", "")
+        current = cwd or os.getcwd()
+        if current == prev_cwd and hasattr(self, "_last_hash"):
+            return self._last_hash
+        self._last_cwd = current
+
+        import subprocess
+        try:
+            result = subprocess.run(
+                ["git", "remote", "get-url", "origin"],
+                capture_output=True, text=True, timeout=3, cwd=current,
+            )
+            url = result.stdout.strip()
+            if url:
+                self._last_hash = hashlib.sha256(url.encode()).hexdigest()[:12]
+                return self._last_hash
+        except Exception:
+            pass
+        self._last_hash = "local"
+        return "local"
+
     def import_to_pool(self, pool: str, title: str, content: str, **kwargs):
         """Import a memory into a specific pool."""
         store = self.get_store(pool)
