@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sisyphus Roadmap v2</title>
+<style>
+:root{--bg:#1e1e1e;--fg:#d4d4d4;--dim:#808080;--accent:#569cd6;--border:#333;--card:#252526}
+*{margin:0;padding:0}body{background:var(--bg);color:var(--fg);font-family:-apple-system,sans-serif;padding:20px;max-width:800px;margin:0 auto;font-size:.82rem;line-height:1.6}
+h1{font-size:1.3rem;color:var(--accent);margin:20px 0 10px;border-bottom:1px solid var(--border);padding-bottom:6px}
+h2{font-size:1.05rem;color:var(--accent);margin:18px 0 8px}
+h3{font-size:.9rem;color:#dcdcaa;margin:14px 0 6px}
+b{color:#dcdcaa}code{color:#ce9178}
+table{margin:8px 0}th{background:#252526;color:var(--accent);text-align:left}td{background:#1e1e1e}
+p{margin:6px 0}ul{margin:4px 0 4px 20px}li{margin:3px 0}
+blockquote{border-left:2px solid var(--accent);padding-left:12px;margin:8px 0;color:var(--dim);font-style:italic}
+</style></head><body>
+<h1>Sisyphus 项目规划：从记忆存储到个性化检索推荐系统</h1>
+<p style="margin:8px 0"><h2>一、项目愿景与目标</h2>
+<p style="margin:8px 0"><b>一句话目标</b>：为 AI Agent 构建一个个性化知识检索推荐系统，使 Agent 在多轮对话、跨会话、跨项目场景下，能够精准、多样、可控地召回用户相关记忆与知识。
+<p style="margin:8px 0"><b>核心度量（北极星指标）</b>：
+<p style="margin:8px 0">- <b>NDCG@5 ≥ 0.85</b> — 用户实际需要的记忆出现在 Top-5 推荐中
+- <b>触发准确率 ≥ 90%</b> — 该调用时调用，不该调用时不打扰
+- <b>端到端延迟 < 500ms</b> — 记忆注入不拖慢 Agent 响应
+<p style="margin:8px 0"><h3>项目定位重构</h3>
+<p style="margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:.72rem">
+<tr><td style="border:1px solid #333;padding:4px 8px">传统视角</td><td style="border:1px solid #333;padding:4px 8px">推荐视角</td><td style="border:1px solid #333;padding:4px 8px">Sisyphus 对应</td><td style="border:1px solid #333;padding:4px 8px">当前状态</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">存储</td><td style="border:1px solid #333;padding:4px 8px">用户画像</td><td style="border:1px solid #333;padding:4px 8px">Personal Memory (偏好/习惯/反馈)</td><td style="border:1px solid #333;padding:4px 8px">✅ 基础存在</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">索引</td><td style="border:1px solid #333;padding:4px 8px">物料池</td><td style="border:1px solid #333;padding:4px 8px">Memory + Knowledge + Project 多池</td><td style="border:1px solid #333;padding:4px 8px">⚠️ 仅单池</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">检索</td><td style="border:1px solid #333;padding:4px 8px">召回</td><td style="border:1px solid #333;padding:4px 8px">BM25 / FTS5 / Tree Browse</td><td style="border:1px solid #333;padding:4px 8px">✅ 已实现</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">-</td><td style="border:1px solid #333;padding:4px 8px">粗排</td><td style="border:1px solid #333;padding:4px 8px">TF-IDF + Decay Score</td><td style="border:1px solid #333;padding:4px 8px">✅ 已实现</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">-</td><td style="border:1px solid #333;padding:4px 8px">精排</td><td style="border:1px solid #333;padding:4px 8px">BCE / BGE Reranker</td><td style="border:1px solid #333;padding:4px 8px">✅ 已实现</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">-</td><td style="border:1px solid #333;padding:4px 8px">重排</td><td style="border:1px solid #333;padding:4px 8px">多样性 / 反茧房 / 对立观点</td><td style="border:1px solid #333;padding:4px 8px">❌ 未实现</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">-</td><td style="border:1px solid #333;padding:4px 8px">反馈</td><td style="border:1px solid #333;padding:4px 8px">recall_count (隐式)</td><td style="border:1px solid #333;padding:4px 8px">⚠️ 仅隐式</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">-</td><td style="border:1px solid #333;padding:4px 8px">触发机制</td><td style="border:1px solid #333;padding:4px 8px">无 (每次都调用)</td><td style="border:1px solid #333;padding:4px 8px">❌ 未实现</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">-</td><td style="border:1px solid #333;padding:4px 8px">知识库导入</td><td style="border:1px solid #333;padding:4px 8px">importer (小规模 md/jsonl)</td><td style="border:1px solid #333;padding:4px 8px">⚠️ 不支持大规模</td></tr>
+</table>
+<p style="margin:8px 0"><h2>二、架构演进：从单池到命名空间</h2>
+<p style="margin:8px 0"><h3>2.1 目标架构</h3>
+<p style="margin:8px 0"><pre style="background:#2d2d2d;padding:12px;border-radius:6px;overflow-x:auto;font-size:.72rem"><code>~/.omo/
+├── personal/          # 个人记忆池 (偏好、习惯、反馈历史)
+│   ├── memory/        # MemoryStore (SQLite)
+│   └── cache/         # FTS5 索引
+├── projects/          # 项目记忆池 (按 git remote 隔离)
+│   ├── {project-hash}/
+│   │   ├── memory/
+│   │   ├── sessions/  # 对话日志
+│   │   └── cache/
+│   └── ...
+├── knowledge/         # 知识库池 (大规模导入)
+│   ├── {domain}/      # 按领域分区
+│   │   └── chunks.db  # SQLite FTS5 分块存储
+│   └── ...
+├── shared/            # 跨项目共享池
+│   └── memory/
+└── config.yaml        # 全局配置 + 池权重
+</code></pre>
+<p style="margin:8px 0"><h3>2.2 UnifiedRetriever（统一检索器）</h3>
+<p style="margin:8px 0"><pre style="background:#2d2d2d;padding:12px;border-radius:6px;overflow-x:auto;font-size:.72rem"><code>class UnifiedRetriever:
+    """跨池检索，scope 控制激活哪些池，weight 控制混合权重。"""
+    
+    def retrieve(self, query, scope=None, top_k=10):
+        # 1. 根据 scope 确定激活池 (默认: personal + current_project)
+        # 2. 各池独立召回 candidate_lists
+        # 3. 归一化分数 + 加权混合
+        # 4. 全局精排 (Reranker)
+        # 5. 重排 (多样性 + 反茧房)
+        # 6. 返回 top_k
+</code></pre>
+<p style="margin:8px 0"><h2>三、操作规划：四个阶段</h2>
+<p style="margin:8px 0"><h3>Phase 1：基础修复 + 排序质量（2 周）</h3>
+<p style="margin:8px 0"><b>主题</b>：别再造存储了，开始做排序
+<p style="margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:.72rem">
+<tr><td style="border:1px solid #333;padding:4px 8px">#</td><td style="border:1px solid #333;padding:4px 8px">任务</td><td style="border:1px solid #333;padding:4px 8px">优先级</td><td style="border:1px solid #333;padding:4px 8px">说明</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">1.1</td><td style="border:1px solid #333;padding:4px 8px">store.create() 去重逻辑移至应用层</td><td style="border:1px solid #333;padding:4px 8px">P0</td><td style="border:1px solid #333;padding:4px 8px">移到 importer / hooks，修复 LoopDetector 4 个测试</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">1.2</td><td style="border:1px solid #333;padding:4px 8px">Pipeline 统一</td><td style="border:1px solid #333;padding:4px 8px">P0</td><td style="border:1px solid #333;padding:4px 8px">合并 memory/pipeline.py 与 pipeline/sleep.py，保留 SleepPipeline 的 DirLock + 6步流程</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">1.3</td><td style="border:1px solid #333;padding:4px 8px">修复剩余 5 个测试失败</td><td style="border:1px solid #333;padding:4px 8px">P0</td><td style="border:1px solid #333;padding:4px 8px">BGE torch mock × 4, path routing CJK × 1</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">1.4</td><td style="border:1px solid #333;padding:4px 8px">重排层实现</td><td style="border:1px solid #333;padding:4px 8px">P1</td><td style="border:1px solid #333;padding:4px 8px">在 Reranker 之后增加 DiversityReranker：类型配额 + MMR 去冗余</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">1.5</td><td style="border:1px solid #333;padding:4px 8px">Decay 公式调优</td><td style="border:1px solid #333;padding:4px 8px">P1</td><td style="border:1px solid #333;padding:4px 8px">修正 docstring (180→实际值)，增加 recall_count 加权：<code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">score *= (1 + log(1 + recall_count))</code></td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">1.6</td><td style="border:1px solid #333;padding:4px 8px">SQLite 存储合并</td><td style="border:1px solid #333;padding:4px 8px">P1</td><td style="border:1px solid #333;padding:4px 8px">用户已实现但未 push，合并后替换文件系统 MemoryStore</td></tr>
+</table>
+<p style="margin:8px 0"><b>验证标准</b>：
+<p style="margin:8px 0">- 全部测试通过 (0 failures)
+- 重排后 Top-5 中类型多样性 ≥ 2 种 (在 10 条以上记忆场景)
+- NDCG@5 在现有 Gate 测试集上不低于 P5 水平 (≥ 83%)
+<p style="margin:8px 0"><h3>Phase 2：触发机制 + 对话日志（3 周）</h3>
+<p style="margin:8px 0"><b>主题</b>：知道什么时候该记、什么时候该忆
+<p style="margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:.72rem">
+<tr><td style="border:1px solid #333;padding:4px 8px">#</td><td style="border:1px solid #333;padding:4px 8px">任务</td><td style="border:1px solid #333;padding:4px 8px">优先级</td><td style="border:1px solid #333;padding:4px 8px">说明</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">2.1</td><td style="border:1px solid #333;padding:4px 8px">L0 信号词触发</td><td style="border:1px solid #333;padding:4px 8px">P0</td><td style="border:1px solid #333;padding:4px 8px">正则匹配关键词 ("记住", "之前", "上次", "remember", "recall" 等)，命中则调用检索</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">2.2</td><td style="border:1px solid #333;padding:4px 8px">L1 轻量规则触发</td><td style="border:1px solid #333;padding:4px 8px">P1</td><td style="border:1px solid #333;padding:4px 8px">每 N 轮检查一次 + 话题切换检测（余弦相似度 < 阈值）</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">2.3</td><td style="border:1px solid #333;padding:4px 8px">L2 跳过 + 缓存</td><td style="border:1px solid #333;padding:4px 8px">P1</td><td style="border:1px solid #333;padding:4px 8px">连续无命中时指数退避，避免无效调用</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">2.4</td><td style="border:1px solid #333;padding:4px 8px">对话日志分层存储</td><td style="border:1px solid #333;padding:4px 8px">P0</td><td style="border:1px solid #333;padding:4px 8px">sessions/{date}.md 主对话, sessions/{date}_sub_{NNN}.jsonl 子 Agent 日志</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">2.5</td><td style="border:1px solid #333;padding:4px 8px">hooks.py after_turn 重构</td><td style="border:1px solid #333;padding:4px 8px">P1</td><td style="border:1px solid #333;padding:4px 8px">停止将每条回复存入 MemoryStore，改写入 session 日志；仅"值得记住"的内容才 create memory</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">2.6</td><td style="border:1px solid #333;padding:4px 8px">触发准确率测试集构建</td><td style="border:1px solid #333;padding:4px 8px">P1</td><td style="border:1px solid #333;padding:4px 8px">50+ 标注样本：(user_message, should_trigger: bool, expected_pool: str)</td></tr>
+</table>
+<p style="margin:8px 0"><b>验证标准</b>：
+<p style="margin:8px 0">- 触发准确率 ≥ 85% (在标注集上)
+- 无触发场景平均延迟 < 5ms (纯正则 + 规则)
+- 对话日志不污染 memory.search() 结果
+- 子 Agent 日志可追溯但不参与检索
+<p style="margin:8px 0"><h3>Phase 3：命名空间 + 知识库导入（3 周）</h3>
+<p style="margin:8px 0"><b>主题</b>：从单用户单项目到多池多域
+<p style="margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:.72rem">
+<tr><td style="border:1px solid #333;padding:4px 8px">#</td><td style="border:1px solid #333;padding:4px 8px">任务</td><td style="border:1px solid #333;padding:4px 8px">优先级</td><td style="border:1px solid #333;padding:4px 8px">说明</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">3.1</td><td style="border:1px solid #333;padding:4px 8px">命名空间目录结构实现</td><td style="border:1px solid #333;padding:4px 8px">P0</td><td style="border:1px solid #333;padding:4px 8px">~/.omo/ 多池目录，config.yaml 池注册</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">3.2</td><td style="border:1px solid #333;padding:4px 8px">UnifiedRetriever 实现</td><td style="border:1px solid #333;padding:4px 8px">P0</td><td style="border:1px solid #333;padding:4px 8px">跨池召回 + 归一化 + 加权混合</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">3.3</td><td style="border:1px solid #333;padding:4px 8px">项目池自动切换</td><td style="border:1px solid #333;padding:4px 8px">P1</td><td style="border:1px solid #333;padding:4px 8px">根据 git remote / cwd 自动激活对应 project 池</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">3.4</td><td style="border:1px solid #333;padding:4px 8px">KnowledgeBase 大规模导入</td><td style="border:1px solid #333;padding:4px 8px">P1</td><td style="border:1px solid #333;padding:4px 8px">SQLite FTS5 分块存储，支持 .md / .txt / .pdf / .jsonl / .csv</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">3.5</td><td style="border:1px solid #333;padding:4px 8px">导入管道</td><td style="border:1px solid #333;padding:4px 8px">P1</td><td style="border:1px solid #333;padding:4px 8px">分块策略 (固定/语义)，进度条，增量更新，1GB+ 测试</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">3.6</td><td style="border:1px solid #333;padding:4px 8px">MCP 工具扩展</td><td style="border:1px solid #333;padding:4px 8px">P2</td><td style="border:1px solid #333;padding:4px 8px">新增 import_knowledge, switch_scope, list_pools</td></tr>
+</table>
+<p style="margin:8px 0"><b>验证标准</b>：
+<p style="margin:8px 0">- 3 个池 (personal + project + knowledge) 同时激活时检索延迟 < 800ms
+- 1GB 知识库导入完成时间 < 10 分钟
+- 跨池检索结果来源标注正确 (pool_id 字段)
+- 项目切换后自动加载正确的 project 池
+<p style="margin:8px 0"><h3>Phase 4：反馈闭环 + 反茧房（2 周）</h3>
+<p style="margin:8px 0"><b>主题</b>：让系统越用越准，但不让用户越走越窄
+<p style="margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:.72rem">
+<tr><td style="border:1px solid #333;padding:4px 8px">#</td><td style="border:1px solid #333;padding:4px 8px">任务</td><td style="border:1px solid #333;padding:4px 8px">优先级</td><td style="border:1px solid #333;padding:4px 8px">说明</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">4.1</td><td style="border:1px solid #333;padding:4px 8px">显式反馈机制</td><td style="border:1px solid #333;padding:4px 8px">P0</td><td style="border:1px solid #333;padding:4px 8px">MCP 新增 rate_memory(id, score: 1-5) + dismiss_memory(id)，反馈存入 personal 池</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">4.2</td><td style="border:1px solid #333;padding:4px 8px">反馈信号融入排序</td><td style="border:1px solid #333;padding:4px 8px">P0</td><td style="border:1px solid #333;padding:4px 8px">feedback_score 权重衰减 (半衰期 90 天)，负反馈直接降权</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">4.3</td><td style="border:1px solid #333;padding:4px 8px">多样性保底</td><td style="border:1px solid #333;padding:4px 8px">P1</td><td style="border:1px solid #333;padding:4px 8px">Top-K 结果中强制至少 1 条来自非主池 / 非高频类型</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">4.4</td><td style="border:1px solid #333;padding:4px 8px">Forgotten Gems 轮转</td><td style="border:1px solid #333;padding:4px 8px">P1</td><td style="border:1px solid #333;padding:4px 8px">每次检索有 10% 概率注入 1 条"被遗忘的高重要性记忆" (recall_count=0, importance≥7)</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">4.5</td><td style="border:1px solid #333;padding:4px 8px">对立观点检查</td><td style="border:1px solid #333;padding:4px 8px">P2</td><td style="border:1px solid #333;padding:4px 8px">如果 Top-3 结论一致，检索是否存在相反观点的记忆，有则附加标注</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">4.6</td><td style="border:1px solid #333;padding:4px 8px">反馈效果 A/B 测试框架</td><td style="border:1px solid #333;padding:4px 8px">P2</td><td style="border:1px solid #333;padding:4px 8px">记录 with-feedback vs without-feedback 的检索点击率差异</td></tr>
+</table>
+<p style="margin:8px 0"><b>验证标准</b>：
+<p style="margin:8px 0">- 持续使用 7 天后，用户评分 ≥ 4 的记忆在 Top-5 中出现概率提升 ≥ 20%
+- dismiss 的记忆在后续 10 次检索中不再出现
+- Forgotten Gems 命中率 ≥ 5% (用户对轮转记忆的正反馈率)
+- NDCG@5 ≥ 0.85 (最终北极星指标)
+<p style="margin:8px 0"><h2>四、阶段验证计划总览</h2>
+<p style="margin:8px 0"><pre style="background:#2d2d2d;padding:12px;border-radius:6px;overflow-x:auto;font-size:.72rem"><code>Phase 1 (W1-W2)          Phase 2 (W3-W5)          Phase 3 (W6-W8)          Phase 4 (W9-W10)
+┌─────────────────┐    ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐
+│ 修复 + 排序质量   │ →  │ 触发 + 对话日志   │ →  │ 命名空间 + 知识库  │ →  │ 反馈 + 反茧房     │
+├─────────────────┤    ├──────────────────┤    ├──────────────────┤    ├──────────────────┤
+│ ✓ 0 test fail   │    │ ✓ 触发准确 ≥85%  │    │ ✓ 多池延迟 <800ms │    │ ✓ NDCG@5 ≥0.85  │
+│ ✓ 类型多样 ≥2   │    │ ✓ 无触发 <5ms    │    │ ✓ 1GB导入 <10min │    │ ✓ dismiss 生效   │
+│ ✓ NDCG@5 ≥83%  │    │ ✓ 日志不污染搜索  │    │ ✓ 来源标注正确    │    │ ✓ 评分提升 ≥20%  │
+└─────────────────┘    └──────────────────┘    └──────────────────┘    └──────────────────┘
+</code></pre>
+<p style="margin:8px 0"><h2>五、当前技术债清单（Phase 1 前置）</h2>
+<p style="margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:.72rem">
+<tr><td style="border:1px solid #333;padding:4px 8px">问题</td><td style="border:1px solid #333;padding:4px 8px">影响</td><td style="border:1px solid #333;padding:4px 8px">修复方案</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">store.create() SHA256 去重在 Store 层</td><td style="border:1px solid #333;padding:4px 8px">LoopDetector 失效 (4 test fail)</td><td style="border:1px solid #333;padding:4px 8px">移至 importer/hooks 应用层</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">两个 Pipeline 类并存</td><td style="border:1px solid #333;padding:4px 8px">维护混乱，行为不一致</td><td style="border:1px solid #333;padding:4px 8px">合并为 SleepPipeline，Pipeline 类降级为 alias</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">hooks.py after_turn 写入 MemoryStore</td><td style="border:1px solid #333;padding:4px 8px">污染搜索、触发 Reranker</td><td style="border:1px solid #333;padding:4px 8px">改写 session 日志，分离关注点</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">BGE Reranker 测试缺 torch mock</td><td style="border:1px solid #333;padding:4px 8px">4 test fail</td><td style="border:1px solid #333;padding:4px 8px">添加 _make_torch_mock()</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">CJK path routing 无 jieba 回退</td><td style="border:1px solid #333;padding:4px 8px">1 test fail</td><td style="border:1px solid #333;padding:4px 8px">CJK 字符计数 + fuzzy 子串预检</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px"><code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">_fine_cluster()</code> 死代码</td><td style="border:1px solid #333;padding:4px 8px">tree_builder.py 噪声</td><td style="border:1px solid #333;padding:4px 8px">删除或标记 TODO</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">test_mcp_import.py 覆盖盲区</td><td style="border:1px solid #333;padding:4px 8px">不测 mcp.py 的 import handler</td><td style="border:1px solid #333;padding:4px 8px">补充集成测试</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">Decay docstring 不匹配 (30 vs 180)</td><td style="border:1px solid #333;padding:4px 8px">文档误导</td><td style="border:1px solid #333;padding:4px 8px">修正 docstring</td></tr>
+</table>
+<p style="margin:8px 0"><h2>六、关键设计决策记录</h2>
+<p style="margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:.72rem">
+<tr><td style="border:1px solid #333;padding:4px 8px">决策</td><td style="border:1px solid #333;padding:4px 8px">选择</td><td style="border:1px solid #333;padding:4px 8px">理由</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">存储引擎</td><td style="border:1px solid #333;padding:4px 8px">SQLite (用户已实现)</td><td style="border:1px solid #333;padding:4px 8px">零依赖、支持 FTS5、比文件系统快 10x+</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">去重层级</td><td style="border:1px solid #333;padding:4px 8px">应用层 (importer/hooks)</td><td style="border:1px solid #333;padding:4px 8px">Store 层去重破坏 LoopDetector 语义</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">对话日志</td><td style="border:1px solid #333;padding:4px 8px">独立 sessions/ 目录</td><td style="border:1px solid #333;padding:4px 8px">不污染记忆检索，保留完整对话用于回溯</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">子 Agent 日志</td><td style="border:1px solid #333;padding:4px 8px">{date}_sub_{NNN}.jsonl</td><td style="border:1px solid #333;padding:4px 8px">链接到主对话，按需查看，不参与检索</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">知识库格式</td><td style="border:1px solid #333;padding:4px 8px">SQLite FTS5 分块</td><td style="border:1px solid #333;padding:4px 8px">支持 GB 级别，增量更新，与记忆池隔离</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">触发机制</td><td style="border:1px solid #333;padding:4px 8px">三级 (信号词→规则→退避)</td><td style="border:1px solid #333;padding:4px 8px">平衡准确率与性能开销</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">反茧房</td><td style="border:1px solid #333;padding:4px 8px">多样性配额 + Gems 轮转 + 对立检查</td><td style="border:1px solid #333;padding:4px 8px">项目作用域天然收窄，需主动拓展</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">反馈衰减</td><td style="border:1px solid #333;padding:4px 8px">半衰期 90 天</td><td style="border:1px solid #333;padding:4px 8px">用户偏好会变，反馈不应永久生效</td></tr>
+</table>
+<p style="margin:8px 0"><hr style="border-color:#333;margin:16px 0">
+<p style="margin:8px 0">*这个计划以 10 周为周期，优先级明确：Phase 1 扫清债务 → Phase 2 建立触发智能 → Phase 3 扩展数据池 → Phase 4 闭环反馈。每个阶段都有可量化的验证标准，避免"做了但不知道做得好不好"。核心思路始终是——存储够了，排序为王。*
+
+</body></html>

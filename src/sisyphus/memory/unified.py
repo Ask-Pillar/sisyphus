@@ -53,7 +53,10 @@ class UnifiedRetriever:
         if opposing:
             diversified.append(opposing[0])
         self._log_ab_test(diversified)
-        return diversified[:top_k]
+
+        from sisyphus.memory.diversity import DiversityReranker
+        reranker = DiversityReranker(min_types=2, mmr_lambda=0.7)
+        return reranker.rerank(diversified, top_k)
 
     def _diversify(self, results: list, top_k: int) -> list:
         if len(results) <= 2:

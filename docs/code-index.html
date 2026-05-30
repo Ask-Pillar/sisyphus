@@ -1,16 +1,45 @@
 <!DOCTYPE html><html lang="zh"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sisyphus 代码索引</title>
+<title>Sisyphus 代码关系索引</title>
 <style>
-body{background:#1e1e1e;color:#d4d4d4;font-family:-apple-system,PingFang SC,Microsoft YaHei,sans-serif;padding:16px;max-width:800px;margin:0 auto;font-size:14px;line-height:1.6}
-h1{font-size:1.1rem;color:#569cd6;margin-bottom:8px}
-.search{width:100%;padding:7px 10px;background:#252526;border:1px solid #333;border-radius:4px;color:#d4d4d4;font-size:.8rem;margin-bottom:14px;outline:none}
-.search:focus{border-color:#569cd6}
-.dir{margin-bottom:14px}
-.dir h2{font-size:.9rem;color:#569cd6;margin:10px 0 4px;padding-bottom:2px;border-bottom:1px solid #333}
-.file{border-left:2px solid #333;padding:4px 0 4px 12px;margin-bottom:3px;font-size:.78rem}
-.file:hover{border-color:rgba(86,156,214,.3)}
-.name{color:#9cdcfe;font-weight:500;margin-right:6px}
-.desc{color:#608b4e;font-size:.7rem}
+:root{--bg:#1e1e1e;--fg:#d4d4d4;--dim:#808080;--accent:#569cd6;--border:#333;--card:#252526}
+body{background:var(--bg);color:var(--fg);font-family:-apple-system,PingFang SC,Microsoft YaHei,sans-serif;padding:16px;max-width:900px;margin:0 auto;font-size:13px;line-height:1.5}
+h1{font-size:1rem;color:var(--accent);margin-bottom:4px}
+.stats{display:flex;gap:8px;margin:10px 0 16px;flex-wrap:wrap}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:.7rem}
+.stat b{color:var(--accent)}
+.search{width:100%;padding:7px 10px;background:var(--card);border:1px solid var(--border);border-radius:4px;color:var(--fg);font-size:.78rem;margin-bottom:14px;outline:none}
+.search:focus{border-color:var(--accent)}
+.file{border-left:2px solid var(--border);padding:4px 0 4px 12px;margin-bottom:6px;margin-left:6px;font-size:.75rem}
+.file:hover{border-color:rgba(86,156,214,.25)}
+.file-name{color:#9cdcfe;font-weight:500}
+.file-meta{color:var(--dim);font-size:.65rem;margin-left:6px}
+.file-imports{color:#6a9955;font-size:.65rem;margin-left:8px}
+.arrow{color:var(--dim)}
+.dir{margin-bottom:16px}
+.dir h2{font-size:.85rem;color:var(--accent);border-bottom:1px solid rgba(86,156,214,.12);padding-bottom:2px;margin-bottom:6px}
+.no-results{color:var(--dim);text-align:center;padding:20px}
 </style></head><body>
-<h1>Sisyphus 代码索引</h1>
-<div class="dir"><h2>memory/</h2><div class="file"><span class="name">__init__.py</span><span class="desc"></span></div><div class="file"><span class="name">agent.py</span><span class="desc">Agent 注册表</span></div><div class="file"><span class="name">audit.py</span><span class="desc">审计器</span></div><div class="file"><span class="name">cache.py</span><span class="desc">SQLite 缓存</span></div><div class="file"><span class="name">cli.py</span><span class="desc">命令行：20+ 命令</span></div><div class="file"><span class="name">compression.py</span><span class="desc">旧记忆压缩</span></div><div class="file"><span class="name">context.py</span><span class="desc">每次对话前注入记忆到系统提示词</span></div><div class="file"><span class="name">dream.py</span><span class="desc">LLM 反思引擎</span></div><div class="file"><span class="name">extraction.py</span><span class="desc">自动从对话提取 lesson/decision/pattern</span></div><div class="file"><span class="name">fts_index.py</span><span class="desc">FTS5 全文索引</span></div><div class="file"><span class="name">link.py</span><span class="desc">链接清洗</span></div><div class="file"><span class="name">llm.py</span><span class="desc">OpenAI 兼容 LLM 客户端</span></div><div class="file"><span class="name">log.py</span><span class="desc">操作日志 JSONL</span></div><div class="file"><span class="name">loop.py</span><span class="desc">重复模式检测</span></div><div class="file"><span class="name">moc.py</span><span class="desc">目录生成</span></div><div class="file"><span class="name">pipeline.py</span><span class="desc">→ SleepPipeline alias</span></div><div class="file"><span class="name">recall.py</span><span class="desc">LLM 召回引擎（弃用）</span></div><div class="file"><span class="name">refined.py</span><span class="desc">精炼记忆：reflection/summary/loop_record</span></div><div class="file"><span class="name">reranker_bce.py</span><span class="desc">BCE 精排</span></div><div class="file"><span class="name">retrieval.py</span><span class="desc">检索引擎：ContextRetriever, BM25, BCE, TF-IDF, 衰减打分</span></div><div class="file"><span class="name">sandbox.py</span><span class="desc">Agent 沙箱</span></div><div class="file"><span class="name">search.py</span><span class="desc">语义搜索</span></div><div class="file"><span class="name">snapshot.py</span><span class="desc">冻结快照</span></div><div class="file"><span class="name">store.py</span><span class="desc">Memory 数据类 + MemoryStore CRUD，Markdown 文件存储</span></div><div class="file"><span class="name">subagent.py</span><span class="desc">子进程启动器</span></div><div class="file"><span class="name">tree.py</span><span class="desc">树形存储 L0/L1/L2</span></div><div class="file"><span class="name">tree_builder.py</span><span class="desc">树构建器</span></div><div class="file"><span class="name">tree_retriever.py</span><span class="desc">树检索器</span></div><div class="file"><span class="name">utils.py</span><span class="desc">原子写入+目录锁</span></div></div><div class="dir"><h2>server/</h2><div class="file"><span class="name">__init__.py</span><span class="desc"></span></div><div class="file"><span class="name">dashboard.py</span><span class="desc">可视化面板 HTML+图谱</span></div><div class="file"><span class="name">importer.py</span><span class="desc">批量导入 md/jsonl</span></div><div class="file"><span class="name">mcp.py</span><span class="desc">MCP 服务端工具</span></div></div><div class="dir"><h2>agent/</h2><div class="file"><span class="name">__init__.py</span><span class="desc"></span></div><div class="file"><span class="name">hooks.py</span><span class="desc">OpenCode before/after 钩子</span></div></div><div class="dir"><h2>pipeline/</h2><div class="file"><span class="name">__init__.py</span><span class="desc"></span></div><div class="file"><span class="name">sleep.py</span><span class="desc"></span></div></div><div class="dir"><h2>cli/</h2><div class="file"><span class="name">__init__.py</span><span class="desc"></span></div><div class="file"><span class="name">tree_cmd.py</span><span class="desc"></span></div></div></body></html>
+<h1>Sisyphus 代码关系索引</h1>
+<div class="stats">
+<div class="stat">模块 <b>0</b></div>
+<div class="stat">函数 <b>305</b></div>
+<div class="stat">类 <b>42</b></div>
+<div class="stat">调用边 <b>1758</b></div>
+</div>
+<input class="search" placeholder="搜索文件或关系..." oninput="filter(this.value)">
+<script>
+function filter(q){
+ q=q.toLowerCase();
+ var vis=0;
+ document.querySelectorAll('.file').forEach(function(f){
+  var m=f.textContent.toLowerCase().includes(q);
+  f.style.display=m?'':'none';
+  if(m)vis++;
+ });
+ var nr=document.querySelector('.no-results');
+ if(vis===0&&!nr){nr=document.createElement('div');nr.className='no-results';nr.textContent='无匹配';document.body.appendChild(nr)}
+ if(vis>0&&nr)nr.remove();
+}
+</script>
+
+</body></html>
