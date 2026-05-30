@@ -46,12 +46,8 @@ class PoolRegistry:
             config_file.write_text(yaml.dump(DEFAULT_CONFIG, default_flow_style=False, allow_unicode=True))
 
     def get_store(self, pool: str, sub: str = "") -> MemoryStore:
-        """Get a MemoryStore for a specific pool.
-
-        pool='personal' → ~/.omo/personal/memory/
-        pool='project', sub='abc123' → ~/.omo/projects/abc123/memory/
-        """
-        pool_dir = self.base_path / pool / sub if sub else self.base_path / pool
+        dir_name = {"project": "projects", "knowledge": "knowledge"}.get(pool, pool)
+        pool_dir = self.base_path / dir_name / sub if sub else self.base_path / dir_name
         return MemoryStore(pool_dir / "memory")
 
     def active_pools(self, scope: Optional[List[str]] = None) -> List[str]:
