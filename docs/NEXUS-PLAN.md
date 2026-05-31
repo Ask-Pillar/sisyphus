@@ -141,7 +141,7 @@ default_scope:
 | 4.3 | Agent 画像 + 路由规则 |
 | 4.4 | 注册为 Nexus 模块 |
 | 4.5 | 借 Hermes 技能创建逻辑 |
-| 4.6 | Agent 画像注册 (`agent_registry.yaml`) |
+| 4.6 | Agent/程序画像注册 (`agent_registry.yaml`) |
 | 4.7 | 模型路由：本地模型 / API 自动匹配 |
 
 ### 模型路由
@@ -164,6 +164,21 @@ model_routing:
 ```
 
 与 Agent 路由共用 Procedural 层匹配引擎，不单独建模块。
+
+### Agent & 程序注册
+
+Agent 和程序在 Procedural 层一视同仁，统一注册：
+
+```yaml
+agent_registry:
+  opencode:       {type: agent, skills: [code_gen, review], interface: mcp}
+  hermes:         {type: agent, skills: [security_audit], interface: mcp}
+  trivy:          {type: program, skills: [container_scan], interface: cli}
+  bandit:         {type: program, skills: [python_scan], interface: cli}
+  docker-bench:   {type: program, skills: [docker_security], interface: cli}
+```
+
+区别只在调用接口——Agent 走 MCP，程序走 subprocess。路由引擎不区分。
 
 ## 关于 RAG
 
