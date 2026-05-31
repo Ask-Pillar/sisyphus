@@ -167,3 +167,27 @@ default_scope:
 - 先改目录结构，不改代码逻辑
 - 每个小步跑测试确认
 - 不改功能只改路径，测试能过就说明迁移成功
+
+## 第六步：Web Ingest — 免操作知识采集
+
+**目标**：用户在任何网页 AI（豆包/通义/ChatGPT）聊天后，内容自动进入 Nexus，零操作。
+
+**架构**：
+
+```
+豆包网页 ──→ 浏览器插件 ──→ localhost:8765/ingest ──→ Nexus 自动提取 → sisyphus
+通义网页 ──→ 浏览器插件 ──→ localhost:8765/ingest ──→ Nexus 自动提取 → sisyphus
+ChatGPT  ──→ 浏览器插件 ──→ localhost:8765/ingest ──→ Nexus 自动提取 → sisyphus
+```
+
+**实施**：
+
+| 步骤 | 做什么 |
+|------|--------|
+| 6.1 | Nexus 加 `/ingest` HTTP POST 端点，接收纯文本 |
+| 6.2 | 对接现有 Extractor：自动提取 lesson/decision/pattern |
+| 6.3 | 浏览器插件：检测 `doubao.com` / `tongyi.aliyun.com` / `chat.openai.com` |
+| 6.4 | 对话结束后自动抓取内容，POST 到 `localhost:8765/ingest` |
+| 6.5 | 支持手动触发：点插件图标 → 立即抓取当前对话 |
+
+**用户操作**：零。装一次插件，后面所有对话自动采集。
