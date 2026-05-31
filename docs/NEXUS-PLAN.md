@@ -1,0 +1,169 @@
+# Nexus 整体规划
+
+## 定位
+
+Agent 中枢记忆系统。所有 Agent 的记忆、知识、技能都走 Nexus。MCP 是水管，Nexus 是调度阀门。
+
+## 架构
+
+```
+任何 Agent (OpenCode / Claude Code / Hermes / Claw)
+  → MCP JSON-RPC
+    → Nexus Core (调度层)
+      ├── 路由: 请求该查哪些模块
+      ├── 合并: 多模块结果加权排序
+      └── 开关: config.yaml 控制模块启停
+        ├── sisyphus/    (Episodic 层)
+        ├── semantic/    (Semantic 层)
+        ├── procedural/  (Procedural 层)
+        └── external/    (第三方模块)
+```
+
+## 目录结构
+
+```
+nexus/
+├── nexus/
+│   ├── __init__.py
+│   ├── core.py          # 调度层 (路由+合并+开关)
+│   ├── protocol.py      # 模块协议 (search/import/stats)
+│   ├── config.py        # 配置加载
+│   ├── sisyphus/        # Episodic 层 (现有代码挪过来)
+│   │   ├── memory/      # store / retrieval / context / extraction / ...
+│   │   ├── agent/       # hooks
+│   │   ├── pipeline/    # SleepPipeline
+│   │   └── server/      # dashboard / mcp
+│   ├── semantic/        # Semantic 层 (Phase 5)
+│   │   ├── url_index.py
+│   │   ├── fetcher.py
+│   │   ├── sandbox.py
+│   │   └── knowledge.py # 已有，挪过来
+│   ├── procedural/      # Procedural 层 (Phase 6)
+│   │   ├── skill_store.py
+│   │   ├── agent_router.py
+│   │   └── persona.py
+│   └── external/        # 第三方模块桥接
+│       └── hermes_skills.py
+├── config/
+│   └── nexus.yaml
+├── tests/
+│   ├── sisyphus/        # 现有测试挪过来
+│   ├── semantic/
+│   └── procedural/
+├── docs/
+├── pyproject.toml
+├── README.md
+└── setup.py
+```
+
+## 模块协议
+
+任何模块只需实现三个方法，就能接入 Nexus 调度：
+
+```python
+class ModuleProtocol:
+    name: str                          # 模块名，如 "sisyphus"
+    search(query: str, top_k: int) -> list[(result, score, source)]
+    import(source: str) -> int
+    stats() -> dict
+```
+
+外部模块（如 Hermes 技能系统）只需包装成这个协议，就能注册进 Nexus。
+
+## 配置
+
+`nexus/config/nexus.yaml`：
+
+```yaml
+modules:
+  sisyphus:
+    enabled: true
+    weight: 0.4
+    package: nexus.sisyphus
+  semantic:
+    enabled: true
+    weight: 0.3
+    package: nexus.semantic
+  procedural:
+    enabled: false
+    weight: 0.2
+    package: nexus.procedural
+  hermes-skills:
+    enabled: false
+    weight: 0.1
+    package: nexus.external.hermes_skills
+
+default_scope:
+  - sisyphus
+  - semantic
+```
+
+## 实施计划
+
+### 第一步：项目改名 + 目录重组
+
+| 步骤 | 做什么 | 风险 |
+|------|--------|------|
+| 1.1 | `sisyphus/` → `nexus/`，更新 `pyproject.toml` | 低 |
+| 1.2 | 现有代码移到 `nexus/nexus/sisyphus/` | 中，import 路径全改 |
+| 1.3 | 更新所有 import 路径 (`sisyphus.memory` → `nexus.sisyphus.memory`) | 高，机械但量大 |
+| 1.4 | 更新所有测试 import | 中 |
+| 1.5 | `git remote set-url` 更新仓库（如果要改名） | 低 |
+| 1.6 | 408 测试全过 | — |
+
+### 第二步：调度层实现
+
+| 步骤 | 做什么 |
+|------|--------|
+| 2.1 | 实现 `core.py`：模块注册、路由、合并 |
+| 2.2 | 实现 `protocol.py`：ModuleProtocol 基类 |
+| 2.3 | 实现 `config.py`：加载 nexus.yaml |
+| 2.4 | sisyphus 模块注册为第一个协议实现 |
+| 2.5 | 测试：多模块检索 + 权重验证 |
+
+### 第三步：Semantic 层
+
+| 步骤 | 做什么 |
+|------|--------|
+| 3.1 | URL 索引 + FTS5 |
+| 3.2 | 内容缓存 + 自动刷新 |
+| 3.3 | 分批导入 50GB |
+| 3.4 | 白名单 + 包源验证 |
+| 3.5 | 注册为 Nexus 模块 |
+| 3.6 | 测试：URL 搜索 + 缓存刷新 |
+
+### 第四步：Procedural 层
+
+| 步骤 | 做什么 |
+|------|--------|
+| 4.1 | 技能格式定义 |
+| 4.2 | 条件匹配引擎 |
+| 4.3 | Agent 画像 + 路由规则 |
+| 4.4 | 注册为 Nexus 模块 |
+| 4.5 | 借 Hermes 技能创建逻辑 |
+
+### 第五步：独立部署 + 社区发布
+
+| 步骤 | 做什么 |
+|------|--------|
+| 5.1 | `nexus serve` 命令 |
+| 5.2 | MCP Server 独立进程 |
+| 5.3 | 发布到 OpenCode 社区 |
+
+## 迁移影响
+
+| 改什么 | 影响范围 |
+|--------|----------|
+| import 路径 | 所有 `.py` 文件 |
+| 测试 import | 所有 `test_*.py` |
+| CLI 入口 | `cli.py` + `tree_cmd.py` |
+| MCP 路径 | opencode.json 配置 |
+| git remote | 如果仓库改名 |
+| 文档 | README + 所有 docs |
+
+## 风险控制
+
+- 第一步是最大风险。拆成多个小 commit，每步可回滚
+- 先改目录结构，不改代码逻辑
+- 每个小步跑测试确认
+- 不改功能只改路径，测试能过就说明迁移成功
