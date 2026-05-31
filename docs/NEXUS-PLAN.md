@@ -141,6 +141,64 @@ default_scope:
 | 4.3 | Agent 画像 + 路由规则 |
 | 4.4 | 注册为 Nexus 模块 |
 | 4.5 | 借 Hermes 技能创建逻辑 |
+| 4.6 | Agent 画像注册 (`agent_registry.yaml`) |
+| 4.7 | 模型路由：本地模型 / API 自动匹配 |
+
+### 模型路由
+
+**原理**：跟 Agent 路由同一套引擎。条件→动作规则，匹配后自动选择最优模型。
+
+```yaml
+# 模型路由表
+model_routing:
+  rules:
+    - pattern: "代码生成|补全|写函数"
+      model: qwen3-coder-14b (本地 GPU,16GB)
+    - pattern: "复杂推理|架构设计"
+      model: qwen3-32b (本地 CPU,64GB)
+    - pattern: "图片识别|OCR|截图"
+      model: llama-vision (本地 GPU,7GB,临时切换)
+    - pattern: "翻译|闲聊|简单问答"
+      model: qwen-turbo (API, 省钱)
+    - default: qwen3-14b (本地 GPU)
+```
+
+与 Agent 路由共用 Procedural 层匹配引擎，不单独建模块。
+
+## 关于 RAG
+
+**不需要传统 RAG**。原因：
+
+| 我们已有的 | RAG 提供的 | 结论 |
+|-----------|-----------|------|
+| FTS5 关键词召回 | 同 | 覆盖 |
+| URL 索引 + 缓存 | 文档检索 | 覆盖 |
+| Decay + feedback + MMR 排序 | 同 | 覆盖 |
+| LLM 查詢理解 + 答案生成 | 同 | 覆盖 |
+| 向量嵌入 + 语义搜索 | 向量相似度 | **不需要，LLM 替代** |
+| 无 | 多轮对话上下文管理 | 不需要，LLM 自己管 |
+
+**核心理由**：CS 领域 80% 查询是精准关键词。剩下 20% 模糊查询用 LLM 直接理解+生成，不需要 embedding 中间层。LLM API 极便宜且效果更好，省去维护向量数据库和 GPU 推理成本。
+
+## 记忆系统加强
+
+| 方向 | 当前 | 加强后 |
+|------|------|--------|
+| Agent 调用记忆 | 被动，Agent 调 MCP | Nexus 主动推送：检测到相关话题自动注入上下文 |
+| 去重 | 无 | title+content 语义去重，避免"同一次故障学了 3 次" |
+| 过期清理 | 无 | 超过 6 个月无访问 + 低 importance → 自动压缩 |
+| 调度自学习 | 无 | Dream 分析调度日志 → 优化路由规则 |
+| 多 Agent 会话关联 | 无 | 同一任务链（你问 A→A 调 B→B 调 C）自动串联 |
+
+## 第七步：Docker 部署
+
+| 步骤 | 做什么 |
+|------|--------|
+| 7.1 | `Dockerfile`：Python 3.14 + SQLite + Nexus |
+| 7.2 | `docker-compose.yml`：nexus-core + 可选 agent 容器 |
+| 7.3 | Volumes：`~/.omo` 持久化所有记忆 |
+| 7.4 | `nexus serve` 单命令启动 MCP + HTTP |
+| 7.5 | GPU Agent 容器：nvidia-docker 挂载 5060Ti
 
 ### 第五步：独立部署 + 社区发布
 
