@@ -195,6 +195,40 @@ agent_registry:
 
 Nexus Extractor 扩展 `PatternDetector`：不只提取决策/教训，也识别"被反复使用的行为"。存入 Procedural 层的 `prompts/` 目录，下次类似场景自动推荐。
 
+## 自我学习系统 — Agent 蒸馏
+
+**原理**：Nexus 长期观察接入的 Agent，提取其执行模式、内化为自身技能、最终可独立执行。不依赖外部 Agent 的持续存在。
+
+**流程**：
+
+```
+接入 Agent X 30 天观察窗口
+  → Dream 系统定期分析:
+    - Agent X 被调用的频率、场景、成功率
+    - 执行流程: 用了什么工具、什么 prompt、什么检查顺序
+    - 输出质量: 结果准确率、用户反馈评分
+  → Extractor 提取为 Procedural 技能:
+    - "代码审计" → 流程: AST扫描 → OWASP检查 → 依赖漏洞 → 生成报告
+    - 工具链: bandit + trivy + safety
+    - Prompt 模板: "先查 subprocess 调用,再查 eval,最后查网络请求"
+  → 存入 internal skill 库:
+    - 标记来源: distilled_from=hermes, version=v1.2
+```
+
+**持续更新**：
+
+```
+Agent X 发布新版本
+  → Nexus 检测到 agent_registry 版本变化
+    → 启动 30 天对比观察窗口
+      → 新版本 vs 旧版本 → 哪个输出质量更高
+        → 更好 → 更新 internal 技能（学习新能力）
+        → 更差 → 保持 internal 技能不变（标记: hermes_v2 退步了）
+        → 相同 → 记录 "v2 与 v1 无显著差异"
+```
+
+**终态**：Nexus Core 可以用 internal 技能独立执行，外部 Agent 变为可选的 backup。不是取代——是"先用着，学会了再说"。同时保持监控管道，版本更新时自动评估是否采纳新能力。
+
 ## 关于 RAG
 
 **不需要传统 RAG**。原因：
