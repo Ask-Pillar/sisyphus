@@ -123,6 +123,20 @@ nexus/<br>
 
 <div class="arrow-row">↓</div>
 
+<!-- 自我学习 -->
+<div class="row">
+<div class="col"><div class="box c-ingest">
+<div class="box-title">自我学习系统 — Agent 蒸馏</div>
+<div class="item-desc">Nexus 长期观察接入的 Agent → 提取执行模式 → 内化为自身能力</div>
+<div class="item"><span class="item-tag tag-l0">观察</span><span class="item-name">记录 Agent 调用频率、工具链、成功率</span></div>
+<div class="item"><span class="item-tag tag-l1">提取</span><span class="item-name">Dream 分析 → 生成 internal 技能</span><span class="item-desc">distilled_from: hermes</span></div>
+<div class="item"><span class="item-tag tag-l2">对比</span><span class="item-name">Agent 更新 → 30 天观察 → 选择性采纳</span></div>
+<div class="item"><span class="item-tag tag-p0">终态</span><span class="item-name">internal 技能独立执行 → 外部 Agent → 可选 backup</span></div>
+</div></div>
+</div>
+
+<div class="arrow-row">↓</div>
+
 <!-- 零信任 -->
 <div class="row">
 <div class="col"><div class="box c-security">
@@ -168,5 +182,15 @@ nexus/<br>
 <div class="flow-step">⑤ <b>决策:</b> 路由到 opencode（覆盖初始匹配）</div>
 <div class="flow-step">⑥ 结果 → <span class="tag">零信任层</span> 校验 → <span class="tag">Extractor</span> 提取 → 存入 sisyphus</div>
 <div class="flow-step" style="color:var(--g)">⑦ 下次"审计代码" → 直接路由到 opencode（学习了）</div>
+</div>
+
+<div class="flow-example" style="margin-top:8px">
+<h3>蒸馏示例: 接入 Hermes 6 个月后</h3>
+<div class="flow-step">① Dream 分析 180 天 Hermes 审计日志 → <b>提取:</b> "审计代码" = AST扫描 → OWASP → 依赖漏洞</div>
+<div class="flow-step">② 工具链: bandit + trivy + safety 组合（成功率 94%）</div>
+<div class="flow-step">③ Prompt 模板: "先查 subprocess,再查 eval,最后查网络请求"</div>
+<div class="flow-step">④ → 存入 <span class="tag">procedural/skills/code_security_audit.md</span></div>
+<div class="flow-step" style="color:var(--g)">⑤ Hermes 变为可选 backup — Nexus 已学会独立执行</div>
+<div class="flow-step" style="color:var(--dim)">⑥ Hermes v2 发布 → 30 天对比观察 → 评估是否更新 internal 技能</div>
 </div>
 </body></html>
