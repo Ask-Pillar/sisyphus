@@ -180,6 +180,21 @@ agent_registry:
 
 区别只在调用接口——Agent 走 MCP，程序走 subprocess。路由引擎不区分。
 
+### 提示词凝练 & 场景复用
+
+用户反复使用效果好的提示词/代码片段/操作模式，系统自动检测并提炼：
+
+| 类型 | 触发条件 | 提炼结果 |
+|------|----------|----------|
+| 提示词模板 | 同结构 prompt 使用 ≥ 3 次 | PromptSkill → procedural/prompts/ |
+| 代码片段 | 同结构代码出现 ≥ 3 次 | Snippet → 模板化，变量位自动提取 |
+| Bug 修复模式 | 同类型错误 + 同修复方法 | Procedural 规则 → "nginx 502 → 查 error_log" |
+| 部署检查清单 | 上线前重复执行的操作序列 | Checklist skill → 自动执行 |
+| 配置模板 | docker-compose / nginx.conf 高频使用 | 参数化模板 |
+| 代码审查要点 | 多次检查同类问题 | 审查规则 → "检查 SQL 注入、XSS、CSRF" |
+
+Nexus Extractor 扩展 `PatternDetector`：不只提取决策/教训，也识别"被反复使用的行为"。存入 Procedural 层的 `prompts/` 目录，下次类似场景自动推荐。
+
 ## 关于 RAG
 
 **不需要传统 RAG**。原因：
