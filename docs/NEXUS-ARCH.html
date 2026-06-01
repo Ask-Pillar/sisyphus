@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nexus 完整架构</title>
+<style>
+:root{--bg:#1e1e1e;--fg:#d4d4d4;--dim:#808080;--accent:#569cd6;--border:#333;--card:#252526;--g:#6a9955;--b:#dcdcaa;--r:#f44747;--p:#c586c0}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:-apple-system,PingFang SC,Microsoft YaHei,sans-serif;padding:14px;max-width:960px;margin:0 auto;font-size:12px}
+h1{font-size:1rem;color:var(--accent);text-align:center;margin-bottom:10px}
+.row{display:flex;gap:8px;margin-bottom:8px;align-items:stretch;flex-wrap:wrap}
+.col{flex:1;min-width:200px}
+.box{border-radius:6px;padding:8px 10px;font-size:.68rem;height:100%}
+.box-title{font-weight:700;font-size:.72rem;margin-bottom:4px}
+.c-agent{background:rgba(86,156,214,.08);border:1px solid rgba(86,156,214,.25)} .c-agent .box-title{color:#9cdcfe}
+.c-core{background:rgba(244,71,71,.06);border:1px solid rgba(244,71,71,.2)} .c-core .box-title{color:#f44747}
+.c-module{background:rgba(106,153,85,.06);border:1px solid rgba(106,153,85,.2)} .c-module .box-title{color:#6a9955}
+.c-storage{background:rgba(220,220,170,.06);border:1px solid rgba(220,220,170,.18)} .c-storage .box-title{color:#dcdcaa}
+.c-security{background:rgba(197,134,192,.06);border:1px solid rgba(197,134,192,.2)} .c-security .box-title{color:#c586c0}
+.c-infra{background:rgba(128,128,128,.06);border:1px solid rgba(128,128,128,.15)} .c-infra .box-title{color:var(--dim)}
+.item{display:flex;align-items:baseline;gap:4px;margin:2px 0;font-size:.66rem}
+.item-tag{padding:0 4px;border-radius:2px;font-size:.58rem;flex-shrink:0}
+.tag-l0{background:rgba(86,156,214,.15);color:var(--accent)}
+.tag-l1{background:rgba(106,153,85,.15);color:var(--g)}
+.tag-l2{background:rgba(220,220,170,.12);color:var(--b)}
+.tag-p0{background:rgba(244,71,71,.12);color:var(--r)}
+.item-name{color:var(--fg)}
+.item-desc{color:var(--dim);font-size:.6rem}
+.vbar{width:2px;background:var(--border);margin:0 auto 8px;height:10px}
+.arrow-row{text-align:center;color:var(--dim);font-size:.7rem;margin:2px 0}
+.flow-example{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-top:12px}
+.flow-example h3{color:var(--accent);font-size:.7rem;margin-bottom:6px}
+.flow-step{color:var(--dim);font-size:.64rem;margin:2px 0;line-height:1.5}
+.flow-step b{color:var(--fg)}
+.flow-step .tag{color:#9cdcfe}
+@media(max-width:600px){.col{min-width:100%}}
+</style></head><body>
+<h1>Nexus 完整架构</h1>
+
+<div class="row">
+<div class="col"><div class="box c-agent">
+<div class="box-title">接入层 — 任何 Agent / 程序</div>
+<div class="item"><span class="item-name">OpenCode / Claude Code / Hermes</span></div>
+<div class="item"><span class="item-name">浏览器插件</span><span class="item-desc">→ POST /ingest</span></div>
+<div class="item"><span class="item-name">trivy / bandit / docker-bench</span></div>
+<div class="item"><span class="item-name">MCP JSON-RPC 统一协议</span></div>
+</div></div>
+</div>
+
+<div class="arrow-row">↓ MCP / HTTP</div>
+
+<div class="row">
+<div class="col"><div class="box c-core">
+<div class="box-title">Nexus Core — 调度中枢</div>
+<div class="item"><span class="item-tag tag-l0">路由</span><span class="item-name">请求 → 查哪些模块</span></div>
+<div class="item"><span class="item-tag tag-l1">合并</span><span class="item-name">多模块结果加权排序</span></div>
+<div class="item"><span class="item-tag tag-l2">学习</span><span class="item-name">Dream 分析调度日志 → 优化路由</span></div>
+<div class="item"><span class="item-tag tag-p0">配置</span><span class="item-name">config/nexus.yaml 模块开关</span></div>
+</div></div>
+</div>
+
+<div class="arrow-row">↓ 并行查询</div>
+
+<div class="row">
+<div class="col"><div class="box c-module">
+<div class="box-title">sisyphus · 记忆中枢</div>
+<div class="item-desc">Episodic 层 · 决策/教训/偏好</div>
+<div class="item"><span class="item-name">FTS5 检索 + Decay 排序</span></div>
+<div class="item"><span class="item-name">L0/L1/L2 三级触发</span></div>
+<div class="item"><span class="item-name">rate/dismiss 反馈闭环</span></div>
+<div class="item"><span class="item-name">session log 双向记录</span></div>
+<div class="item"><span class="item-name">MMR 重排 + 多样性保底</span></div>
+<div class="item"><span class="item-name">Forgotten Gems 10% 轮转</span></div>
+</div></div>
+<div class="col"><div class="box c-module">
+<div class="box-title">semantic · 知识中枢</div>
+<div class="item-desc">Semantic 层 · 文档/URL/知识库</div>
+<div class="item"><span class="item-name">URL 索引 + FTS5 全文</span></div>
+<div class="item"><span class="item-name">内容缓存 + 自动刷新</span></div>
+<div class="item"><span class="item-name">50GB 分批导入</span></div>
+<div class="item"><span class="item-name">PDF/DOCX/图片 → 文本</span></div>
+<div class="item"><span class="item-name">领域分库(security/backend)</span></div>
+</div></div>
+<div class="col"><div class="box c-module">
+<div class="box-title">procedural · 能力中枢</div>
+<div class="item-desc">Procedural 层 · 技能/路由/模型</div>
+<div class="item"><span class="item-name">Agent 画像注册</span></div>
+<div class="item"><span class="item-name">条件匹配 → 路由到最优</span></div>
+<div class="item"><span class="item-name">GPU/CPU/API 模型路由</span></div>
+<div class="item"><span class="item-name">程序注册(trivy/bandit)</span></div>
+<div class="item"><span class="item-name">外部模块桥接(hermes)</span></div>
+</div></div>
+</div>
+
+<div class="arrow-row">↓</div>
+
+<div class="row">
+<div class="col"><div class="box c-security">
+<div class="box-title">零信任安全层 — 谁都不信，默认拒绝</div>
+<div class="item"><span class="item-tag tag-l0">URL</span><span class="item-name">白名单域名校验</span><span class="item-desc">非白名单 → 拒绝</span></div>
+<div class="item"><span class="item-tag tag-l1">包名</span><span class="item-name">PyPI/npm 官方注册表验证</span><span class="item-desc">不存在 → 拒绝</span></div>
+<div class="item"><span class="item-tag tag-l2">代码</span><span class="item-name">AST 检测 subprocess/eval/exec</span><span class="item-desc">危险调用 → 拒绝</span></div>
+<div class="item"><span class="item-tag tag-p0">沙箱</span><span class="item-name">Docker 容器隔离执行</span><span class="item-desc">网络白名单 + 只读挂载</span></div>
+</div></div>
+</div>
+
+<div class="arrow-row">↓</div>
+
+<div class="row">
+<div class="col"><div class="box c-storage">
+<div class="box-title">存储层 — 四池命名空间</div>
+<div class="item"><span class="item-name">personal/</span><span class="item-desc">个人记忆 · MB 级</span></div>
+<div class="item"><span class="item-name">projects/{hash}/</span><span class="item-desc">项目记忆 · MB 级 · git remote 自动切换</span></div>
+<div class="item"><span class="item-name">knowledge/{domain}/</span><span class="item-desc">知识库 · GB 级 · FTS5 分块</span></div>
+<div class="item"><span class="item-name">shared/</span><span class="item-desc">共享池 · MB 级</span></div>
+</div></div>
+</div>
+
+<div class="row">
+<div class="col"><div class="box c-infra">
+<div class="box-title">基础设施</div>
+<div class="item"><span class="item-name">Python 3.14 + SQLite FTS5 + jieba</span></div>
+<div class="item"><span class="item-name">Docker Compose · nexus serve 单命令启动</span></div>
+<div class="item"><span class="item-name">本地模型: 5060Ti 16GB GPU + 64GB CPU 内存</span></div>
+<div class="item"><span class="item-name">测试: 408/408 全部通过</span></div>
+</div></div>
+</div>
+
+<div class="flow-example">
+<h3>完整请求示例: "帮我审计这段 Go 代码"</h3>
+<div class="flow-step">① OpenCode → MCP → <b>Nexus Core</b> 路由引擎</div>
+<div class="flow-step">② 路由查 <span class="tag">agent_registry</span> → hermes 有 security_audit 标签</div>
+<div class="flow-step">③ 同时查 <span class="tag">sisyphus</span> → "上次 hermes 审 Go 漏了 SQL 注入"</div>
+<div class="flow-step">④ <span class="tag">Dream</span> 分析调度历史 → "Go 审计 → opencode 更准"</div>
+<div class="flow-step">⑤ <b>决策:</b> 路由到 opencode（覆盖初始匹配）</div>
+<div class="flow-step">⑥ opencode 执行 → 返回漏洞报告 → <span class="tag">零信任层</span> 校验结果</div>
+<div class="flow-step">⑦ Nexus → <span class="tag">Extractor</span> 提取 lesson → 存入 <b>sisyphus</b></div>
+<div class="flow-step">⑧ 下次"审计代码" → 路由直接指向 opencode（学习了）</div>
+</div>
+</body></html>

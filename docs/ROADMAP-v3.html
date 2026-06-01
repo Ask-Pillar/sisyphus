@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sisyphus Roadmap v2</title>
+<style>
+:root{--bg:#1e1e1e;--fg:#d4d4d4;--dim:#808080;--accent:#569cd6;--border:#333;--card:#252526}
+*{margin:0;padding:0}body{background:var(--bg);color:var(--fg);font-family:-apple-system,sans-serif;padding:20px;max-width:800px;margin:0 auto;font-size:.82rem;line-height:1.6}
+h1{font-size:1.3rem;color:var(--accent);margin:20px 0 10px;border-bottom:1px solid var(--border);padding-bottom:6px}
+h2{font-size:1.05rem;color:var(--accent);margin:18px 0 8px}
+h3{font-size:.9rem;color:#dcdcaa;margin:14px 0 6px}
+b{color:#dcdcaa}code{color:#ce9178}
+table{margin:8px 0}th{background:#252526;color:var(--accent);text-align:left}td{background:#1e1e1e}
+p{margin:6px 0}ul{margin:4px 0 4px 20px}li{margin:3px 0}
+blockquote{border-left:2px solid var(--accent);padding-left:12px;margin:8px 0;color:var(--dim);font-style:italic}
+</style></head><body>
+<h1>Sisyphus 最终规划 — Agent 中枢记忆系统</h1>
+<p style="margin:8px 0"><h2>定位</h2>
+<p style="margin:8px 0">不只是记忆系统，是所有 Agent 的中枢神经。任何 Agent 的记忆、知识、技能、路由都走 Sisyphus。
+<p style="margin:8px 0"><h2>CoALA 四层记忆映射</h2>
+<p style="margin:8px 0">基于 IBM/普林斯顿 CoALA 框架（Working / Semantic / Procedural / Episodic）：
+<p style="margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:.72rem">
+<tr><td style="border:1px solid #333;padding:4px 8px">IBM 分类</td><td style="border:1px solid #333;padding:4px 8px">是什么</td><td style="border:1px solid #333;padding:4px 8px">Sisyphus</td><td style="border:1px solid #333;padding:4px 8px">状态</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">Working</td><td style="border:1px solid #333;padding:4px 8px">上下文窗口，volatile</td><td style="border:1px solid #333;padding:4px 8px">不做（LLM 自己的事）</td><td style="border:1px solid #333;padding:4px 8px">—</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">Episodic</td><td style="border:1px solid #333;padding:4px 8px">过去的决策、教训、对话</td><td style="border:1px solid #333;padding:4px 8px">MemoryStore + Session Log</td><td style="border:1px solid #333;padding:4px 8px">✅</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">Semantic</td><td style="border:1px solid #333;padding:4px 8px">知识、规则、文档</td><td style="border:1px solid #333;padding:4px 8px">KnowledgeBase + URL 索引</td><td style="border:1px solid #333;padding:4px 8px">⏳ Phase 5</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">Procedural</td><td style="border:1px solid #333;padding:4px 8px">技能、工作流、行为规则</td><td style="border:1px solid #333;padding:4px 8px">SkillStore + Agent 路由</td><td style="border:1px solid #333;padding:4px 8px">⏳ Phase 6</td></tr>
+</table>
+<p style="margin:8px 0"><h2>当前能力（v4.0）</h2>
+<p style="margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:.72rem">
+<tr><td style="border:1px solid #333;padding:4px 8px">模块</td><td style="border:1px solid #333;padding:4px 8px">功能</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">SQLiteMemoryStore</td><td style="border:1px solid #333;padding:4px 8px">SQLite + FTS5 存储，Markdown 自动迁移</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">PoolRegistry</td><td style="border:1px solid #333;padding:4px 8px">personal / projects / knowledge / shared 四池</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">UnifiedRetriever</td><td style="border:1px solid #333;padding:4px 8px">跨池加权检索 + MMR 重排 + 多样性</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">触发系统</td><td style="border:1px solid #333;padding:4px 8px">L0 信号词 / L1 周期+话题 / L2 指数退避</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">反馈闭环</td><td style="border:1px solid #333;padding:4px 8px">rate(1-5) / dismiss / 半衰期 90 天</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">Forgotten Gems</td><td style="border:1px solid #333;padding:4px 8px">10% 概率注入被遗忘的高重要记忆</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">对立观点</td><td style="border:1px solid #333;padding:4px 8px">Top-3 同类型时搜索 counterpoint</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">Session Log</td><td style="border:1px solid #333;padding:4px 8px">sessions/{date}.md 双向记录</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">KnowledgeBase</td><td style="border:1px solid #333;padding:4px 8px">FTS5 分块 500词/chunk，导入 md/txt/jsonl/csv</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">MCP Server</td><td style="border:1px solid #333;padding:4px 8px">14 个工具</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">测试</td><td style="border:1px solid #333;padding:4px 8px">408/408 全过</td></tr>
+</table>
+<p style="margin:8px 0"><h2>最终架构</h2>
+<p style="margin:8px 0"><pre style="background:#2d2d2d;padding:12px;border-radius:6px;overflow-x:auto;font-size:.72rem"><code>任何 Agent (通过 MCP)
+  → Sisyphus Server (独立进程)
+    ├── Episodic 层 (MemoryStore)
+    │   └── 决策、教训、偏好、对话历史
+    ├── Semantic 层 (KnowledgeBase)
+    │   ├── URL 索引 (官方文档地址 + 描述)
+    │   ├── 内容缓存 (FTS5 自动刷新)
+    │   └── 领域分库 (security/backend/hardware/...)
+    ├── Procedural 层 (SkillStore)
+    │   ├── 技能库 (条件→动作规则)
+    │   ├── Agent 路由 (谁擅长什么调谁)
+    │   └── 工作流 (多步骤编排)
+    └── config.yaml (池权重 + 开关)
+</code></pre>
+<p style="margin:8px 0"><h2>下一步</h2>
+<p style="margin:8px 0"><h3>Phase 5: Semantic 层</h3>
+<p style="margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:.72rem">
+<tr><td style="border:1px solid #333;padding:4px 8px">步骤</td><td style="border:1px solid #333;padding:4px 8px">做什么</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">5.1</td><td style="border:1px solid #333;padding:4px 8px">URL 索引 → urls.db，FTS5 搜描述</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">5.2</td><td style="border:1px solid #333;padding:4px 8px">内容缓存 → fetch + 自动刷新</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">5.3</td><td style="border:1px solid #333;padding:4px 8px">分批导入 → 支持 50GB+ 不 OOM</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">5.4</td><td style="border:1px solid #333;padding:4px 8px">多格式解析 → PDF/DOCX/图片→文本</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">5.5</td><td style="border:1px solid #333;padding:4px 8px">白名单 + 包源验证</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">5.6</td><td style="border:1px solid #333;padding:4px 8px">安全审计 → AST 检测危险调用</td></tr>
+</table>
+<p style="margin:8px 0"><h3>Phase 6: Procedural 层</h3>
+<p style="margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:.72rem">
+<tr><td style="border:1px solid #333;padding:4px 8px">步骤</td><td style="border:1px solid #333;padding:4px 8px">做什么</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">6.1</td><td style="border:1px solid #333;padding:4px 8px">技能格式 → YAML frontmatter + Markdown body</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">6.2</td><td style="border:1px solid #333;padding:4px 8px">条件匹配 → "遇到 X → 调 Y 方法"</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">6.3</td><td style="border:1px solid #333;padding:4px 8px">Agent 画像 → 每个 Agent 擅长什么</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">6.4</td><td style="border:1px solid #333;padding:4px 8px">Agent 路由 → 择最优 Agent 执行</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">6.5</td><td style="border:1px solid #333;padding:4px 8px">借 Hermes 技能创建逻辑</td></tr>
+</table>
+<p style="margin:8px 0"><h3>独立部署</h3>
+<p style="margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:.72rem">
+<tr><td style="border:1px solid #333;padding:4px 8px">步骤</td><td style="border:1px solid #333;padding:4px 8px">做什么</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">部署</td><td style="border:1px solid #333;padding:4px 8px">pip install sisyphus → <code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">sisyphus serve</code></td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">MCP</td><td style="border:1px solid #333;padding:4px 8px">标准 JSON-RPC，任何 Agent 都能接</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">配置</td><td style="border:1px solid #333;padding:4px 8px">config.yaml 控制模块开关</td></tr>
+</table>
+<p style="margin:8px 0"><h2>对比 Hermes</h2>
+<p style="margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:.72rem">
+<tr><td style="border:1px solid #333;padding:4px 8px"></td><td style="border:1px solid #333;padding:4px 8px">Hermes</td><td style="border:1px solid #333;padding:4px 8px">Sisyphus</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">定位</td><td style="border:1px solid #333;padding:4px 8px">通用 Agent 框架</td><td style="border:1px solid #333;padding:4px 8px">Agent 中枢记忆系统</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">模块化</td><td style="border:1px solid #333;padding:4px 8px">内置，不可插拔</td><td style="border:1px solid #333;padding:4px 8px">池模块，可插拔</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">命名空间</td><td style="border:1px solid #333;padding:4px 8px">扁平（MEMORY.md + USER.md）</td><td style="border:1px solid #333;padding:4px 8px">四池 + 领域分库</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">触发机制</td><td style="border:1px solid #333;padding:4px 8px">无条件</td><td style="border:1px solid #333;padding:4px 8px">L0/L1/L2 三级</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">反馈闭环</td><td style="border:1px solid #333;padding:4px 8px">无</td><td style="border:1px solid #333;padding:4px 8px">rate/dismiss + 半衰期</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">重排</td><td style="border:1px solid #333;padding:4px 8px">无</td><td style="border:1px solid #333;padding:4px 8px">MMR + 类型配额</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">技能系统</td><td style="border:1px solid #333;padding:4px 8px">✅ 自动创建</td><td style="border:1px solid #333;padding:4px 8px">❌ Phase 6</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">多平台</td><td style="border:1px solid #333;padding:4px 8px">✅ 5 个平台</td><td style="border:1px solid #333;padding:4px 8px">❌ 仅 MCP</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">生产加固</td><td style="border:1px solid #333;padding:4px 8px">✅ 文件锁+注入扫描</td><td style="border:1px solid #333;padding:4px 8px">❌</td></tr>
+</table>
+<p style="margin:8px 0"><h2>技术栈</h2>
+<p style="margin:8px 0">Python 3.14+ / SQLite + FTS5 / MCP JSON-RPC / jieba / llama.cpp (可选)
+
+</body></html>

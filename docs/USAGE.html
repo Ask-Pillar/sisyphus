@@ -1,166 +1,109 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<head><meta charset="UTF-8"><title>Sisyphus 使用文档</title>
+<html lang="zh"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sisyphus Roadmap v2</title>
 <style>
-:root{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;--g:#4ade80;--y:#facc15;--b:#60a5fa}
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);padding:24px;line-height:1.6}
-.container{max-width:780px;margin:0 auto}
-h1{font-size:1.4rem;margin-bottom:20px}
-h2{font-size:1.05rem;margin:28px 0 12px;border-left:3px solid var(--b);padding-left:12px}
-h3{font-size:.9rem;margin:16px 0 8px;color:#ccc}
-.card{background:var(--card);border-radius:10px;padding:18px;margin-bottom:14px;border:1px solid #ffffff0a}
-pre{background:#0a0f1a;border-radius:8px;padding:14px;font-size:.78rem;overflow-x:auto;line-height:1.5}
-code{font-size:.8rem;background:#ffffff08;padding:1px 5px;border-radius:3px}
-pre code{background:none;padding:0}
-table{width:100%;border-collapse:collapse;font-size:.85rem;margin:10px 0}
-td,th{padding:7px 10px;border-bottom:1px solid #ffffff08;text-align:left}
-th{color:var(--muted);font-size:.75rem}
-.note{background:#ffffff06;border-radius:8px;padding:10px 14px;margin:10px 0;font-size:.82rem}
-.key{color:#facc15}.val{color:#4ade80}.str{color:#f87171}.comment{color:#666}
-</style></head><body><div class="container">
-
-<h1>📖 Sisyphus 使用文档</h1>
-
-<h2>安装</h2>
-<div class="card">
-<pre><code>git clone https://github.com/Ask-Pillar/sisyphus.git
-cd sisyphus
-pip install -r requirements.txt</code></pre>
-<div class="note">依赖: transformers torch jieba</div>
-</div>
-
-<h2>MCP Server</h2>
-<div class="card">
-<p>启动 MCP Server (stdio 协议):</p>
-<pre><code>PYTHONPATH=src python3 -m sisyphus.server.mcp</code></pre>
-<p style="margin-top:12px">在任何支持 MCP 的客户端配置中引用:</p>
-<pre><code>{
-  <span class="key">"mcpServers"</span>: {
-    <span class="key">"sisyphus"</span>: {
-      <span class="key">"command"</span>: <span class="val">"python3"</span>,
-      <span class="key">"args"</span>: [<span class="val">"-m"</span>, <span class="val">"sisyphus.server.mcp"</span>],
-      <span class="key">"env"</span>: {<span class="key">"PYTHONPATH"</span>: <span class="val">"src"</span>}
-    }
-  }
-}</code></pre>
-<div class="note">支持的客户端: opencode、Claude Code、Cursor 等</div>
-</div>
-
-<h2>MCP 工具</h2>
-
-<h3>remember — 创建记忆</h3>
-<div class="card">
-<pre><code>{
-  <span class="key">"name"</span>: <span class="val">"remember"</span>,
-  <span class="key">"arguments"</span>: {
-    <span class="key">"title"</span>: <span class="val">"Python类型标注"</span>,
-    <span class="key">"type"</span>: <span class="val">"lesson"</span>,
-    <span class="key">"content"</span>: <span class="val">"使用Optional和List语法"</span>,
-    <span class="key">"tags"</span>: [<span class="val">"python"</span>, <span class="val">"typing"</span>],
-    <span class="key">"importance"</span>: <span class="val">7</span>
-  }
-}</code></pre>
-</div>
-
-<h3>recall — 搜索记忆</h3>
-<div class="card">
-<pre><code>{
-  <span class="key">"name"</span>: <span class="val">"recall"</span>,
-  <span class="key">"arguments"</span>: {
-    <span class="key">"query"</span>: <span class="val">"Python类型标注语法"</span>,
-    <span class="key">"top_k"</span>: <span class="val">5</span>
-  }
-}</code></pre>
-<div class="note">返回双路径检索结果 (Path A 树浏览 / Path B 精确检索自动路由)</div>
-</div>
-
-<h3>import — 一键导入 (P5 新增)</h3>
-<div class="card">
-<pre><code>{
-  <span class="key">"name"</span>: <span class="val">"import"</span>,
-  <span class="key">"arguments"</span>: {
-    <span class="key">"path"</span>: <span class="val">"/path/to/memories/"</span>
-  }
-}</code></pre>
-<table>
-<tr><th>格式</th><th>说明</th></tr>
-<tr><td><code>.md</code></td><td>Markdown 文件，支持 frontmatter<br><code>---<br>title: xxx<br>type: lesson<br>---<br>内容</code></td></tr>
-<tr><td><code>.jsonl</code></td><td>每行一个 JSON: <code>{"title":"x","type":"lesson","content":"..."}</code></td></tr>
-<tr><td>目录</td><td>递归扫描 <code>.md</code> 和 <code>.jsonl</code></td></tr>
+:root{--bg:#1e1e1e;--fg:#d4d4d4;--dim:#808080;--accent:#569cd6;--border:#333;--card:#252526}
+*{margin:0;padding:0}body{background:var(--bg);color:var(--fg);font-family:-apple-system,sans-serif;padding:20px;max-width:800px;margin:0 auto;font-size:.82rem;line-height:1.6}
+h1{font-size:1.3rem;color:var(--accent);margin:20px 0 10px;border-bottom:1px solid var(--border);padding-bottom:6px}
+h2{font-size:1.05rem;color:var(--accent);margin:18px 0 8px}
+h3{font-size:.9rem;color:#dcdcaa;margin:14px 0 6px}
+b{color:#dcdcaa}code{color:#ce9178}
+table{margin:8px 0}th{background:#252526;color:var(--accent);text-align:left}td{background:#1e1e1e}
+p{margin:6px 0}ul{margin:4px 0 4px 20px}li{margin:3px 0}
+blockquote{border-left:2px solid var(--accent);padding-left:12px;margin:8px 0;color:var(--dim);font-style:italic}
+</style></head><body>
+<h1>Sisyphus 使用手册</h1>
+<p style="margin:8px 0"><h2>CLI 命令</h2>
+<p style="margin:8px 0"><pre style="background:#2d2d2d;padding:12px;border-radius:6px;overflow-x:auto;font-size:.72rem"><code># 记录记忆
+python3 -m sisyphus.memory.cli record lesson "Python typing" --content "用 Optional 替代 |" --tags python
+<p style="margin:8px 0"><h1>搜索记忆</h1>
+python3 -m sisyphus.memory.cli search "Python typing"
+<p style="margin:8px 0"><h1>查看最近 10 条</h1>
+python3 -m sisyphus.memory.cli recent --limit 10
+<p style="margin:8px 0"><h1>查看详情</h1>
+python3 -m sisyphus.memory.cli show mem_xxxx
+<p style="margin:8px 0"><h1>软删除</h1>
+python3 -m sisyphus.memory.cli forget mem_xxxx
+<p style="margin:8px 0"><h1>恢复</h1>
+python3 -m sisyphus.memory.cli restore mem_xxxx
+<p style="margin:8px 0"><h1>统计</h1>
+python3 -m sisyphus.memory.cli stats
+<p style="margin:8px 0"><h1>生成 Dashboard</h1>
+python3 -m sisyphus.memory.cli dashboard --output ~/Desktop/sisyphus.html
+<p style="margin:8px 0"><h1>导入历史记忆</h1>
+python3 -m sisyphus.memory.cli import --path ~/notes/memories.md
+<p style="margin:8px 0"><h1>刷新索引</h1>
+python3 -m sisyphus.memory.cli rebuild
+<p style="margin:8px 0"><h1>分析记忆日志</h1>
+python3 -m sisyphus.memory.cli audit --days 7
+</code></pre>
+<p style="margin:8px 0"><h2>Python API</h2>
+<p style="margin:8px 0"><pre style="background:#2d2d2d;padding:12px;border-radius:6px;overflow-x:auto;font-size:.72rem"><code>from pathlib import Path
+from sisyphus.memory.store import MemoryStore
+<p style="margin:8px 0">store = MemoryStore(Path.home() / ".omo" / "memory")
+<h1>创建</h1>
+mem = store.create(title="数据库连接池配置", type="decision", content="最大20，超时30s", importance=8)
+<h1>查询</h1>
+mem = store.get(mem.id)
+<h1>列表</h1>
+lessons = store.list(type_filter="lesson")
+<h1>去重创建</h1>
+mem = store.create_if_new(title="数据库连接池配置", type="decision")
+<h1>评分</h1>
+store.rate(mem.id, 4)
+<h1>屏蔽</h1>
+store.dismiss(mem.id)
+</code></pre>
+<p style="margin:8px 0"><h2>跨池检索</h2>
+<p style="margin:8px 0"><pre style="background:#2d2d2d;padding:12px;border-radius:6px;overflow-x:auto;font-size:.72rem"><code>from sisyphus.memory.unified import UnifiedRetriever
+r = UnifiedRetriever()
+results = r.retrieve("mysql 连接池", top_k=5)
+for mem, score, pool in results:
+    print(f"[{pool}] {mem.title} score={score:.2f}")
+</code></pre>
+<p style="margin:8px 0"><h2>知识库</h2>
+<p style="margin:8px 0"><pre style="background:#2d2d2d;padding:12px;border-radius:6px;overflow-x:auto;font-size:.72rem"><code>from sisyphus.memory.knowledge import KnowledgeBase
+kb = KnowledgeBase(domain="backend")
+kb.import_directory("/path/to/docs/")
+results = kb.search("proxy_pass timeout")
+</code></pre>
+<p style="margin:8px 0"><h2>命名空间</h2>
+<p style="margin:8px 0"><pre style="background:#2d2d2d;padding:12px;border-radius:6px;overflow-x:auto;font-size:.72rem"><code>from sisyphus.memory.pools import PoolRegistry
+reg = PoolRegistry()
+reg.init_structure()  # 创建 ~/.omo/{personal,projects,knowledge,shared}
+store = reg.get_store("personal")
+project_store = reg.project_store()  # 自动检测 git remote
+</code></pre>
+<p style="margin:8px 0"><h2>MCP 工具（Agent 对话中自动调用）</h2>
+<p style="margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:.72rem">
+<tr><td style="border:1px solid #333;padding:4px 8px">工具</td><td style="border:1px solid #333;padding:4px 8px">功能</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">search_memory</td><td style="border:1px solid #333;padding:4px 8px">检索记忆</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">write_memory</td><td style="border:1px solid #333;padding:4px 8px">记录记忆</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">rate_memory</td><td style="border:1px solid #333;padding:4px 8px">评分 1-5</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">dismiss_memory</td><td style="border:1px solid #333;padding:4px 8px">永久屏蔽</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">memory_stats</td><td style="border:1px solid #333;padding:4px 8px">统计概览</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">import_memories</td><td style="border:1px solid #333;padding:4px 8px">导入 md/jsonl</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">import_knowledge</td><td style="border:1px solid #333;padding:4px 8px">导入文档到知识库</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">switch_scope</td><td style="border:1px solid #333;padding:4px 8px">切换检索范围</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">list_pools</td><td style="border:1px solid #333;padding:4px 8px">池状态</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">run_pipeline</td><td style="border:1px solid #333;padding:4px 8px">离线巩固</td></tr>
 </table>
-<div class="note"><b>去重</b>: 相同 title 自动跳过，不覆盖已有记忆</div>
-</div>
+<p style="margin:8px 0"><h2>触发机制</h2>
+<p style="margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:.72rem">
+<tr><td style="border:1px solid #333;padding:4px 8px">你说的话</td><td style="border:1px solid #333;padding:4px 8px">触发</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">"记住/记下/备忘"</td><td style="border:1px solid #333;padding:4px 8px">写入 MemoryStore</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">"上次/之前/前面提到"</td><td style="border:1px solid #333;padding:4px 8px">检索 MemoryStore</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">"根据记忆/记录里"</td><td style="border:1px solid #333;padding:4px 8px">检索 MemoryStore</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">无触发词</td><td style="border:1px solid #333;padding:4px 8px">不检索</td></tr>
+</table>
+<p style="margin:8px 0"><h2>存储结构</h2>
+<p style="margin:8px 0"><pre style="background:#2d2d2d;padding:12px;border-radius:6px;overflow-x:auto;font-size:.72rem"><code>~/.omo/
+├── personal/memory/store.db        # 主记忆池
+├── projects/{hash}/memory/store.db # 项目池
+├── knowledge/{domain}/chunks.db    # 知识库
+├── shared/memory/store.db          # 共享池
+├── sessions/2026-05-30.md          # 会话日志
+└── config.yaml                     # 配置
+</code></pre>
 
-<h3>其他工具</h3>
-<div class="card"><table>
-<tr><th>工具</th><th>功能</th></tr>
-<tr><td><code>forget</code></td><td>删除记忆: <code>{"id": "mem_xxx"}</code></td></tr>
-<tr><td><code>list</code></td><td>列出记忆: <code>{"type": "lesson"}</code></td></tr>
-<tr><td><code>run_pipeline</code></td><td>Sleep Pipeline: <code>{"force": true, "use_llm": false}</code></td></tr>
-</table></div>
-
-<h2>CLI</h2>
-<div class="card">
-<pre><code><span class="comment"># 记录记忆</span>
-PYTHONPATH=src python3 -m sisyphus.memory.cli record lesson <span class="val">"Python type hints"</span>
-
-<span class="comment"># 搜索</span>
-PYTHONPATH=src python3 -m sisyphus.memory.cli search <span class="val">"type hints"</span>
-
-<span class="comment"># 列出最近</span>
-PYTHONPATH=src python3 -m sisyphus.memory.cli recent
-
-<span class="comment"># 重建 Memory Tree</span>
-PYTHONPATH=src python3 -c <span class="str">"
-from sisyphus.cli.tree_cmd import cmd_tree_rebuild
-from pathlib import Path
-cmd_tree_rebuild(Path.home() / '.omo' / 'memory')
-"</span></code></pre>
-</div>
-
-<h2>生长测试</h2>
-<div class="card">
-<pre><code>PYTHONPATH=src python3 docs/p5_gate.py      <span class="comment"># Gate 测试 (30 queries)</span>
-PYTHONPATH=src python3 docs/p5_growth.py    <span class="comment"># 生长测试 (4 stages)</span></code></pre>
-</div>
-
-<h2>文件结构</h2>
-<div class="card">
-<pre><code>~/.omo/memory/
-├── INDEX.md              ← MOC 主题地图入口
-├── lesson/               ← RAW: 教训
-├── pattern/              ← RAW: 模式
-├── note/                 ← RAW: 笔记
-├── refined/              ← REFINED: LLM 精炼
-│   ├── reflection/       ← 洞察记录
-│   ├── summary/          ← 退火摘要
-│   └── loop/             ← 回路阻断
-├── tree/                 ← Memory Tree
-│   ├── _meta.json        ← 节点索引
-│   ├── l0.json           ← 全局摘要
-│   ├── l1/               ← type 聚类
-│   └── l2/               ← 记忆叶子
-└── logs/                 ← 审计日志</code></pre>
-</div>
-
-<h2>Reranker</h2>
-<div class="card">
-<p>BCE-Reranker (279M, CPU) 自动激活条件:</p>
-<ul style="margin-left:20px;font-size:.85rem">
-  <li>同类型下记忆数 ≥ 8 条</li>
-  <li>预期收益: +13% @1</li>
-</ul>
-<p style="margin-top:8px;font-size:.82rem;color:var(--muted)">无需手动配置，<code>ContextRetriever._auto_reranker()</code> 自动检测并加载。</p>
-</div>
-
-<h2>环境要求</h2>
-<div class="card"><table>
-<tr><td>Python</td><td>3.9+</td></tr>
-<tr><td>磁盘</td><td>~3GB (BCE 模型 ~1GB + 记忆文件)</td></tr>
-<tr><td>CPU</td><td>BCE 279M 无需 GPU</td></tr>
-<tr><td>依赖</td><td>jieba transformers torch</td></tr>
-</table></div>
-
-<div style="text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px">Sisyphus · <a href="USAGE.md" style="color:var(--b)">Markdown 版</a> · <a href="README.md" style="color:var(--b)">README</a></div>
-</div></body></html>
+</body></html>

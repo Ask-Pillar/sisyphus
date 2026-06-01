@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sisyphus Roadmap v2</title>
+<style>
+:root{--bg:#1e1e1e;--fg:#d4d4d4;--dim:#808080;--accent:#569cd6;--border:#333;--card:#252526}
+*{margin:0;padding:0}body{background:var(--bg);color:var(--fg);font-family:-apple-system,sans-serif;padding:20px;max-width:800px;margin:0 auto;font-size:.82rem;line-height:1.6}
+h1{font-size:1.3rem;color:var(--accent);margin:20px 0 10px;border-bottom:1px solid var(--border);padding-bottom:6px}
+h2{font-size:1.05rem;color:var(--accent);margin:18px 0 8px}
+h3{font-size:.9rem;color:#dcdcaa;margin:14px 0 6px}
+b{color:#dcdcaa}code{color:#ce9178}
+table{margin:8px 0}th{background:#252526;color:var(--accent);text-align:left}td{background:#1e1e1e}
+p{margin:6px 0}ul{margin:4px 0 4px 20px}li{margin:3px 0}
+blockquote{border-left:2px solid var(--accent);padding-left:12px;margin:8px 0;color:var(--dim);font-style:italic}
+</style></head><body>
+<h1>Nexus 整体规划</h1>
+<p style="margin:8px 0"><h2>定位</h2>
+<p style="margin:8px 0">Agent 中枢记忆系统。所有 Agent 的记忆、知识、技能都走 Nexus。MCP 是水管，Nexus 是调度阀门。
+<p style="margin:8px 0"><h2>架构</h2>
+<p style="margin:8px 0"><pre style="background:#2d2d2d;padding:12px;border-radius:6px;overflow-x:auto;font-size:.72rem"><code>任何 Agent (OpenCode / Claude Code / Hermes / Claw)
+  → MCP JSON-RPC
+    → Nexus Core (调度层)
+      ├── 路由: 请求该查哪些模块
+      ├── 合并: 多模块结果加权排序
+      └── 开关: config.yaml 控制模块启停
+        ├── sisyphus/    (Episodic 层)
+        ├── semantic/    (Semantic 层)
+        ├── procedural/  (Procedural 层)
+        └── external/    (第三方模块)
+</code></pre>
+<p style="margin:8px 0"><h2>目录结构</h2>
+<p style="margin:8px 0"><pre style="background:#2d2d2d;padding:12px;border-radius:6px;overflow-x:auto;font-size:.72rem"><code>nexus/
+├── nexus/
+│   ├── __init__.py
+│   ├── core.py          # 调度层 (路由+合并+开关)
+│   ├── protocol.py      # 模块协议 (search/import/stats)
+│   ├── config.py        # 配置加载
+│   ├── sisyphus/        # Episodic 层 (现有代码挪过来)
+│   │   ├── memory/      # store / retrieval / context / extraction / ...
+│   │   ├── agent/       # hooks
+│   │   ├── pipeline/    # SleepPipeline
+│   │   └── server/      # dashboard / mcp
+│   ├── semantic/        # Semantic 层 (Phase 5)
+│   │   ├── url_index.py
+│   │   ├── fetcher.py
+│   │   ├── sandbox.py
+│   │   └── knowledge.py # 已有，挪过来
+│   ├── procedural/      # Procedural 层 (Phase 6)
+│   │   ├── skill_store.py
+│   │   ├── agent_router.py
+│   │   └── persona.py
+│   └── external/        # 第三方模块桥接
+│       └── hermes_skills.py
+├── config/
+│   └── nexus.yaml
+├── tests/
+│   ├── sisyphus/        # 现有测试挪过来
+│   ├── semantic/
+│   └── procedural/
+├── docs/
+├── pyproject.toml
+├── README.md
+└── setup.py
+</code></pre>
+<p style="margin:8px 0"><h2>模块协议</h2>
+<p style="margin:8px 0">任何模块只需实现三个方法，就能接入 Nexus 调度：
+<p style="margin:8px 0"><pre style="background:#2d2d2d;padding:12px;border-radius:6px;overflow-x:auto;font-size:.72rem"><code>class ModuleProtocol:
+    name: str                          # 模块名，如 "sisyphus"
+    search(query: str, top_k: int) -> list[(result, score, source)]
+    import(source: str) -> int
+    stats() -> dict
+</code></pre>
+<p style="margin:8px 0">外部模块（如 Hermes 技能系统）只需包装成这个协议，就能注册进 Nexus。
+<p style="margin:8px 0"><h2>配置</h2>
+<p style="margin:8px 0"><code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">nexus/config/nexus.yaml</code>：
+<p style="margin:8px 0"><pre style="background:#2d2d2d;padding:12px;border-radius:6px;overflow-x:auto;font-size:.72rem"><code>modules:
+  sisyphus:
+    enabled: true
+    weight: 0.4
+    package: nexus.sisyphus
+  semantic:
+    enabled: true
+    weight: 0.3
+    package: nexus.semantic
+  procedural:
+    enabled: false
+    weight: 0.2
+    package: nexus.procedural
+  hermes-skills:
+    enabled: false
+    weight: 0.1
+    package: nexus.external.hermes_skills
+<p style="margin:8px 0">default_scope:
+  - sisyphus
+  - semantic
+</code></pre>
+<p style="margin:8px 0"><h2>实施计划</h2>
+<p style="margin:8px 0"><h3>第一步：项目改名 + 目录重组</h3>
+<p style="margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:.72rem">
+<tr><td style="border:1px solid #333;padding:4px 8px">步骤</td><td style="border:1px solid #333;padding:4px 8px">做什么</td><td style="border:1px solid #333;padding:4px 8px">风险</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">1.1</td><td style="border:1px solid #333;padding:4px 8px"><code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">sisyphus/</code> → <code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">nexus/</code>，更新 <code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">pyproject.toml</code></td><td style="border:1px solid #333;padding:4px 8px">低</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">1.2</td><td style="border:1px solid #333;padding:4px 8px">现有代码移到 <code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">nexus/nexus/sisyphus/</code></td><td style="border:1px solid #333;padding:4px 8px">中，import 路径全改</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">1.3</td><td style="border:1px solid #333;padding:4px 8px">更新所有 import 路径 (<code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">sisyphus.memory</code> → <code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">nexus.sisyphus.memory</code>)</td><td style="border:1px solid #333;padding:4px 8px">高，机械但量大</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">1.4</td><td style="border:1px solid #333;padding:4px 8px">更新所有测试 import</td><td style="border:1px solid #333;padding:4px 8px">中</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">1.5</td><td style="border:1px solid #333;padding:4px 8px"><code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">git remote set-url</code> 更新仓库（如果要改名）</td><td style="border:1px solid #333;padding:4px 8px">低</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">1.6</td><td style="border:1px solid #333;padding:4px 8px">408 测试全过</td><td style="border:1px solid #333;padding:4px 8px">—</td></tr>
+</table>
+<p style="margin:8px 0"><h3>第二步：调度层实现</h3>
+<p style="margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:.72rem">
+<tr><td style="border:1px solid #333;padding:4px 8px">步骤</td><td style="border:1px solid #333;padding:4px 8px">做什么</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">2.1</td><td style="border:1px solid #333;padding:4px 8px">实现 <code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">core.py</code>：模块注册、路由、合并</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">2.2</td><td style="border:1px solid #333;padding:4px 8px">实现 <code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">protocol.py</code>：ModuleProtocol 基类</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">2.3</td><td style="border:1px solid #333;padding:4px 8px">实现 <code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">config.py</code>：加载 nexus.yaml</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">2.4</td><td style="border:1px solid #333;padding:4px 8px">sisyphus 模块注册为第一个协议实现</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">2.5</td><td style="border:1px solid #333;padding:4px 8px">测试：多模块检索 + 权重验证</td></tr>
+</table>
+<p style="margin:8px 0"><h3>第三步：Semantic 层</h3>
+<p style="margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:.72rem">
+<tr><td style="border:1px solid #333;padding:4px 8px">步骤</td><td style="border:1px solid #333;padding:4px 8px">做什么</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">3.1</td><td style="border:1px solid #333;padding:4px 8px">URL 索引 + FTS5</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">3.2</td><td style="border:1px solid #333;padding:4px 8px">内容缓存 + 自动刷新</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">3.3</td><td style="border:1px solid #333;padding:4px 8px">分批导入 50GB</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">3.4</td><td style="border:1px solid #333;padding:4px 8px">白名单 + 包源验证</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">3.5</td><td style="border:1px solid #333;padding:4px 8px">注册为 Nexus 模块</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">3.6</td><td style="border:1px solid #333;padding:4px 8px">测试：URL 搜索 + 缓存刷新</td></tr>
+</table>
+<p style="margin:8px 0"><h3>第四步：Procedural 层</h3>
+<p style="margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:.72rem">
+<tr><td style="border:1px solid #333;padding:4px 8px">步骤</td><td style="border:1px solid #333;padding:4px 8px">做什么</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">4.1</td><td style="border:1px solid #333;padding:4px 8px">技能格式定义</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">4.2</td><td style="border:1px solid #333;padding:4px 8px">条件匹配引擎</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">4.3</td><td style="border:1px solid #333;padding:4px 8px">Agent 画像 + 路由规则</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">4.4</td><td style="border:1px solid #333;padding:4px 8px">注册为 Nexus 模块</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">4.5</td><td style="border:1px solid #333;padding:4px 8px">借 Hermes 技能创建逻辑</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">4.6</td><td style="border:1px solid #333;padding:4px 8px">Agent/程序画像注册 (<code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">agent_registry.yaml</code>)</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">4.7</td><td style="border:1px solid #333;padding:4px 8px">模型路由：本地模型 / API 自动匹配</td></tr>
+</table>
+<p style="margin:8px 0"><h3>模型路由</h3>
+<p style="margin:8px 0"><b>原理</b>：跟 Agent 路由同一套引擎。条件→动作规则，匹配后自动选择最优模型。
+<p style="margin:8px 0"><pre style="background:#2d2d2d;padding:12px;border-radius:6px;overflow-x:auto;font-size:.72rem"><code># 模型路由表
+model_routing:
+  rules:
+    - pattern: "代码生成|补全|写函数"
+      model: qwen3-coder-14b (本地 GPU,16GB)
+    - pattern: "复杂推理|架构设计"
+      model: qwen3-32b (本地 CPU,64GB)
+    - pattern: "图片识别|OCR|截图"
+      model: llama-vision (本地 GPU,7GB,临时切换)
+    - pattern: "翻译|闲聊|简单问答"
+      model: qwen-turbo (API, 省钱)
+    - default: qwen3-14b (本地 GPU)
+</code></pre>
+<p style="margin:8px 0">与 Agent 路由共用 Procedural 层匹配引擎，不单独建模块。
+<p style="margin:8px 0"><h3>Agent & 程序注册</h3>
+<p style="margin:8px 0">Agent 和程序在 Procedural 层一视同仁，统一注册：
+<p style="margin:8px 0"><pre style="background:#2d2d2d;padding:12px;border-radius:6px;overflow-x:auto;font-size:.72rem"><code>agent_registry:
+  opencode:       {type: agent, skills: [code_gen, review], interface: mcp}
+  hermes:         {type: agent, skills: [security_audit], interface: mcp}
+  trivy:          {type: program, skills: [container_scan], interface: cli}
+  bandit:         {type: program, skills: [python_scan], interface: cli}
+  docker-bench:   {type: program, skills: [docker_security], interface: cli}
+</code></pre>
+<p style="margin:8px 0">区别只在调用接口——Agent 走 MCP，程序走 subprocess。路由引擎不区分。
+<p style="margin:8px 0"><h2>关于 RAG</h2>
+<p style="margin:8px 0"><b>不需要传统 RAG</b>。原因：
+<p style="margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:.72rem">
+<tr><td style="border:1px solid #333;padding:4px 8px">我们已有的</td><td style="border:1px solid #333;padding:4px 8px">RAG 提供的</td><td style="border:1px solid #333;padding:4px 8px">结论</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">FTS5 关键词召回</td><td style="border:1px solid #333;padding:4px 8px">同</td><td style="border:1px solid #333;padding:4px 8px">覆盖</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">URL 索引 + 缓存</td><td style="border:1px solid #333;padding:4px 8px">文档检索</td><td style="border:1px solid #333;padding:4px 8px">覆盖</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">Decay + feedback + MMR 排序</td><td style="border:1px solid #333;padding:4px 8px">同</td><td style="border:1px solid #333;padding:4px 8px">覆盖</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">LLM 查詢理解 + 答案生成</td><td style="border:1px solid #333;padding:4px 8px">同</td><td style="border:1px solid #333;padding:4px 8px">覆盖</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">向量嵌入 + 语义搜索</td><td style="border:1px solid #333;padding:4px 8px">向量相似度</td><td style="border:1px solid #333;padding:4px 8px"><b>不需要，LLM 替代</b></td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">无</td><td style="border:1px solid #333;padding:4px 8px">多轮对话上下文管理</td><td style="border:1px solid #333;padding:4px 8px">不需要，LLM 自己管</td></tr>
+</table>
+<p style="margin:8px 0"><b>核心理由</b>：CS 领域 80% 查询是精准关键词。剩下 20% 模糊查询用 LLM 直接理解+生成，不需要 embedding 中间层。LLM API 极便宜且效果更好，省去维护向量数据库和 GPU 推理成本。
+<p style="margin:8px 0"><h2>记忆系统加强</h2>
+<p style="margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:.72rem">
+<tr><td style="border:1px solid #333;padding:4px 8px">方向</td><td style="border:1px solid #333;padding:4px 8px">当前</td><td style="border:1px solid #333;padding:4px 8px">加强后</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">Agent 调用记忆</td><td style="border:1px solid #333;padding:4px 8px">被动，Agent 调 MCP</td><td style="border:1px solid #333;padding:4px 8px">Nexus 主动推送：检测到相关话题自动注入上下文</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">去重</td><td style="border:1px solid #333;padding:4px 8px">无</td><td style="border:1px solid #333;padding:4px 8px">title+content 语义去重，避免"同一次故障学了 3 次"</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">过期清理</td><td style="border:1px solid #333;padding:4px 8px">无</td><td style="border:1px solid #333;padding:4px 8px">超过 6 个月无访问 + 低 importance → 自动压缩</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">调度自学习</td><td style="border:1px solid #333;padding:4px 8px">无</td><td style="border:1px solid #333;padding:4px 8px">Dream 分析调度日志 → 优化路由规则</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">多 Agent 会话关联</td><td style="border:1px solid #333;padding:4px 8px">无</td><td style="border:1px solid #333;padding:4px 8px">同一任务链（你问 A→A 调 B→B 调 C）自动串联</td></tr>
+</table>
+<p style="margin:8px 0"><h2>第七步：Docker 部署</h2>
+<p style="margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:.72rem">
+<tr><td style="border:1px solid #333;padding:4px 8px">步骤</td><td style="border:1px solid #333;padding:4px 8px">做什么</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">7.1</td><td style="border:1px solid #333;padding:4px 8px"><code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">Dockerfile</code>：Python 3.14 + SQLite + Nexus</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">7.2</td><td style="border:1px solid #333;padding:4px 8px"><code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">docker-compose.yml</code>：nexus-core + 可选 agent 容器</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">7.3</td><td style="border:1px solid #333;padding:4px 8px">Volumes：<code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">~/.omo</code> 持久化所有记忆</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">7.4</td><td style="border:1px solid #333;padding:4px 8px"><code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">nexus serve</code> 单命令启动 MCP + HTTP</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">7.5</td></tr>
+</table>
+<p style="margin:8px 0"><h3>第五步：独立部署 + 社区发布</h3>
+<p style="margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:.72rem">
+<tr><td style="border:1px solid #333;padding:4px 8px">步骤</td><td style="border:1px solid #333;padding:4px 8px">做什么</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">5.1</td><td style="border:1px solid #333;padding:4px 8px"><code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">nexus serve</code> 命令</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">5.2</td><td style="border:1px solid #333;padding:4px 8px">MCP Server 独立进程</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">5.3</td><td style="border:1px solid #333;padding:4px 8px">发布到 OpenCode 社区</td></tr>
+</table>
+<p style="margin:8px 0"><h2>迁移影响</h2>
+<p style="margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:.72rem">
+<tr><td style="border:1px solid #333;padding:4px 8px">改什么</td><td style="border:1px solid #333;padding:4px 8px">影响范围</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">import 路径</td><td style="border:1px solid #333;padding:4px 8px">所有 <code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">.py</code> 文件</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">测试 import</td><td style="border:1px solid #333;padding:4px 8px">所有 <code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">test_*.py</code></td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">CLI 入口</td><td style="border:1px solid #333;padding:4px 8px"><code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">cli.py</code> + <code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">tree_cmd.py</code></td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">MCP 路径</td><td style="border:1px solid #333;padding:4px 8px">opencode.json 配置</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">git remote</td><td style="border:1px solid #333;padding:4px 8px">如果仓库改名</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">文档</td><td style="border:1px solid #333;padding:4px 8px">README + 所有 docs</td></tr>
+</table>
+<p style="margin:8px 0"><h2>风险控制</h2>
+<p style="margin:8px 0">- 第一步是最大风险。拆成多个小 commit，每步可回滚
+- 先改目录结构，不改代码逻辑
+- 每个小步跑测试确认
+- 不改功能只改路径，测试能过就说明迁移成功
+<p style="margin:8px 0"><h2>第六步：Web Ingest — 免操作知识采集</h2>
+<p style="margin:8px 0"><b>目标</b>：用户在任何网页 AI（豆包/通义/ChatGPT）聊天后，内容自动进入 Nexus，零操作。
+<p style="margin:8px 0"><b>架构</b>：
+<p style="margin:8px 0"><pre style="background:#2d2d2d;padding:12px;border-radius:6px;overflow-x:auto;font-size:.72rem"><code>豆包网页 ──→ 浏览器插件 ──→ localhost:8765/ingest ──→ Nexus 自动提取 → sisyphus
+通义网页 ──→ 浏览器插件 ──→ localhost:8765/ingest ──→ Nexus 自动提取 → sisyphus
+ChatGPT  ──→ 浏览器插件 ──→ localhost:8765/ingest ──→ Nexus 自动提取 → sisyphus
+</code></pre>
+<p style="margin:8px 0"><b>实施</b>：
+<p style="margin:8px 0"><table style="width:100%;border-collapse:collapse;font-size:.72rem">
+<tr><td style="border:1px solid #333;padding:4px 8px">步骤</td><td style="border:1px solid #333;padding:4px 8px">做什么</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">6.1</td><td style="border:1px solid #333;padding:4px 8px">Nexus 加 <code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">/ingest</code> HTTP POST 端点，接收纯文本</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">6.2</td><td style="border:1px solid #333;padding:4px 8px">对接现有 Extractor：自动提取 lesson/decision/pattern</td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">6.3</td><td style="border:1px solid #333;padding:4px 8px">浏览器插件：检测 <code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">doubao.com</code> / <code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">tongyi.aliyun.com</code> / <code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">chat.openai.com</code></td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">6.4</td><td style="border:1px solid #333;padding:4px 8px">对话结束后自动抓取内容，POST 到 <code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">localhost:8765/ingest</code></td></tr>
+<tr><td style="border:1px solid #333;padding:4px 8px">6.5</td><td style="border:1px solid #333;padding:4px 8px">支持手动触发：点插件图标 → 立即抓取当前对话</td></tr>
+</table>
+<p style="margin:8px 0"><b>用户操作</b>：零。装一次插件，后面所有对话自动采集。
+<p style="margin:8px 0"><b>存储策略</b>：Nexus 只存精华索引，不存全文：
+<p style="margin:8px 0"><pre style="background:#2d2d2d;padding:12px;border-radius:6px;overflow-x:auto;font-size:.72rem"><code>豆包对话 "Python 3.14 改了什么"
+  → 浏览器插件提取
+    → Nexus 只存: "Python 3.14 Optional 废弃，用 | 替代 (来源: 豆包)"，   ← 一条索引
+    → 对话原文留在豆包，不回传
+    → 以后需要看全文 → 回豆包搜索，不占 Nexus token
+</code></pre>
+<p style="margin:8px 0">- token 节省：一次对话 5000 token → 一条索引 30 token，压缩 99%+
+- 原文归属：对话内容属于原平台，Nexus 不缓存全文
+- 可追溯：每条索引标注 <code style="background:#3c3c3c;padding:1px 5px;border-radius:3px;font-size:.75rem">source: doubao</code>，知道去哪找回原文
+
+</body></html>
